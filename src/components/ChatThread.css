@@ -1,4 +1,4 @@
-.chat-thread { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+.chat-thread { display: flex; flex-direction: column; flex: 1; height: 100%; overflow: hidden; }
 
 /* Messages area */
 .chat-messages {

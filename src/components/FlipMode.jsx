@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { getIndex, saveConversation, updateChatHistory, getConversation, deleteConversation, archiveConversation, unarchiveConversation, pinConversation } from '../utils/conversationStore';
 import ChatThread from './ChatThread';
 import './FlipMode.css';
@@ -21,13 +21,20 @@ function statusColor(status) {
   return 'gray';
 }
 
-export default function FlipMode({ cart, listingItem, onNavigateToCart, onNavigateToListing }) {
+export default function FlipMode({ cart, listingItem, onNavigateToCart, onNavigateToListing, targetConversationId, onTargetConsumed, returnScreen, onReturn }) {
   const [view, setView] = useState('list'); // 'list' | 'chat' | 'archived'
   const [conversations, setConversations] = useState(() => getIndex());
   const [selectedId, setSelectedId] = useState(null);
   const [activeConv, setActiveConv] = useState(null);
   const [chatHistory, setChatHistory] = useState([]);
   const [contextMenu, setContextMenu] = useState(null); // { id, x, y } | null
+
+  useEffect(() => {
+    if (targetConversationId) {
+      openChat(targetConversationId);
+      onTargetConsumed?.();
+    }
+  }, []);
 
   const swipeRef     = useRef({}); // { [id]: { startX, dx, active } }
   const rowRefs      = useRef({}); // { [id]: DOM element }
@@ -195,7 +202,7 @@ export default function FlipMode({ cart, listingItem, onNavigateToCart, onNaviga
     return (
       <div className="screen flip-screen">
         <div className="flip-chat-header">
-          <button className="flip-back-btn" onClick={handleBack}>←</button>
+          <button className="flip-back-btn" onClick={() => { if (returnScreen) { onReturn?.(); } else { handleBack(); } }}>←</button>
           <span className="flip-chat-title">{activeConv?.itemName ?? 'Chat'}</span>
         </div>
         {inCart && (

@@ -20,6 +20,8 @@ function AppInner() {
     return valid.includes(saved) ? saved : 'shop';
   });
   const [previewData, setPreviewData] = useState(null);
+  const [flipTargetId, setFlipTargetId] = useState(null);
+  const [previousScreen, setPreviousScreen] = useState(null);
   const { cart, addItem, removeItem } = useCart();
 
   const [listingItem, setListingItem] = useState(() => {
@@ -71,6 +73,7 @@ function AppInner() {
         <ShoppingMode
           onAddToCart={addItem}
           onNavigateToCart={() => setCurrentScreen('cart')}
+          onGoToFlip={(id) => { setPreviousScreen('shop'); setFlipTargetId(id); setCurrentScreen('flip'); }}
         />
       )}
       {currentScreen === 'flip' && (
@@ -79,6 +82,10 @@ function AppInner() {
           listingItem={listingItem}
           onNavigateToCart={() => setCurrentScreen('cart')}
           onNavigateToListing={() => setCurrentScreen('listing')}
+          targetConversationId={flipTargetId}
+          onTargetConsumed={() => setFlipTargetId(null)}
+          returnScreen={previousScreen}
+          onReturn={() => { setCurrentScreen(previousScreen); setPreviousScreen(null); }}
         />
       )}
       {currentScreen === 'cart' && (
@@ -86,6 +93,7 @@ function AppInner() {
           cart={cart}
           onRemoveItem={removeItem}
           onReadyToList={handleReadyToList}
+          listingItem={listingItem}
         />
       )}
       {currentScreen === 'listing' && (

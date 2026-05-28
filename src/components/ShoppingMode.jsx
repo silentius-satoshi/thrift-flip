@@ -6,7 +6,6 @@ import { shoppingService } from '../utils/storageService';
 import { useUser } from '../contexts/UserContext';
 import VerdictCard from './VerdictCard';
 import SellVelocity from './SellVelocity';
-import ChatThread from './ChatThread';
 import './ShoppingMode.css';
 
 const LOADING_MESSAGES = [
@@ -38,7 +37,7 @@ async function fileToBase64(photo) {
   });
 }
 
-export default function ShoppingMode({ onAddToCart, onNavigateToCart }) {
+export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip }) {
   const { showToast } = useToast();
   const { user } = useUser(); // TODO: check user.plan analysis limits before analyze
 
@@ -79,9 +78,9 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart }) {
     () => savedVerdict.current?.phase === 'verdict'
   );
 
-  const fileInputRef = useRef(null);
-  const intervalRef  = useRef(null);
-  const photosRef    = useRef([]);
+  const fileInputRef  = useRef(null);
+  const intervalRef   = useRef(null);
+  const photosRef     = useRef([]);
 
   // Keep photosRef in sync for unmount cleanup
   useEffect(() => { photosRef.current = photos; }, [photos]);
@@ -250,41 +249,40 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart }) {
 
   if (phase === 'verdict' && analysisResult) {
     return (
-      <div className="verdict-phase-wrap">
-        <div className="verdict-scroll-area">
-          {showResumeBanner && (
-            <div className="shopping-resume-banner">
-              ↩ Resuming your last analysis — tap Skip to start fresh
-            </div>
-          )}
-          {photos.length > 0 && (
-            <div className="shop-photo-strip verdict-strip">
-              {photos.map((p, i) => (
-                <div key={i} className="shop-photo-thumb" onClick={() => setLightboxPhoto(p.previewUrl)}>
-                  <img src={p.previewUrl} alt={`Photo ${i + 1}`} />
-                </div>
-              ))}
-            </div>
-          )}
-          <button className="btn btn-ghost shop-retake-btn" onClick={handleRetakePhotos}>
-            📷 Retake photos
-          </button>
-          <VerdictCard analysisResult={analysisResult} goodwillPrice={parseFloat(goodwillPrice)} />
-          <SellVelocity analysisResult={analysisResult} />
-        </div>
-        <div className="verdict-chat-area">
-          <ChatThread
-            chatHistory={chatHistory}
-            onUpdateHistory={handleUpdateHistory}
-            itemContext={{ details, condition, goodwillPrice: parseFloat(goodwillPrice) }}
-          />
-        </div>
+      <div className="verdict-page">
+        {showResumeBanner && (
+          <div className="shopping-resume-banner">
+            ↩ Resuming your last analysis — tap Skip to start fresh
+          </div>
+        )}
+        {photos.length > 0 && (
+          <div className="shop-photo-strip verdict-strip">
+            {photos.map((p, i) => (
+              <div key={i} className="shop-photo-thumb" onClick={() => setLightboxPhoto(p.previewUrl)}>
+                <img src={p.previewUrl} alt={`Photo ${i + 1}`} />
+              </div>
+            ))}
+          </div>
+        )}
+        <button className="btn btn-ghost shop-retake-btn" onClick={handleRetakePhotos}>
+          📷 Retake photos
+        </button>
+        <VerdictCard analysisResult={analysisResult} goodwillPrice={parseFloat(goodwillPrice)} />
+        <SellVelocity analysisResult={analysisResult} />
+
+        <button className="verdict-chat-bubble" onClick={() => onGoToFlip?.(itemId)}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+          </svg>
+        </button>
+
         <div className="verdict-action-bar">
           <button className="btn btn-red" onClick={handleSkip}>Skip it ✕</button>
           {isBuy && (
-            <button className="btn btn-amber" onClick={handleAddToCart}>Add to cart</button>
+            <button className="btn btn-amber" onClick={handleAddToCart}>🛒 Add to cart</button>
           )}
         </div>
+
         {lightboxPhoto && (
           <div className="photo-lightbox-overlay" onClick={() => setLightboxPhoto(null)}>
             <img src={lightboxPhoto} className="photo-lightbox-img" alt="Full size" />

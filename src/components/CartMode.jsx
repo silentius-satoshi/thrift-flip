@@ -4,11 +4,15 @@ import { markStatus } from '../utils/conversationStore';
 import { useToast } from '../contexts/ToastContext';
 import './CartMode.css';
 
-export default function CartMode({ cart, onRemoveItem, onReadyToList }) {
+export default function CartMode({ cart, onRemoveItem, onReadyToList, listingItem }) {
   const { showToast } = useToast();
   const [loadingId, setLoadingId] = useState(null);
 
   async function handleReadyToList(item) {
+    if (listingItem !== null) {
+      showToast('You have an active listing in progress — send it to drafts or clear it first', 'error');
+      return;
+    }
     setLoadingId(item.id);
     try {
       const listingData = await generateListing(item);
