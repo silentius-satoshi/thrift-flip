@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { getHistory, deleteHistoryEntry, clearHistory } from '../utils/historyStore';
 import { useToast } from '../contexts/ToastContext';
+import { useUser } from '../contexts/UserContext';
 import './HistoryMode.css';
 
 function formatSentDate(ts) {
@@ -16,6 +17,7 @@ function formatSentDate(ts) {
 
 export default function HistoryMode() {
   const { showToast } = useToast();
+  const { user } = useUser(); // TODO: filter history by user.id when multi-user
   const [history, setHistory] = useState(() => getHistory());
   const [pendingDelete, setPendingDelete] = useState(null);
   const [clearAllPending, setClearAllPending] = useState(false);

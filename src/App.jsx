@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ToastProvider } from './contexts/ToastContext';
+import { UserProvider } from './contexts/UserContext';
 import { useCart } from './hooks/useCart';
 import Nav from './components/Nav';
 import ShoppingMode from './components/ShoppingMode';
@@ -105,8 +106,10 @@ function AppInner() {
 
 export default function App() {
   return (
-    <ToastProvider>
-      <AppInner />
-    </ToastProvider>
+    <UserProvider>
+      <ToastProvider>
+        <AppInner />
+      </ToastProvider>
+    </UserProvider>
   );
 }

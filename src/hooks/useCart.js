@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { cartService } from '../utils/storageService';
 
 const STORAGE_KEY = 'thrift-flip-cart';
 
 function loadFromStorage() {
   try {
+    // Direct read — sync required for useState lazy init
     const raw = localStorage.getItem(STORAGE_KEY);
     return raw ? JSON.parse(raw) : [];
   } catch {
@@ -17,7 +19,7 @@ export function useCart() {
   useEffect(() => {
     // Strip photoBase64 before persisting — full base64 images blow the 5MB localStorage limit
     const serializable = cart.map(({ photoBase64: _, ...rest }) => rest);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(serializable));
+    cartService.set(serializable);
   }, [cart]);
 
   function addItem(item) {

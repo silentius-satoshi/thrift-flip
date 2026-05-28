@@ -3,6 +3,8 @@ import { regenerateField, sendToEbay } from '../utils/webhooks';
 import { calcProfit } from '../utils/calculations';
 import { addHistoryEntry } from '../utils/historyStore';
 import { useToast } from '../contexts/ToastContext';
+import { listingEditsService } from '../utils/storageService';
+import { useUser } from '../contexts/UserContext';
 import './ListingMode.css';
 
 const CONDITIONS = ['New', 'Like New', 'Good', 'Acceptable', 'For Parts'];
@@ -27,6 +29,7 @@ const CATEGORIES = [
 ];
 
 function loadEdits() {
+  // Direct read — sync required for useState lazy init
   try {
     const raw = localStorage.getItem('thrift-flip-listing-edits');
     return raw ? JSON.parse(raw) : null;
@@ -35,6 +38,7 @@ function loadEdits() {
 
 export default function ListingMode({ listingItem, listingData, onClearListing, onPreview }) {
   const { showToast } = useToast();
+  const { user } = useUser(); // TODO: check user.plan listing limits before sendToEbay
 
   // Captured once per mount — shared across all lazy initializers below
   const savedEdits = useRef(loadEdits());
@@ -76,14 +80,9 @@ export default function ListingMode({ listingItem, listingData, onClearListing, 
       specifics, selectedShipping, selectedCategory,
       photos: photos.map(p => p.dataUrl),
     };
-    try {
-      localStorage.setItem('thrift-flip-listing-edits', JSON.stringify(edits));
-    } catch {
-      // QuotaExceededError from large photo dataUrls — retry without photos
-      try {
-        localStorage.setItem('thrift-flip-listing-edits', JSON.stringify({ ...edits, photos: [] }));
-      } catch { /* ignore */ }
-    }
+    listingEditsService.set(edits).then(ok => {
+      if (!ok) listingEditsService.set({ ...edits, photos: [] });
+    });
   }, [title, selectedCondition, price, qty, description, specifics, selectedShipping, selectedCategory, photos]);
 
   function handleAddPhotos(e) {
@@ -144,7 +143,7 @@ export default function ListingMode({ listingItem, listingData, onClearListing, 
         shipping: selectedShipping, category: selectedCategory,
         specifics, cartItemId: listingItem?.id,
       });
-      localStorage.removeItem('thrift-flip-listing-edits');
+      listingEditsService.clear();
       addHistoryEntry({
         title,
         price: parseFloat(price) || 0,
