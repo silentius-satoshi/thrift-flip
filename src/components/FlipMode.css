@@ -1,38 +1,184 @@
-/* ── Chips row ── */
-.flip-chips-row {
+/* ── Screen ── */
+.flip-screen {
   display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 12px;
-  margin-bottom: 4px;
+  flex-direction: column;
+  height: 100dvh;
+  min-height: 0;
+  padding: 0 0 80px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* ── List header ── */
+.flip-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px 8px;
   flex-shrink: 0;
 }
-.flip-chips-row::-webkit-scrollbar { display: none; }
-
-.flip-chip {
-  flex-shrink: 0;
-  padding: 6px 14px;
-  border-radius: var(--radius-pill);
-  font-size: 13px;
-  font-weight: 500;
-  border: 1px solid var(--border-mid);
-  background: var(--bg-input);
-  color: var(--text-secondary);
-  white-space: nowrap;
+.flip-list-title { font-size: 18px; font-weight: 700; color: var(--text-primary); }
+.flip-new-btn {
+  font-size: 14px;
+  color: var(--blue);
+  font-weight: 600;
+  background: none;
+  border: none;
   cursor: pointer;
-  transition: all 0.15s;
-}
-.flip-chip.active {
-  background: var(--blue-bg);
-  color: var(--blue);
-  border-color: var(--blue-border);
+  padding: 4px 0;
 }
 
-.flip-chip-new {
-  border-style: dashed;
-  border-color: var(--blue-border);
-  background: var(--blue-bg);
+/* ── Section labels ── */
+.flip-section-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 8px 16px 4px;
+}
+
+/* ── Conversation list ── */
+.flip-conv-list { flex: 1; overflow-y: auto; }
+
+/* ── Row wrap (swipe container) ── */
+.conv-row-wrap { position: relative; overflow: hidden; }
+
+/* Swipe action backgrounds */
+.swipe-bg-left {
+  position: absolute;
+  inset: 0;
+  background: var(--amber-bg);
+  display: flex;
+  align-items: center;
+  padding-left: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--amber);
+}
+.swipe-bg-right {
+  position: absolute;
+  inset: 0;
+  background: rgba(239, 68, 68, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #ef4444;
+}
+
+/* ── Row inner (slides on swipe) ── */
+.conv-row-inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-primary);
+  cursor: pointer;
+  position: relative;
+  z-index: 1;
+  transition: transform 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.conv-row-inner:active { background: var(--bg-card); }
+
+/* ── Avatar ── */
+.conv-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.conv-avatar-amber { background: var(--amber-bg); color: var(--amber); }
+.conv-avatar-blue  { background: var(--blue-bg);  color: var(--blue);  }
+.conv-avatar-gray  { background: var(--bg-card);  color: var(--text-secondary); }
+
+/* ── Center content ── */
+.conv-center {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.conv-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.conv-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.conv-preview {
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Status pills */
+.conv-pill {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: var(--radius-pill);
+  flex-shrink: 0;
+}
+.conv-pill-amber { background: var(--amber-bg); color: var(--amber); }
+.conv-pill-blue  { background: var(--blue-bg);  color: var(--blue);  }
+
+/* ── Right side ── */
+.conv-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.conv-time { font-size: 11px; color: var(--text-muted); }
+.conv-pin  { font-size: 12px; }
+
+/* ── Chat view header ── */
+.flip-chat-header {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px 8px;
+  gap: 12px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+}
+.flip-back-btn {
+  font-size: 20px;
   color: var(--blue);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0 4px 0 0;
+  line-height: 1;
+}
+.flip-chat-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-right: 28px; /* balance the back button */
 }
 
 /* ── Banners ── */
@@ -43,11 +189,64 @@
   padding: 9px 12px;
   font-size: 13px;
   color: var(--amber);
-  margin-bottom: 12px;
+  margin: 8px 16px 0;
   cursor: pointer;
   transition: opacity 0.15s;
 }
 .flip-banner:active { opacity: 0.7; }
+
+/* ── Context menu ── */
+.flip-menu-backdrop { position: fixed; inset: 0; z-index: 200; }
+.flip-context-menu {
+  position: fixed;
+  z-index: 201;
+  background: var(--bg-card);
+  border: 1px solid var(--border-mid);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  min-width: 160px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+.flip-context-menu button {
+  display: block;
+  width: 100%;
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 15px;
+  color: var(--text-primary);
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+.flip-context-menu button:last-child { border-bottom: none; }
+.flip-context-menu button:active { background: var(--bg-input); }
+.flip-menu-delete { color: #ef4444 !important; }
+
+/* ── Archived row ── */
+.conv-archived-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  border-top: 1px solid var(--border);
+  -webkit-tap-highlight-color: transparent;
+}
+.conv-archived-row:active { background: var(--bg-card); }
+.conv-archived-icon { font-size: 20px; width: 44px; text-align: center; flex-shrink: 0; }
+.conv-archived-label { flex: 1; font-size: 15px; color: var(--text-secondary); }
+.conv-archived-count { font-size: 14px; color: var(--text-muted); }
+
+.flip-back-btn-small { font-size: 16px; }
+
+.flip-chat-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
 
 /* ── Empty state ── */
 .flip-empty {

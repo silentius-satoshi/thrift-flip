@@ -1,6 +1,23 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, Fragment } from 'react';
 import { sendChatMessage } from '../utils/webhooks';
 import './ChatThread.css';
+
+function isSameGroupPrev(messages, i) {
+  return i > 0 && messages[i].role === messages[i - 1].role;
+}
+function isSameGroupNext(messages, i) {
+  return i < messages.length - 1 && messages[i].role === messages[i + 1].role;
+}
+function formatGroupTs(ts) {
+  const d = new Date(ts);
+  const now = new Date();
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const time = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  if (d.toDateString() === now.toDateString()) return `Today ${time}`;
+  if (d.toDateString() === yesterday.toDateString()) return `Yesterday ${time}`;
+  return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + time;
+}
 
 export default function ChatThread({ chatHistory, onUpdateHistory, itemContext }) {
   const [inputValue, setInputValue] = useState('');
@@ -15,13 +32,13 @@ export default function ChatThread({ chatHistory, onUpdateHistory, itemContext }
     const text = inputValue.trim();
     if (!text || isTyping) return;
     setInputValue('');
-    onUpdateHistory(prev => [...prev, { role: 'user', text }]);
+    onUpdateHistory(prev => [...prev, { role: 'user', text, ts: Date.now() }]);
     setIsTyping(true);
     try {
       const res = await sendChatMessage({ message: text, chatHistory, itemContext });
-      onUpdateHistory(prev => [...prev, { role: 'ai', text: res.text }]);
+      onUpdateHistory(prev => [...prev, { role: 'ai', text: res.text, ts: Date.now() }]);
     } catch {
-      onUpdateHistory(prev => [...prev, { role: 'ai', text: 'Sorry, I had trouble responding. Please try again.' }]);
+      onUpdateHistory(prev => [...prev, { role: 'ai', text: 'Sorry, I had trouble responding. Please try again.', ts: Date.now() }]);
     } finally {
       setIsTyping(false);
     }
@@ -35,29 +52,50 @@ export default function ChatThread({ chatHistory, onUpdateHistory, itemContext }
   }
 
   return (
-    <div className="card">
-      <div className="chat-title">Ask Flip AI</div>
+    <div className="chat-thread">
       <div className="chat-messages">
-        {chatHistory.map((msg, i) => (
-          <div key={i} className={`chat-bubble-wrap ${msg.role === 'user' ? 'user' : 'ai'}`}>
-            <div className={`chat-bubble ${msg.role === 'user' ? 'user' : 'ai'}`}>
-              {msg.text}
-            </div>
+        {chatHistory.length === 0 && !isTyping && (
+          <div className="chat-empty">
+            <span className="chat-empty-icon">💬</span>
+            <span className="chat-empty-text">Ask Flip anything about this item</span>
           </div>
-        ))}
+        )}
+        {chatHistory.map((msg, i) => {
+          const prevSame = isSameGroupPrev(chatHistory, i);
+          const nextSame = isSameGroupNext(chatHistory, i);
+          const hasTail = !nextSame;
+          const showSep = i > 0 && msg.ts && chatHistory[i - 1]?.ts &&
+            msg.ts - chatHistory[i - 1].ts > 5 * 60 * 1000;
+          const isUser = msg.role === 'user';
+          return (
+            <Fragment key={i}>
+              {showSep && (
+                <div className="chat-time-sep">{formatGroupTs(msg.ts)}</div>
+              )}
+              <div className={`chat-bubble-wrap ${isUser ? 'user' : 'ai'}${prevSame ? ' same-prev' : ''}`}>
+                {!isUser && (
+                  <div className={`chat-avatar${prevSame ? ' invisible' : ''}`}>F</div>
+                )}
+                <div className={`chat-bubble ${isUser ? 'user' : 'ai'}${hasTail ? ' has-tail' : ''}`}>
+                  {msg.text}
+                </div>
+              </div>
+            </Fragment>
+          );
+        })}
         {isTyping && (
-          <div className="chat-bubble-wrap ai chat-typing-wrap">
-            <div className="chat-typing">
-              <span /><span /><span />
-            </div>
+          <div className="chat-bubble-wrap ai">
+            <div className="chat-avatar">F</div>
+            <div className="chat-typing"><span /><span /><span /></div>
           </div>
         )}
         <div ref={messagesEndRef} />
       </div>
       <div className="chat-input-row">
-        <input
-          className="form-input"
+        <textarea
+          className="chat-input"
           placeholder="Ask about this item..."
+          rows={1}
           value={inputValue}
           onChange={e => setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -68,7 +106,7 @@ export default function ChatThread({ chatHistory, onUpdateHistory, itemContext }
           onClick={handleSend}
           disabled={isTyping || !inputValue.trim()}
         >
-          Send
+          ↑
         </button>
       </div>
     </div>

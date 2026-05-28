@@ -269,11 +269,13 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart }) {
           </button>
           <VerdictCard analysisResult={analysisResult} goodwillPrice={parseFloat(goodwillPrice)} />
           <SellVelocity analysisResult={analysisResult} />
-          <ChatThread
-            chatHistory={chatHistory}
-            onUpdateHistory={handleUpdateHistory}
-            itemContext={{ details, condition, goodwillPrice: parseFloat(goodwillPrice) }}
-          />
+          <div style={{ height: 380, overflow: 'hidden', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-base)' }}>
+            <ChatThread
+              chatHistory={chatHistory}
+              onUpdateHistory={handleUpdateHistory}
+              itemContext={{ details, condition, goodwillPrice: parseFloat(goodwillPrice) }}
+            />
+          </div>
         </div>
         <div className="verdict-action-bar">
           <button className="btn btn-red" onClick={handleSkip}>Skip it ✕</button>
