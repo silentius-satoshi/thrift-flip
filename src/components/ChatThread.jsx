@@ -22,10 +22,12 @@ function formatGroupTs(ts) {
 export default function ChatThread({ chatHistory, onUpdateHistory, itemContext }) {
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
   }, [chatHistory, isTyping]);
 
   async function handleSend() {
@@ -53,7 +55,7 @@ export default function ChatThread({ chatHistory, onUpdateHistory, itemContext }
 
   return (
     <div className="chat-thread">
-      <div className="chat-messages">
+      <div className="chat-messages" ref={messagesContainerRef}>
         {chatHistory.length === 0 && !isTyping && (
           <div className="chat-empty">
             <span className="chat-empty-icon">💬</span>
@@ -89,7 +91,6 @@ export default function ChatThread({ chatHistory, onUpdateHistory, itemContext }
             <div className="chat-typing"><span /><span /><span /></div>
           </div>
         )}
-        <div ref={messagesEndRef} />
       </div>
       <div className="chat-input-row">
         <textarea

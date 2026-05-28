@@ -250,8 +250,8 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart }) {
 
   if (phase === 'verdict' && analysisResult) {
     return (
-      <div className="screen">
-        <div className="verdict-phase">
+      <div className="verdict-phase-wrap">
+        <div className="verdict-scroll-area">
           {showResumeBanner && (
             <div className="shopping-resume-banner">
               ↩ Resuming your last analysis — tap Skip to start fresh
@@ -271,13 +271,13 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart }) {
           </button>
           <VerdictCard analysisResult={analysisResult} goodwillPrice={parseFloat(goodwillPrice)} />
           <SellVelocity analysisResult={analysisResult} />
-          <div style={{ height: 380, overflow: 'hidden', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-base)' }}>
-            <ChatThread
-              chatHistory={chatHistory}
-              onUpdateHistory={handleUpdateHistory}
-              itemContext={{ details, condition, goodwillPrice: parseFloat(goodwillPrice) }}
-            />
-          </div>
+        </div>
+        <div className="verdict-chat-area">
+          <ChatThread
+            chatHistory={chatHistory}
+            onUpdateHistory={handleUpdateHistory}
+            itemContext={{ details, condition, goodwillPrice: parseFloat(goodwillPrice) }}
+          />
         </div>
         <div className="verdict-action-bar">
           <button className="btn btn-red" onClick={handleSkip}>Skip it ✕</button>

@@ -66,3 +66,9 @@ export const listingService = {
   set: (listing) => setItem('thrift-flip-listing', listing),
   clear: () => removeItem('thrift-flip-listing'),
 };
+
+// Screen
+export const screenService = {
+  get: () => getItem('thrift-flip-screen'),
+  set: (screen) => setItem('thrift-flip-screen', screen),
+};

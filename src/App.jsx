@@ -12,7 +12,12 @@ import HistoryMode from './components/HistoryMode';
 import './App.css';
 
 function AppInner() {
-  const [currentScreen, setCurrentScreen] = useState('shop');
+  const [currentScreen, setCurrentScreen] = useState(() => {
+    // Direct read — sync required for useState lazy init
+    const saved = localStorage.getItem('thrift-flip-screen');
+    const valid = ['shop', 'flip', 'cart', 'listing', 'history'];
+    return valid.includes(saved) ? saved : 'shop';
+  });
   const [previewData, setPreviewData] = useState(null);
   const { cart, addItem, removeItem } = useCart();
 
@@ -36,6 +41,10 @@ function AppInner() {
       localStorage.removeItem('thrift-flip-listing');
     }
   }, [listingItem, listingData]);
+
+  useEffect(() => {
+    localStorage.setItem('thrift-flip-screen', currentScreen);
+  }, [currentScreen]);
 
   function handleReadyToList(item, generatedListing) {
     setListingItem(item);
