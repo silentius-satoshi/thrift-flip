@@ -24,7 +24,7 @@ function generateRecentSales(estSellPrice) {
 }
 
 // TODO: replace with real webhook when n8n is ready
-export async function analyzeItem({ photoBase64, details, condition, goodwillPrice }) {
+export async function analyzeItem({ photoBase64s, details, condition, goodwillPrice }) {
   await new Promise(r => setTimeout(r, 2400));
   const multiplier = 3.2 + Math.random() * 2.4;
   const estSellPrice = parseFloat((goodwillPrice * multiplier).toFixed(2));

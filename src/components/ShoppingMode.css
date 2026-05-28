@@ -21,8 +21,6 @@
   overflow: hidden;
 }
 .photo-upload-area:hover { border-color: var(--blue); }
-.photo-upload-area.has-photo { padding: 0; border-style: solid; border-color: var(--border-mid); }
-.photo-upload-area.has-photo img { width: 100%; max-height: 220px; object-fit: cover; border-radius: 10px; }
 .photo-upload-icon  { font-size: 28px; }
 .photo-upload-label { font-size: 14px; color: var(--text-secondary); font-weight: 500; }
 .photo-upload-hint  { font-size: 12px; color: var(--text-muted); line-height: 1.4; }
@@ -76,6 +74,73 @@
 }
 .verdict-action-bar .btn { flex: 1; }
 
+/* ── Multi-photo strip ── */
+.shop-photo-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.shop-photo-strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.shop-photo-strip::-webkit-scrollbar { display: none; }
+
+.shop-photo-thumb {
+  flex-shrink: 0;
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid var(--border-mid);
+}
+.shop-photo-thumb img { width: 100%; height: 100%; object-fit: cover; cursor: pointer; }
+
+.shop-photo-remove {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.6);
+  color: #fff;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.shop-photo-add {
+  flex-shrink: 0;
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+  border: 2px dashed var(--blue-border);
+  background: var(--blue-bg);
+  color: var(--blue);
+  font-size: 22px;
+  font-weight: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.shop-retake-btn {
+  font-size: 13px;
+  padding: 8px 14px;
+  align-self: flex-start;
+}
+
+/* verdict strip thumbnails open lightbox */
+.verdict-strip .shop-photo-thumb { cursor: pointer; }
+
 /* ── Resume banner ── */
 .shopping-resume-banner {
   background: var(--amber-bg);
@@ -84,4 +149,37 @@
   padding: 9px 12px;
   font-size: 13px;
   color: var(--amber);
+}
+
+/* ── Photo lightbox ── */
+.photo-lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.photo-lightbox-img {
+  max-width: 100%;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: 8px;
+}
+.photo-lightbox-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
 }
