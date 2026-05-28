@@ -21,7 +21,10 @@ function AppInner() {
   });
   const [previewData, setPreviewData] = useState(null);
   const [flipTargetId, setFlipTargetId] = useState(null);
-  const [previousScreen, setPreviousScreen] = useState(null);
+  const [previousScreen, setPreviousScreen] = useState(() => {
+    // Direct read — sync required for useState lazy init
+    return localStorage.getItem('thrift-flip-previous-screen') ?? null;
+  });
   const { cart, addItem, removeItem } = useCart();
 
   const [listingItem, setListingItem] = useState(() => {
@@ -48,6 +51,14 @@ function AppInner() {
   useEffect(() => {
     localStorage.setItem('thrift-flip-screen', currentScreen);
   }, [currentScreen]);
+
+  useEffect(() => {
+    if (previousScreen !== null) {
+      localStorage.setItem('thrift-flip-previous-screen', previousScreen);
+    } else {
+      localStorage.removeItem('thrift-flip-previous-screen');
+    }
+  }, [previousScreen]);
 
   function handleReadyToList(item, generatedListing) {
     setListingItem(item);
@@ -85,7 +96,7 @@ function AppInner() {
           targetConversationId={flipTargetId}
           onTargetConsumed={() => setFlipTargetId(null)}
           returnScreen={previousScreen}
-          onReturn={() => { setCurrentScreen(previousScreen); setPreviousScreen(null); }}
+          onReturn={() => { setCurrentScreen(previousScreen); setPreviousScreen(null); localStorage.removeItem('thrift-flip-previous-screen'); }}
         />
       )}
       {currentScreen === 'cart' && (

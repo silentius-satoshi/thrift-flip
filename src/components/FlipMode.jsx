@@ -32,8 +32,24 @@ export default function FlipMode({ cart, listingItem, onNavigateToCart, onNaviga
     const saved = localStorage.getItem('thrift-flip-selected-id');
     return saved ? parseInt(saved, 10) : null;
   });
-  const [activeConv, setActiveConv] = useState(null);
-  const [chatHistory, setChatHistory] = useState([]);
+  const [activeConv, setActiveConv] = useState(() => {
+    // Direct read — sync required for useState lazy init
+    const savedView = localStorage.getItem('thrift-flip-view');
+    const savedId = localStorage.getItem('thrift-flip-selected-id');
+    if (savedView === 'chat' && savedId) {
+      return getConversation(parseInt(savedId, 10)) ?? null;
+    }
+    return null;
+  });
+  const [chatHistory, setChatHistory] = useState(() => {
+    // Direct read — sync required for useState lazy init
+    const savedView = localStorage.getItem('thrift-flip-view');
+    const savedId = localStorage.getItem('thrift-flip-selected-id');
+    if (savedView === 'chat' && savedId) {
+      return getConversation(parseInt(savedId, 10))?.chatHistory ?? [];
+    }
+    return [];
+  });
   const [contextMenu, setContextMenu] = useState(null); // { id, x, y } | null
 
   useEffect(() => {
@@ -49,14 +65,6 @@ export default function FlipMode({ cart, listingItem, onNavigateToCart, onNaviga
     if (targetConversationId) {
       openChat(targetConversationId);
       onTargetConsumed?.();
-    }
-  }, []);
-
-  useEffect(() => {
-    if (view === 'chat' && selectedId !== null) {
-      const conv = getConversation(selectedId);
-      setActiveConv(conv);
-      setChatHistory(conv?.chatHistory ?? []);
     }
   }, []);
 
