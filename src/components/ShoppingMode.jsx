@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { analyzeItem } from '../utils/webhooks';
-import { saveConversation, updateChatHistory, markStatus } from '../utils/conversationStore';
+import { saveConversation, updateChatHistory, markStatus, getConversation } from '../utils/conversationStore';
 import { useToast } from '../contexts/ToastContext';
 import VerdictCard from './VerdictCard';
 import SellVelocity from './SellVelocity';
@@ -15,26 +15,56 @@ const LOADING_MESSAGES = [
   'Generating your verdict...',
 ];
 
+function loadForm() {
+  try { return JSON.parse(localStorage.getItem('thrift-flip-shopping-form')); } catch { return null; }
+}
+function loadVerdict() {
+  try { return JSON.parse(localStorage.getItem('thrift-flip-shopping-verdict')); } catch { return null; }
+}
+
 export default function ShoppingMode({ onAddToCart, onNavigateToCart }) {
   const { showToast } = useToast();
 
-  const [phase, setPhase] = useState('form');
+  const savedForm    = useRef(loadForm());
+  const savedVerdict = useRef(loadVerdict());
+
+  const [phase, setPhase] = useState(() =>
+    savedVerdict.current?.phase === 'verdict' ? 'verdict' : 'form'
+  );
   const [photoPreview, setPhotoPreview] = useState(null);
   const [photoBase64, setPhotoBase64] = useState(null);
-  const [details, setDetails] = useState('');
-  const [condition, setCondition] = useState('');
-  const [goodwillPrice, setGoodwillPrice] = useState('');
-  const [analysisResult, setAnalysisResult] = useState(null);
-  const [chatHistory, setChatHistory] = useState([]);
+  const [details,        setDetails]       = useState(() => savedForm.current?.details       ?? '');
+  const [condition,      setCondition]     = useState(() => savedForm.current?.condition     ?? '');
+  const [goodwillPrice,  setGoodwillPrice] = useState(() => savedForm.current?.goodwillPrice ?? '');
+  const [analysisResult, setAnalysisResult]= useState(() => savedVerdict.current?.analysisResult ?? null);
+  const [itemId,         setItemId]        = useState(() => savedVerdict.current?.itemId     ?? null);
+  const [chatHistory,    setChatHistory]   = useState(() => {
+    const id = savedVerdict.current?.itemId;
+    return id ? (getConversation(id)?.chatHistory ?? []) : [];
+  });
   const [loadingMsgIndex, setLoadingMsgIndex] = useState(0);
-  const [itemId, setItemId] = useState(null);
+  const [showResumeBanner, setShowResumeBanner] = useState(
+    () => savedVerdict.current?.phase === 'verdict'
+  );
 
   const fileInputRef = useRef(null);
-  const intervalRef = useRef(null);
+  const intervalRef  = useRef(null);
 
   useEffect(() => {
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem('thrift-flip-shopping-form',
+      JSON.stringify({ details, condition, goodwillPrice }));
+  }, [details, condition, goodwillPrice]);
+
+  useEffect(() => {
+    if (phase === 'verdict' && analysisResult) {
+      localStorage.setItem('thrift-flip-shopping-verdict',
+        JSON.stringify({ analysisResult, phase, itemId }));
+    }
+  }, [phase, analysisResult, itemId]);
 
   function handlePhotoChange(e) {
     const file = e.target.files[0];
@@ -53,6 +83,7 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart }) {
       showToast('Enter a Goodwill price first', 'error');
       return;
     }
+    localStorage.removeItem('thrift-flip-shopping-verdict');
     setPhase('loading');
     setLoadingMsgIndex(0);
     intervalRef.current = setInterval(() => {
@@ -76,6 +107,7 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart }) {
   }
 
   function handleUpdateHistory(updater) {
+    setShowResumeBanner(false);
     setChatHistory(prev => {
       const next = typeof updater === 'function' ? updater(prev) : updater;
       if (itemId) updateChatHistory(itemId, next);
@@ -115,6 +147,8 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart }) {
   }
 
   function resetForm() {
+    localStorage.removeItem('thrift-flip-shopping-form');
+    localStorage.removeItem('thrift-flip-shopping-verdict');
     setPhase('form');
     setPhotoPreview(null);
     setPhotoBase64(null);
@@ -124,6 +158,7 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart }) {
     setAnalysisResult(null);
     setChatHistory([]);
     setItemId(null);
+    setShowResumeBanner(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
@@ -146,6 +181,11 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart }) {
     return (
       <div className="screen">
         <div className="verdict-phase">
+          {showResumeBanner && (
+            <div className="shopping-resume-banner">
+              ↩ Resuming your last analysis — tap Skip to start fresh
+            </div>
+          )}
           <VerdictCard analysisResult={analysisResult} goodwillPrice={parseFloat(goodwillPrice)} />
           <SellVelocity analysisResult={analysisResult} />
           <ChatThread
