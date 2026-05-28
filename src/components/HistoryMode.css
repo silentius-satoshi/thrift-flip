@@ -1,0 +1,113 @@
+.history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px 8px;
+}
+.history-title { font-size: 18px; font-weight: 700; color: var(--text-primary); }
+.history-clear-btn {
+  font-size: 13px;
+  color: var(--red);
+  font-weight: 600;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+/* Summary grid */
+.history-summary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 0 16px 16px;
+}
+.history-summary-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 12px 14px;
+}
+.summary-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+.summary-value.green { color: var(--green); }
+.summary-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  line-height: 1.3;
+}
+
+/* Entry list */
+.history-list { display: flex; flex-direction: column; gap: 8px; padding: 0 16px 16px; }
+.history-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.history-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.history-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.history-delete-btn {
+  font-size: 15px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  padding: 0;
+  line-height: 1;
+  transition: color 0.15s;
+}
+.history-delete-btn.pending { color: var(--red); }
+.history-card-date { font-size: 12px; color: var(--text-muted); }
+.history-card-price-row { font-size: 13px; color: var(--text-secondary); }
+.history-profit { color: var(--green); font-weight: 600; }
+
+.history-card-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.history-pill {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-input);
+  color: var(--text-muted);
+}
+.history-status-pill {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--amber-bg);
+  color: var(--amber);
+}
+
+/* Empty state */
+.history-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 80px 32px;
+  text-align: center;
+}
+.history-empty-icon { font-size: 48px; }
+.history-empty p { color: var(--text-secondary); font-size: 15px; line-height: 1.5; }

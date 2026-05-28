@@ -37,12 +37,23 @@ function TagIcon() {
   );
 }
 
+function HistoryIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 8v4l3 3" />
+      <path d="M3.05 11a9 9 0 1 0 .5-4" />
+      <path d="M3 3v4h4" />
+    </svg>
+  );
+}
+
 export default function Nav({ currentScreen, setCurrentScreen, cartCount }) {
   const tabs = [
-    { id: 'shop',    label: 'Shopping', Icon: ShopIcon },
-    { id: 'flip',    label: 'Flip',     Icon: ChatIcon },
-    { id: 'cart',    label: 'Cart',     Icon: CartIcon },
-    { id: 'listing', label: 'Listing',  Icon: TagIcon  },
+    { id: 'shop',    label: 'Shopping', Icon: ShopIcon    },
+    { id: 'flip',    label: 'Flip',     Icon: ChatIcon    },
+    { id: 'cart',    label: 'Cart',     Icon: CartIcon    },
+    { id: 'listing', label: 'Listing',  Icon: TagIcon     },
+    { id: 'history', label: 'History',  Icon: HistoryIcon },
   ];
 
   return (

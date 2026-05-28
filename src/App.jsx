@@ -7,6 +7,7 @@ import FlipMode from './components/FlipMode';
 import CartMode from './components/CartMode';
 import ListingMode from './components/ListingMode';
 import PreviewMode from './components/PreviewMode';
+import HistoryMode from './components/HistoryMode';
 import './App.css';
 
 function AppInner() {
@@ -90,6 +91,7 @@ function AppInner() {
           onBack={() => setCurrentScreen('listing')}
         />
       )}
+      {currentScreen === 'history' && <HistoryMode />}
       {currentScreen !== 'preview' && (
         <Nav
           currentScreen={currentScreen}

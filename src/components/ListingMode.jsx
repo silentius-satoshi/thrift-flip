@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { regenerateField, sendToEbay } from '../utils/webhooks';
 import { calcProfit } from '../utils/calculations';
+import { addHistoryEntry } from '../utils/historyStore';
 import { useToast } from '../contexts/ToastContext';
 import './ListingMode.css';
 
@@ -144,6 +145,16 @@ export default function ListingMode({ listingItem, listingData, onClearListing, 
         specifics, cartItemId: listingItem?.id,
       });
       localStorage.removeItem('thrift-flip-listing-edits');
+      addHistoryEntry({
+        title,
+        price: parseFloat(price) || 0,
+        goodwillPrice: listingItem?.goodwillPrice ?? 0,
+        estProfit: calcProfit(parseFloat(price) || 0, listingItem?.goodwillPrice ?? 0).net,
+        condition: selectedCondition,
+        category: selectedCategory,
+        sentAt: Date.now(),
+        status: 'draft_sent',
+      });
       showToast(res.message, 'success');
       setTimeout(() => onClearListing(), 1600);
     } catch {
