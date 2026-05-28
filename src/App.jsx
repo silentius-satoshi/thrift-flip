@@ -193,7 +193,7 @@ function AppInner() {
           onRestoreDraft={handleRestoreDraft}
         />
       )}
-      {currentScreen !== 'preview' && currentScreen !== 'drafts' && (
+      {currentScreen !== 'preview' && (
         <Nav
           currentScreen={currentScreen}
           setCurrentScreen={setCurrentScreen}
