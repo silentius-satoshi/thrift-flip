@@ -52,18 +52,20 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.draft-delete-btn {
-  font-size: 15px;
-  background: none;
-  border: none;
+.remove-btn {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--red);
+  background: var(--red-bg);
+  border: 1px solid var(--red-border);
+  border-radius: 8px;
+  padding: 5px 10px;
   cursor: pointer;
-  color: var(--text-muted);
-  flex-shrink: 0;
-  padding: 0;
-  line-height: 1;
-  transition: color 0.15s;
 }
-.draft-delete-btn.pending { color: var(--red); }
+.remove-btn.pending {
+  opacity: 0.7;
+  outline: 1px solid var(--red);
+}
 
 .draft-card-meta-row {
   display: flex;

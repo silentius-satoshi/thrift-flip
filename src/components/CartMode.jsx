@@ -100,10 +100,6 @@ export default function CartMode({ cart, onRemoveItem, onReadyToList, listingIte
             <span className="pill pill-muted">{item.sellThroughRate}% sell-through</span>
           </div>
 
-          <div className="cart-item-banner">
-            📷 Goodwill photo was for AI only — take new photos at home
-          </div>
-
           {loadingId === item.id ? (
             <div className="cart-item-loading">Generating your listing...</div>
           ) : (

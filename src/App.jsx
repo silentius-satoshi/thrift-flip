@@ -19,8 +19,8 @@ function AppInner() {
   const [currentScreen, setCurrentScreen] = useState(() => {
     // Direct read — sync required for useState lazy init
     const saved = localStorage.getItem('thrift-flip-screen');
-    const valid = ['shop', 'flip', 'cart', 'listing', 'history'];
-    if (saved === 'preview' || saved === 'drafts') return 'listing';
+    const valid = ['shop', 'flip', 'cart', 'listing', 'history', 'drafts'];
+    if (saved === 'preview') return 'listing';
     return valid.includes(saved) ? saved : 'shop';
   });
   const [previewData, setPreviewData] = useState(null);

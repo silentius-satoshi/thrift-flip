@@ -57,6 +57,7 @@ export default function ListingMode({ listingItem, listingData, onClearListing, 
   const [selectedCategory, setSelectedCategory] = useState(() => savedEdits.current?.selectedCategory ?? CATEGORIES[0]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [regenLoading, setRegenLoading] = useState(null);
+  const [showSaveDraftModal, setShowSaveDraftModal] = useState(false);
 
   const photoInputRef = useRef(null);
 
@@ -208,7 +209,13 @@ export default function ListingMode({ listingItem, listingData, onClearListing, 
     <div className="screen">
       <div className="listing-header">
         <h2>Draft listing</h2>
-        <span className="pill pill-amber">✏️ Not published</span>
+        <button
+          className="listing-draft-status-btn"
+          onClick={() => { handleSaveDraft(); onViewDrafts(); }}
+          title="Auto-save and view drafts"
+        >
+          Drafts
+        </button>
       </div>
 
       {/* Photos */}
@@ -400,9 +407,36 @@ export default function ListingMode({ listingItem, listingData, onClearListing, 
         </select>
       </div>
 
+      {showSaveDraftModal && (
+        <div className="save-draft-modal-overlay" onClick={() => setShowSaveDraftModal(false)}>
+          <div className="save-draft-modal-sheet" onClick={e => e.stopPropagation()}>
+            <div className="save-draft-sheet-handle" />
+            <div className="save-draft-sheet-title">Save Draft</div>
+
+            <button className="save-draft-sheet-btn" onClick={() => { handleSaveDraft(); setShowSaveDraftModal(false); }}>
+              <div className="save-draft-btn-icon green">&#128278;</div>
+              <div className="save-draft-btn-text">
+                <span className="save-draft-btn-label">Save and continue editing</span>
+                <span className="save-draft-btn-sub">Keep working on this listing</span>
+              </div>
+            </button>
+
+            <button className="save-draft-sheet-btn" onClick={() => { handleSaveDraft(); setShowSaveDraftModal(false); onViewDrafts(); }}>
+              <div className="save-draft-btn-icon blue">&#128221;</div>
+              <div className="save-draft-btn-text">
+                <span className="save-draft-btn-label">Save and view all drafts</span>
+                <span className="save-draft-btn-sub">Go to your saved drafts list</span>
+              </div>
+            </button>
+
+            <button className="save-draft-cancel-btn" onClick={() => setShowSaveDraftModal(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
+
       {/* Action bar */}
       <div className="listing-action-bar">
-        <button className="listing-draft-btn" onClick={handleSaveDraft} title="Save draft">
+        <button className="listing-draft-btn" onClick={() => setShowSaveDraftModal(true)} title="Save draft">
           🔖
         </button>
         <button

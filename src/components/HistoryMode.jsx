@@ -101,9 +101,9 @@ export default function HistoryMode() {
             <div className="history-card-top">
               <span className="history-card-title">{entry.title}</span>
               <button
-                className={`history-delete-btn${pendingDelete === entry.id ? ' pending' : ''}`}
+                className={`remove-btn${pendingDelete === entry.id ? ' pending' : ''}`}
                 onClick={() => handleDelete(entry.id)}
-              >🗑</button>
+              >Remove</button>
             </div>
             <div className="history-card-date">{formatSentDate(entry.sentAt)}</div>
             <div className="history-card-price-row">

@@ -70,9 +70,9 @@ export default function DraftsMode({ onBack, onRestoreDraft }) {
               <div className="draft-card-top">
                 <span className="draft-card-title">{draft.title || 'Untitled draft'}</span>
                 <button
-                  className={`draft-delete-btn${pendingDelete === draft.id ? ' pending' : ''}`}
+                  className={`remove-btn${pendingDelete === draft.id ? ' pending' : ''}`}
                   onClick={() => handleDelete(draft.id)}
-                >🗑</button>
+                >Remove</button>
               </div>
               <div className="draft-card-meta-row">
                 <span className={`draft-source-badge ${draft.source === 'auto-saved' ? 'amber' : 'blue'}`}>
@@ -99,7 +99,7 @@ export default function DraftsMode({ onBack, onRestoreDraft }) {
                   className="btn btn-green btn-sm"
                   onClick={() => onRestoreDraft(draft)}
                 >
-                  Restore to listing ↗
+                  Restore to listing
                 </button>
               </div>
             </div>
