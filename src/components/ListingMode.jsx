@@ -25,25 +25,39 @@ const CATEGORIES = [
   'Other',
 ];
 
+function loadEdits() {
+  try {
+    const raw = localStorage.getItem('thrift-flip-listing-edits');
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
 export default function ListingMode({ listingItem, listingData, onClearListing, onPreview }) {
   const { showToast } = useToast();
 
-  const [photos, setPhotos] = useState([]);
-  const [title, setTitle] = useState('');
-  const [selectedCondition, setSelectedCondition] = useState('Good');
-  const [price, setPrice] = useState('');
-  const [qty, setQty] = useState('1');
-  const [description, setDescription] = useState('');
-  const [specifics, setSpecifics] = useState({ Brand: '', Model: '', Size: '', Color: '', Material: '', MPN: '' });
-  const [selectedShipping, setSelectedShipping] = useState('calculated');
-  const [selectedCategory, setSelectedCategory] = useState(CATEGORIES[0]);
+  // Captured once per mount — shared across all lazy initializers below
+  const savedEdits = useRef(loadEdits());
+
+  const [photos, setPhotos] = useState(() =>
+    (savedEdits.current?.photos ?? []).map(dataUrl => ({ dataUrl }))
+  );
+  const [title, setTitle] = useState(() => savedEdits.current?.title ?? '');
+  const [selectedCondition, setSelectedCondition] = useState(() => savedEdits.current?.selectedCondition ?? 'Good');
+  const [price, setPrice] = useState(() => savedEdits.current?.price ?? '');
+  const [qty, setQty] = useState(() => savedEdits.current?.qty ?? '1');
+  const [description, setDescription] = useState(() => savedEdits.current?.description ?? '');
+  const [specifics, setSpecifics] = useState(() => savedEdits.current?.specifics ?? { Brand: '', Model: '', Size: '', Color: '', Material: '', MPN: '' });
+  const [selectedShipping, setSelectedShipping] = useState(() => savedEdits.current?.selectedShipping ?? 'calculated');
+  const [selectedCategory, setSelectedCategory] = useState(() => savedEdits.current?.selectedCategory ?? CATEGORIES[0]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [regenLoading, setRegenLoading] = useState(null);
 
   const photoInputRef = useRef(null);
 
+  // Only populate from listingData if the user has no saved edits (first time this listing opens)
   useEffect(() => {
     if (!listingData) return;
+    if (savedEdits.current) return;
     setTitle(listingData.title || '');
     setDescription(listingData.description || '');
     setPrice(listingData.price ? String(listingData.price) : '');
@@ -53,6 +67,23 @@ export default function ListingMode({ listingItem, listingData, onClearListing, 
       setSpecifics(prev => ({ ...prev, ...listingData.specifics }));
     }
   }, [listingData]);
+
+  // Persist all editable fields on every change
+  useEffect(() => {
+    const edits = {
+      title, selectedCondition, price, qty, description,
+      specifics, selectedShipping, selectedCategory,
+      photos: photos.map(p => p.dataUrl),
+    };
+    try {
+      localStorage.setItem('thrift-flip-listing-edits', JSON.stringify(edits));
+    } catch {
+      // QuotaExceededError from large photo dataUrls — retry without photos
+      try {
+        localStorage.setItem('thrift-flip-listing-edits', JSON.stringify({ ...edits, photos: [] }));
+      } catch { /* ignore */ }
+    }
+  }, [title, selectedCondition, price, qty, description, specifics, selectedShipping, selectedCategory, photos]);
 
   function handleAddPhotos(e) {
     const files = Array.from(e.target.files);
@@ -112,6 +143,7 @@ export default function ListingMode({ listingItem, listingData, onClearListing, 
         shipping: selectedShipping, category: selectedCategory,
         specifics, cartItemId: listingItem?.id,
       });
+      localStorage.removeItem('thrift-flip-listing-edits');
       showToast(res.message, 'success');
       setTimeout(() => onClearListing(), 1600);
     } catch {

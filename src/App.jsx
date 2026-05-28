@@ -41,6 +41,7 @@ function AppInner() {
   }
 
   function handleClearListing() {
+    localStorage.removeItem('thrift-flip-listing-edits');
     setListingItem(null);
     setListingData(null);
     setCurrentScreen('cart');
