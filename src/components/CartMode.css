@@ -65,3 +65,41 @@
 .cart-summary-row .sr-value { font-weight: 500; }
 .cart-summary-divider       { height: 1px; background: var(--border); margin: 6px 0; }
 .cart-summary-row.total .sr-value { color: var(--green); font-size: 18px; font-weight: 700; }
+
+/* ── Conflict modal ── */
+.conflict-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.conflict-modal-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-mid);
+  border-radius: var(--radius-card);
+  padding: 20px 16px;
+  width: 100%;
+  max-width: 358px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.conflict-modal-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.conflict-modal-body {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.conflict-modal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

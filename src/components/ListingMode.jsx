@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { regenerateField, sendToEbay } from '../utils/webhooks';
 import { calcProfit } from '../utils/calculations';
 import { addHistoryEntry } from '../utils/historyStore';
+import { saveDraft } from '../utils/draftsStore';
 import { useToast } from '../contexts/ToastContext';
 import { listingEditsService } from '../utils/storageService';
 import { useUser } from '../contexts/UserContext';
@@ -36,7 +37,7 @@ function loadEdits() {
   } catch { return null; }
 }
 
-export default function ListingMode({ listingItem, listingData, onClearListing, onPreview, onRemoveFromCart }) {
+export default function ListingMode({ listingItem, listingData, onClearListing, onPreview, onRemoveFromCart, onViewDrafts }) {
   const { showToast } = useToast();
   const { user } = useUser(); // TODO: check user.plan listing limits before sendToEbay
 
@@ -157,7 +158,7 @@ export default function ListingMode({ listingItem, listingData, onClearListing, 
       showToast(res.message, 'success');
       setTimeout(() => {
         onRemoveFromCart();
-        onClearListing();
+        onClearListing({ skipAutoSave: true });
       }, 1600);
     } catch {
       showToast('Failed to send to eBay', 'error');
@@ -167,7 +168,21 @@ export default function ListingMode({ listingItem, listingData, onClearListing, 
   }
 
   function handleSaveDraft() {
-    showToast('Draft saved', 'success');
+    saveDraft({
+      id: listingItem?.id ?? Date.now(),
+      title,
+      price: parseFloat(price) || 0,
+      condition: selectedCondition,
+      description,
+      specifics,
+      shipping: selectedShipping,
+      category: selectedCategory,
+      photos: photos.map(p => ({ dataUrl: p.dataUrl, mimeType: 'image/jpeg' })),
+      goodwillPrice: listingItem?.goodwillPrice ?? 0,
+      estProfit: calcProfit(parseFloat(price) || 0, listingItem?.goodwillPrice ?? 0).net,
+      source: 'manual',
+    });
+    showToast('Draft saved 🔖', 'success');
   }
 
   const sellPrice = parseFloat(price) || 0;
@@ -181,6 +196,9 @@ export default function ListingMode({ listingItem, listingData, onClearListing, 
         <div className="listing-empty">
           <span className="empty-icon">🏷️</span>
           <p>Select "Ready to list" from a cart item to create a listing.</p>
+          <button className="btn btn-ghost" style={{ marginTop: 8 }} onClick={onViewDrafts}>
+            📝 Saved Drafts
+          </button>
         </div>
       </div>
     );

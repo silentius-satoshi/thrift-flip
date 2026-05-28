@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
-import { ToastProvider } from './contexts/ToastContext';
+import { ToastProvider, useToast } from './contexts/ToastContext';
 import { UserProvider } from './contexts/UserContext';
 import { useCart } from './hooks/useCart';
+import { calcProfit } from './utils/calculations';
+import { saveDraft } from './utils/draftsStore';
 import Nav from './components/Nav';
 import ShoppingMode from './components/ShoppingMode';
 import FlipMode from './components/FlipMode';
@@ -9,14 +11,16 @@ import CartMode from './components/CartMode';
 import ListingMode from './components/ListingMode';
 import PreviewMode from './components/PreviewMode';
 import HistoryMode from './components/HistoryMode';
+import DraftsMode from './components/DraftsMode';
 import './App.css';
 
 function AppInner() {
+  const { showToast } = useToast();
   const [currentScreen, setCurrentScreen] = useState(() => {
     // Direct read — sync required for useState lazy init
     const saved = localStorage.getItem('thrift-flip-screen');
     const valid = ['shop', 'flip', 'cart', 'listing', 'history'];
-    if (saved === 'preview') return 'listing';
+    if (saved === 'preview' || saved === 'drafts') return 'listing';
     return valid.includes(saved) ? saved : 'shop';
   });
   const [previewData, setPreviewData] = useState(null);
@@ -66,11 +70,69 @@ function AppInner() {
     setCurrentScreen('listing');
   }
 
-  function handleClearListing() {
+  function handleClearListing(options = {}) {
+    const { skipAutoSave = false } = options;
+    if (!skipAutoSave) {
+      const edits = (() => {
+        try { return JSON.parse(localStorage.getItem('thrift-flip-listing-edits')); } catch { return null; }
+      })();
+      if (edits && edits.title) {
+        saveDraft({
+          id: listingItem?.id,
+          ...edits,
+          photos: (edits.photos ?? []).map(d => ({ dataUrl: d, mimeType: 'image/jpeg' })),
+          goodwillPrice: listingItem?.goodwillPrice ?? 0,
+          estProfit: calcProfit(parseFloat(edits.price) || 0, listingItem?.goodwillPrice ?? 0).net,
+          source: 'auto-saved',
+        });
+      }
+    }
     localStorage.removeItem('thrift-flip-listing-edits');
+    localStorage.removeItem('thrift-flip-previous-screen');
     setListingItem(null);
     setListingData(null);
     setCurrentScreen('cart');
+  }
+
+  function handleRestoreDraft(draft) {
+    setListingItem({ id: draft.id, goodwillPrice: draft.goodwillPrice });
+    setListingData({
+      title: draft.title,
+      condition: draft.condition,
+      price: draft.price,
+      description: draft.description,
+      specifics: draft.specifics,
+      category: draft.category,
+    });
+    localStorage.setItem('thrift-flip-listing-edits', JSON.stringify({
+      title: draft.title,
+      selectedCondition: draft.condition,
+      price: String(draft.price),
+      qty: '1',
+      description: draft.description,
+      specifics: draft.specifics,
+      selectedShipping: draft.shipping,
+      selectedCategory: draft.category,
+      photos: (draft.photos ?? []).map(p => typeof p === 'string' ? p : p.dataUrl),
+    }));
+    setCurrentScreen('listing');
+  }
+
+  function handleSaveCurrentAsDraft() {
+    const edits = (() => {
+      try { return JSON.parse(localStorage.getItem('thrift-flip-listing-edits')); } catch { return null; }
+    })();
+    if (edits && edits.title) {
+      saveDraft({
+        id: listingItem?.id,
+        ...edits,
+        photos: (edits.photos ?? []).map(d => ({ dataUrl: d, mimeType: 'image/jpeg' })),
+        goodwillPrice: listingItem?.goodwillPrice ?? 0,
+        estProfit: calcProfit(parseFloat(edits.price) || 0, listingItem?.goodwillPrice ?? 0).net,
+        source: 'manual',
+      });
+      showToast('Current listing saved as draft 🔖');
+    }
   }
 
   function handlePreview(data) {
@@ -105,6 +167,7 @@ function AppInner() {
           onRemoveItem={removeItem}
           onReadyToList={handleReadyToList}
           listingItem={listingItem}
+          onSaveCurrentAsDraft={handleSaveCurrentAsDraft}
         />
       )}
       {currentScreen === 'listing' && (
@@ -114,6 +177,7 @@ function AppInner() {
           onClearListing={handleClearListing}
           onPreview={handlePreview}
           onRemoveFromCart={() => removeItem(listingItem?.id)}
+          onViewDrafts={() => setCurrentScreen('drafts')}
         />
       )}
       {currentScreen === 'preview' && (
@@ -123,7 +187,13 @@ function AppInner() {
         />
       )}
       {currentScreen === 'history' && <HistoryMode />}
-      {currentScreen !== 'preview' && (
+      {currentScreen === 'drafts' && (
+        <DraftsMode
+          onBack={() => setCurrentScreen('listing')}
+          onRestoreDraft={handleRestoreDraft}
+        />
+      )}
+      {currentScreen !== 'preview' && currentScreen !== 'drafts' && (
         <Nav
           currentScreen={currentScreen}
           setCurrentScreen={setCurrentScreen}

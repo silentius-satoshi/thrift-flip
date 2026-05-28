@@ -4,15 +4,15 @@ import { markStatus } from '../utils/conversationStore';
 import { useToast } from '../contexts/ToastContext';
 import './CartMode.css';
 
-export default function CartMode({ cart, onRemoveItem, onReadyToList, listingItem }) {
+export default function CartMode({ cart, onRemoveItem, onReadyToList, listingItem, onSaveCurrentAsDraft }) {
   const { showToast } = useToast();
   const [loadingId, setLoadingId] = useState(null);
+  const [showConflictModal, setShowConflictModal] = useState(false);
+  const [pendingCartItem, setPendingCartItem] = useState(null);
 
-  async function handleReadyToList(item) {
-    if (listingItem !== null) {
-      showToast('You have an active listing in progress — send it to drafts or clear it first', 'error');
-      return;
-    }
+  async function proceedWithListing(item) {
+    setShowConflictModal(false);
+    setPendingCartItem(null);
     setLoadingId(item.id);
     try {
       const listingData = await generateListing(item);
@@ -24,6 +24,15 @@ export default function CartMode({ cart, onRemoveItem, onReadyToList, listingIte
     } finally {
       setLoadingId(null);
     }
+  }
+
+  async function handleReadyToList(item) {
+    if (listingItem !== null) {
+      setPendingCartItem(item);
+      setShowConflictModal(true);
+      return;
+    }
+    await proceedWithListing(item);
   }
 
   if (cart.length === 0) {
@@ -43,6 +52,30 @@ export default function CartMode({ cart, onRemoveItem, onReadyToList, listingIte
 
   return (
     <div className="screen">
+      {showConflictModal && pendingCartItem && (
+        <div className="conflict-modal-overlay" onClick={() => { setShowConflictModal(false); setPendingCartItem(null); }}>
+          <div className="conflict-modal-card" onClick={e => e.stopPropagation()}>
+            <div className="conflict-modal-title">Active listing in progress</div>
+            <div className="conflict-modal-body">
+              You have an unsaved listing in progress. What would you like to do?
+            </div>
+            <div className="conflict-modal-actions">
+              <button className="btn btn-ghost btn-full" onClick={() => {
+                onSaveCurrentAsDraft?.();
+                proceedWithListing(pendingCartItem);
+              }}>
+                Save as draft &amp; continue
+              </button>
+              <button className="btn btn-red btn-full" onClick={() => proceedWithListing(pendingCartItem)}>
+                Discard &amp; continue
+              </button>
+              <button className="btn btn-ghost btn-full" onClick={() => { setShowConflictModal(false); setPendingCartItem(null); }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="cart-header">
         <h2>{cart.length} {cart.length === 1 ? 'item' : 'items'}</h2>
         <span className="cart-meta">Est. profit: ${totalProfit.toFixed(2)}</span>
