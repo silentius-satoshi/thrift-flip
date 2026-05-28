@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { generateListing } from '../utils/webhooks';
+import { markStatus } from '../utils/conversationStore';
 import { useToast } from '../contexts/ToastContext';
 import './CartMode.css';
 
@@ -11,6 +12,7 @@ export default function CartMode({ cart, onRemoveItem, onReadyToList }) {
     setLoadingId(item.id);
     try {
       const listingData = await generateListing(item);
+      markStatus(item.id, 'listed');
       onReadyToList(item, listingData);
       showToast('Listing generated!', 'success');
     } catch {

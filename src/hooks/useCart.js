@@ -21,7 +21,7 @@ export function useCart() {
   }, [cart]);
 
   function addItem(item) {
-    setCart(prev => [...prev, { ...item, id: Date.now(), addedAt: Date.now() }]);
+    setCart(prev => [...prev, { ...item, id: item.id ?? Date.now(), addedAt: Date.now() }]);
   }
 
   function removeItem(id) {

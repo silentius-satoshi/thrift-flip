@@ -3,6 +3,7 @@ import { ToastProvider } from './contexts/ToastContext';
 import { useCart } from './hooks/useCart';
 import Nav from './components/Nav';
 import ShoppingMode from './components/ShoppingMode';
+import FlipMode from './components/FlipMode';
 import CartMode from './components/CartMode';
 import ListingMode from './components/ListingMode';
 import PreviewMode from './components/PreviewMode';
@@ -58,6 +59,14 @@ function AppInner() {
         <ShoppingMode
           onAddToCart={addItem}
           onNavigateToCart={() => setCurrentScreen('cart')}
+        />
+      )}
+      {currentScreen === 'flip' && (
+        <FlipMode
+          cart={cart}
+          listingItem={listingItem}
+          onNavigateToCart={() => setCurrentScreen('cart')}
+          onNavigateToListing={() => setCurrentScreen('listing')}
         />
       )}
       {currentScreen === 'cart' && (

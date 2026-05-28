@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { analyzeItem } from '../utils/webhooks';
+import { saveConversation, updateChatHistory, markStatus } from '../utils/conversationStore';
 import { useToast } from '../contexts/ToastContext';
 import VerdictCard from './VerdictCard';
 import SellVelocity from './SellVelocity';
@@ -26,6 +27,7 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart }) {
   const [analysisResult, setAnalysisResult] = useState(null);
   const [chatHistory, setChatHistory] = useState([]);
   const [loadingMsgIndex, setLoadingMsgIndex] = useState(0);
+  const [itemId, setItemId] = useState(null);
 
   const fileInputRef = useRef(null);
   const intervalRef = useRef(null);
@@ -60,6 +62,9 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart }) {
     try {
       const result = await analyzeItem({ photoBase64, details, condition, goodwillPrice: price });
       clearInterval(intervalRef.current);
+      const newId = Date.now();
+      setItemId(newId);
+      saveConversation(newId, details.slice(0, 60) || 'Item', result.chatHistory || [], { details, condition, goodwillPrice: price });
       setAnalysisResult(result);
       setChatHistory(result.chatHistory || []);
       setPhase('verdict');
@@ -70,6 +75,14 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart }) {
     }
   }
 
+  function handleUpdateHistory(updater) {
+    setChatHistory(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      if (itemId) updateChatHistory(itemId, next);
+      return next;
+    });
+  }
+
   function handleSkip() {
     resetForm();
   }
@@ -78,6 +91,7 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart }) {
     if (!analysisResult) return;
     const { estSellPrice, fees, netProfit, soldCount, sellThroughRate, avgDaysToSell, activeListings } = analysisResult;
     onAddToCart({
+      id: itemId,
       name: details.slice(0, 60) || 'Unnamed Item',
       condition,
       goodwillPrice: parseFloat(goodwillPrice),
@@ -92,6 +106,7 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart }) {
       chatHistory,
       photoBase64: photoPreview,
     });
+    if (itemId) markStatus(itemId, 'cart');
     showToast('Added to cart!');
     setTimeout(() => {
       resetForm();
@@ -108,6 +123,7 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart }) {
     setGoodwillPrice('');
     setAnalysisResult(null);
     setChatHistory([]);
+    setItemId(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
@@ -134,7 +150,7 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart }) {
           <SellVelocity analysisResult={analysisResult} />
           <ChatThread
             chatHistory={chatHistory}
-            onUpdateHistory={setChatHistory}
+            onUpdateHistory={handleUpdateHistory}
             itemContext={{ details, condition, goodwillPrice: parseFloat(goodwillPrice) }}
           />
         </div>
