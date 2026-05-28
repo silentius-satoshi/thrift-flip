@@ -1,7 +1,7 @@
 import './PreviewMode.css';
 
 export default function PreviewMode({ previewData, onBack }) {
-  const { title, price, selectedCondition, photos, specifics, shippingLabel, description } = previewData;
+  const { title, price, selectedCondition, photos, specifics, shippingLabel, description, selectedCategory } = previewData;
   const filledSpecifics = Object.entries(specifics).filter(([, v]) => v.trim());
 
   return (
@@ -49,6 +49,11 @@ export default function PreviewMode({ previewData, onBack }) {
           )}
 
           <div className="preview-shipping">{shippingLabel}</div>
+
+          <div className="preview-row">
+            <span className="preview-label">Category</span>
+            <span className="preview-value">{selectedCategory}</span>
+          </div>
 
           <div
             className="preview-description"

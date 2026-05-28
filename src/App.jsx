@@ -16,6 +16,7 @@ function AppInner() {
     // Direct read — sync required for useState lazy init
     const saved = localStorage.getItem('thrift-flip-screen');
     const valid = ['shop', 'flip', 'cart', 'listing', 'history'];
+    if (saved === 'preview') return 'listing';
     return valid.includes(saved) ? saved : 'shop';
   });
   const [previewData, setPreviewData] = useState(null);
@@ -93,6 +94,7 @@ function AppInner() {
           listingData={listingData}
           onClearListing={handleClearListing}
           onPreview={handlePreview}
+          onRemoveFromCart={() => removeItem(listingItem?.id)}
         />
       )}
       {currentScreen === 'preview' && (
@@ -107,6 +109,7 @@ function AppInner() {
           currentScreen={currentScreen}
           setCurrentScreen={setCurrentScreen}
           cartCount={cart.length}
+          hasActiveListing={listingItem !== null}
         />
       )}
     </>

@@ -47,7 +47,7 @@ function HistoryIcon() {
   );
 }
 
-export default function Nav({ currentScreen, setCurrentScreen, cartCount }) {
+export default function Nav({ currentScreen, setCurrentScreen, cartCount, hasActiveListing }) {
   const tabs = [
     { id: 'shop',    label: 'Shopping', Icon: ShopIcon    },
     { id: 'flip',    label: 'Flip',     Icon: ChatIcon    },
@@ -68,6 +68,9 @@ export default function Nav({ currentScreen, setCurrentScreen, cartCount }) {
             <Icon />
             {id === 'cart' && cartCount > 0 && (
               <span className="nav-badge">{cartCount > 9 ? '9+' : cartCount}</span>
+            )}
+            {id === 'listing' && hasActiveListing && (
+              <span className="nav-badge nav-badge-dot" />
             )}
           </span>
           {label}

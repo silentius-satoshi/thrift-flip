@@ -36,7 +36,7 @@ function loadEdits() {
   } catch { return null; }
 }
 
-export default function ListingMode({ listingItem, listingData, onClearListing, onPreview }) {
+export default function ListingMode({ listingItem, listingData, onClearListing, onPreview, onRemoveFromCart }) {
   const { showToast } = useToast();
   const { user } = useUser(); // TODO: check user.plan listing limits before sendToEbay
 
@@ -155,7 +155,10 @@ export default function ListingMode({ listingItem, listingData, onClearListing, 
         status: 'draft_sent',
       });
       showToast(res.message, 'success');
-      setTimeout(() => onClearListing(), 1600);
+      setTimeout(() => {
+        onRemoveFromCart();
+        onClearListing();
+      }, 1600);
     } catch {
       showToast('Failed to send to eBay', 'error');
     } finally {
@@ -390,6 +393,7 @@ export default function ListingMode({ listingItem, listingData, onClearListing, 
             title, price, selectedCondition, photos, specifics,
             shippingLabel: SHIPPING_OPTIONS.find(o => o.id === selectedShipping)?.label ?? '',
             description,
+            selectedCategory,
           })}
         >
           Preview

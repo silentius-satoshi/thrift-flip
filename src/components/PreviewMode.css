@@ -131,6 +131,18 @@
   border: 1px solid var(--border);
 }
 
+/* ── Category row ── */
+.preview-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 13px;
+  border-bottom: 1px solid var(--border);
+}
+.preview-label { color: var(--text-muted); }
+.preview-value { color: var(--text-primary); font-weight: 500; }
+
 /* ── Description ── */
 .preview-description {
   font-size: 14px;
