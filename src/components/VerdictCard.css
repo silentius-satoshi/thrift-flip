@@ -1,0 +1,48 @@
+.verdict-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.verdict-badge {
+  padding: 6px 18px;
+  border-radius: var(--radius-pill);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+.verdict-badge.buy  { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+.verdict-badge.skip { background: var(--red-bg);   color: var(--red);   border: 1px solid var(--red-border);   }
+
+.verdict-badge-sub { font-size: 13px; color: var(--text-secondary); }
+
+.price-rows { margin-bottom: 12px; }
+.price-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+.price-row:last-child { border-bottom: none; }
+.price-row .pr-label  { color: var(--text-secondary); }
+.price-row .pr-value  { font-weight: 500; }
+.price-row .pr-value.profit {
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.verdict-rules    { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.verdict-strategy {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: var(--bg-input);
+  border-radius: var(--radius-input);
+  font-size: 13px;
+  color: var(--text-secondary);
+  border-left: 3px solid var(--blue);
+  line-height: 1.5;
+}

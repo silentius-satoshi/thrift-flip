@@ -1,0 +1,77 @@
+/* ── Form phase ── */
+.shop-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.photo-upload-area {
+  border: 2px dashed var(--border-mid);
+  border-radius: var(--radius-card);
+  padding: 32px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  text-align: center;
+  background: var(--bg-card);
+  transition: border-color 0.15s;
+  position: relative;
+  overflow: hidden;
+}
+.photo-upload-area:hover { border-color: var(--blue); }
+.photo-upload-area.has-photo { padding: 0; border-style: solid; border-color: var(--border-mid); }
+.photo-upload-area.has-photo img { width: 100%; max-height: 220px; object-fit: cover; border-radius: 10px; }
+.photo-upload-icon  { font-size: 28px; }
+.photo-upload-label { font-size: 14px; color: var(--text-secondary); font-weight: 500; }
+.photo-upload-hint  { font-size: 12px; color: var(--text-muted); line-height: 1.4; }
+
+/* ── Loading phase ── */
+.loading-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  min-height: calc(100dvh - 80px);
+  padding: 32px;
+  text-align: center;
+}
+.loading-dots {
+  display: flex;
+  gap: 6px;
+}
+.loading-dots span {
+  width: 8px;
+  height: 8px;
+  background: var(--blue);
+  border-radius: 50%;
+  animation: loadBounce 1.2s infinite;
+}
+.loading-dots span:nth-child(2) { animation-delay: 0.15s; }
+.loading-dots span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes loadBounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30%            { transform: translateY(-8px); opacity: 1; }
+}
+.loading-msg { font-size: 16px; color: var(--text-secondary); min-height: 24px; }
+
+/* ── Verdict phase ── */
+.verdict-phase { display: flex; flex-direction: column; gap: 12px; padding-bottom: 120px; }
+
+.verdict-action-bar {
+  position: fixed;
+  bottom: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 390px;
+  background: var(--bg-primary);
+  border-top: 1px solid var(--border);
+  padding: 12px 16px;
+  display: flex;
+  gap: 10px;
+  z-index: 90;
+}
+.verdict-action-bar .btn { flex: 1; }

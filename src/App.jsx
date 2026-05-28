@@ -1,122 +1,100 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useState, useEffect } from 'react';
+import { ToastProvider } from './contexts/ToastContext';
+import { useCart } from './hooks/useCart';
+import Nav from './components/Nav';
+import ShoppingMode from './components/ShoppingMode';
+import CartMode from './components/CartMode';
+import ListingMode from './components/ListingMode';
+import PreviewMode from './components/PreviewMode';
+import './App.css';
 
-function App() {
-  const [count, setCount] = useState(0)
+function AppInner() {
+  const [currentScreen, setCurrentScreen] = useState('shop');
+  const [previewData, setPreviewData] = useState(null);
+  const { cart, addItem, removeItem } = useCart();
+
+  const [listingItem, setListingItem] = useState(() => {
+    try {
+      const raw = localStorage.getItem('thrift-flip-listing');
+      return raw ? JSON.parse(raw).item : null;
+    } catch { return null; }
+  });
+  const [listingData, setListingData] = useState(() => {
+    try {
+      const raw = localStorage.getItem('thrift-flip-listing');
+      return raw ? JSON.parse(raw).data : null;
+    } catch { return null; }
+  });
+
+  useEffect(() => {
+    if (listingItem || listingData) {
+      localStorage.setItem('thrift-flip-listing', JSON.stringify({ item: listingItem, data: listingData }));
+    } else {
+      localStorage.removeItem('thrift-flip-listing');
+    }
+  }, [listingItem, listingData]);
+
+  function handleReadyToList(item, generatedListing) {
+    setListingItem(item);
+    setListingData(generatedListing);
+    setCurrentScreen('listing');
+  }
+
+  function handleClearListing() {
+    setListingItem(null);
+    setListingData(null);
+    setCurrentScreen('cart');
+  }
+
+  function handlePreview(data) {
+    setPreviewData(data);
+    setCurrentScreen('preview');
+  }
 
   return (
     <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
+      {currentScreen === 'shop' && (
+        <ShoppingMode
+          onAddToCart={addItem}
+          onNavigateToCart={() => setCurrentScreen('cart')}
+        />
+      )}
+      {currentScreen === 'cart' && (
+        <CartMode
+          cart={cart}
+          onRemoveItem={removeItem}
+          onReadyToList={handleReadyToList}
+        />
+      )}
+      {currentScreen === 'listing' && (
+        <ListingMode
+          listingItem={listingItem}
+          listingData={listingData}
+          onClearListing={handleClearListing}
+          onPreview={handlePreview}
+        />
+      )}
+      {currentScreen === 'preview' && (
+        <PreviewMode
+          previewData={previewData}
+          onBack={() => setCurrentScreen('listing')}
+        />
+      )}
+      {currentScreen !== 'preview' && (
+        <Nav
+          currentScreen={currentScreen}
+          setCurrentScreen={setCurrentScreen}
+          cartCount={cart.length}
+        />
+      )}
     </>
-  )
+  );
 }
 
-export default App
+export default function App() {
+  return (
+    <ToastProvider>
+      <AppInner />
+    </ToastProvider>
+  );
+}

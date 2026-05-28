@@ -1,16 +1,52 @@
-# React + Vite
+# Thrift Flip
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A mobile-first dark mode React app for resellers who shop at Goodwill and sell on eBay. Point your phone camera at an item, get an instant flip analysis, and send a draft listing to eBay — without typing more than a few words.
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **React 19** + **Vite 8** — no TypeScript
+- **Plain CSS** — dark mode only, per-component CSS files
+- **Fetch API** — all webhook calls, no axios
+- **React state only** — no Redux or external state library
+- **Vercel** — deployment target
 
-## React Compiler
+## Screens
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+| Screen | What it does |
+|---|---|
+| Shopping | Photo + details → AI flip analysis (verdict, sell velocity, chat) |
+| Cart | Holds analyzed items with profit summaries |
+| Listing | Editable eBay draft with AI-generated title and description |
 
-## Expanding the ESLint configuration
+## Getting Started
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```bash
+npm install
+npm run dev
+```
+
+Copy `.env.local.example` to `.env.local` and set `VITE_N8N_BASE_URL` to your n8n instance URL.
+
+## Backend
+
+The app connects to an n8n workflow via webhooks. All webhook calls are currently mocked in `src/utils/webhooks.js` with `// TODO: replace` comments marking where real endpoints go.
+
+Five webhook endpoints:
+
+| Endpoint | Triggered by |
+|---|---|
+| `/analyze` | Shopping Mode — photo submitted |
+| `/chat` | Shopping Mode — follow-up message sent |
+| `/generate-listing` | Cart — Ready to list tapped |
+| `/regenerate-field` | Listing Mode — Rewrite / Shorter / More detail |
+| `/send-to-ebay` | Listing Mode — Send to eBay drafts |
+
+## Roadmap
+
+- [ ] Wire real Gemini API via n8n analyze webhook
+- [ ] Wire SerpApi Google Lens for product identification
+- [ ] Wire eBay sold price lookup via SerpApi
+- [ ] Wire listing generation to real Gemini call
+- [ ] Wire eBay Inventory API for draft creation
+- [ ] Add Mercari as a listing platform option
+- [ ] Trip history and profit tracking
