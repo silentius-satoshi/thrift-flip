@@ -22,17 +22,41 @@ function statusColor(status) {
 }
 
 export default function FlipMode({ cart, listingItem, onNavigateToCart, onNavigateToListing, targetConversationId, onTargetConsumed, returnScreen, onReturn }) {
-  const [view, setView] = useState('list'); // 'list' | 'chat' | 'archived'
+  const [view, setView] = useState(() => {
+    // Direct read — sync required for useState lazy init
+    return localStorage.getItem('thrift-flip-view') ?? 'list';
+  });
   const [conversations, setConversations] = useState(() => getIndex());
-  const [selectedId, setSelectedId] = useState(null);
+  const [selectedId, setSelectedId] = useState(() => {
+    // Direct read — sync required for useState lazy init
+    const saved = localStorage.getItem('thrift-flip-selected-id');
+    return saved ? parseInt(saved, 10) : null;
+  });
   const [activeConv, setActiveConv] = useState(null);
   const [chatHistory, setChatHistory] = useState([]);
   const [contextMenu, setContextMenu] = useState(null); // { id, x, y } | null
 
   useEffect(() => {
+    localStorage.setItem('thrift-flip-view', view);
+    if (selectedId !== null) {
+      localStorage.setItem('thrift-flip-selected-id', String(selectedId));
+    } else {
+      localStorage.removeItem('thrift-flip-selected-id');
+    }
+  }, [view, selectedId]);
+
+  useEffect(() => {
     if (targetConversationId) {
       openChat(targetConversationId);
       onTargetConsumed?.();
+    }
+  }, []);
+
+  useEffect(() => {
+    if (view === 'chat' && selectedId !== null) {
+      const conv = getConversation(selectedId);
+      setActiveConv(conv);
+      setChatHistory(conv?.chatHistory ?? []);
     }
   }, []);
 
@@ -50,6 +74,7 @@ export default function FlipMode({ cart, listingItem, onNavigateToCart, onNaviga
 
   function handleBack() {
     setView('list');
+    setSelectedId(null);
     setConversations(getIndex());
   }
 
