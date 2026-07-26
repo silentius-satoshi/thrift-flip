@@ -1,19 +1,10 @@
 import NavBar from './ui/NavBar';
 
-function ShopIcon() {
+function CameraIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
-      <line x1="3" y1="6" x2="21" y2="6" />
-      <path d="M16 10a4 4 0 01-8 0" />
-    </svg>
-  );
-}
-
-function ChatIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+      <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
+      <circle cx="12" cy="13" r="4" />
     </svg>
   );
 }
@@ -37,24 +28,24 @@ function TagIcon() {
   );
 }
 
-function HistoryIcon() {
+function ChartIcon() {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 8v4l3 3" />
-      <path d="M3.05 11a9 9 0 1 0 .5-4" />
-      <path d="M3 3v4h4" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 3v18h18" />
+      <path d="M7 15l4-4 3 3 5-6" />
     </svg>
   );
 }
 
 export default function Nav({ currentScreen, setCurrentScreen, cartCount, hasActiveListing }) {
+  // Conversations are about items being bought — the flip screen highlights Buy
+  const active = currentScreen === 'flip' ? 'shop' : currentScreen;
   const tabs = [
-    { id: 'shop',    label: 'Shopping', icon: <ShopIcon /> },
-    { id: 'flip',    label: 'Flip',     icon: <ChatIcon /> },
-    { id: 'cart',    label: 'Cart',     icon: <CartIcon />, badge: cartCount > 0 ? (cartCount > 9 ? '9+' : cartCount) : null },
-    { id: 'listing', label: 'Listing',  icon: <TagIcon />,  badgeDot: hasActiveListing },
-    { id: 'history', label: 'History',  icon: <HistoryIcon /> },
+    { id: 'shop',    label: 'Buy',     icon: <CameraIcon /> },
+    { id: 'cart',    label: 'Cart',    icon: <CartIcon />, badge: cartCount > 0 ? (cartCount > 9 ? '9+' : cartCount) : null },
+    { id: 'listing', label: 'List',    icon: <TagIcon />,  badgeDot: hasActiveListing },
+    { id: 'history', label: 'Selling', icon: <ChartIcon /> },
   ];
 
-  return <NavBar tabs={tabs} active={currentScreen} onSelect={setCurrentScreen} />;
+  return <NavBar tabs={tabs} active={active} onSelect={setCurrentScreen} />;
 }

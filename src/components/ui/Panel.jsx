@@ -9,11 +9,15 @@ export function Panel({ title, className = '', children, ...rest }) {
   );
 }
 
-export function PanelRow({ label, value, className = '', ...rest }) {
+export function PanelRow({ label, value, onValueTap, className = '', ...rest }) {
   return (
     <div className={`ui-panel-row${className ? ` ${className}` : ''}`} {...rest}>
       <span className="ui-panel-row-label">{label}</span>
-      <span className="ui-panel-row-value money">{value}</span>
+      {onValueTap ? (
+        <button type="button" className="ui-panel-row-value money ui-panel-tap" onClick={onValueTap}>{value}</button>
+      ) : (
+        <span className="ui-panel-row-value money">{value}</span>
+      )}
     </div>
   );
 }

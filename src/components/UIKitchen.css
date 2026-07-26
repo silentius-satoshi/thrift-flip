@@ -1,4 +1,6 @@
-.uikitchen {
+/* .screen.uikitchen: two classes so this padding-bottom outranks .screen's shorthand
+   (App.css loads after this file in the bundle) */
+.screen.uikitchen {
   padding-bottom: calc(var(--nav-total) + var(--bar-h) + 20px);
 }
 .uikitchen-header {
@@ -33,4 +35,7 @@
   width: 48px;
   height: 48px;
   border-radius: 8px;
+}
+.uikitchen-cam {
+  align-items: center;
 }

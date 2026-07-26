@@ -18,6 +18,11 @@
 }
 .ui-panel-row-label { color: var(--fg-2); }
 .ui-panel-row-value { font-weight: 600; }
+.ui-panel-tap {
+  color: var(--blue-lt);
+  border-bottom: 1px dashed rgba(101,146,253,.5);
+  padding: 0;
+}
 .ui-panel-total {
   display: flex;
   justify-content: space-between;

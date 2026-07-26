@@ -12,6 +12,7 @@ import { Field, Input, TextArea } from './ui/Field';
 import { StatGrid, Stat } from './ui/StatGrid';
 import ActionBar from './ui/ActionBar';
 import FourDotMark from './ui/FourDotMark';
+import { Shutter, CamSide, PhotoRemoveDot } from './ui/CameraControls';
 import './UIKitchen.css';
 
 const grad = (a, b) => ({ background: `linear-gradient(135deg, ${a}, ${b})` });
@@ -71,7 +72,7 @@ export default function UIKitchen() {
       <section>
         <div className="lbl">Earnings panel</div>
         <Panel title="Your earnings">
-          <PanelRow label="Item price" value="$94.50" />
+          <PanelRow label="Item price" value="$94.50" onValueTap={() => setSheetOpen(true)} />
           <PanelRow label="Selling costs" value="−$12.82" />
           <PanelRow label="Shipping" value="−$12.00" />
           <PanelRow label="Paid at Goodwill" value="−$8.00" />
@@ -182,6 +183,25 @@ export default function UIKitchen() {
           <Stat value="$55.83" label="AVG SALE" />
           <Stat value="4.2d" label="AVG TIME TO SELL" />
         </StatGrid>
+      </section>
+
+      <section>
+        <div className="lbl">Camera controls</div>
+        <div className="uikitchen-cluster uikitchen-cam">
+          <CamSide aria-label="Last photo">
+            <div style={{ ...grad('#3E4A2B', '#86B817'), width: '100%', height: '100%' }} />
+          </CamSide>
+          <Shutter aria-label="Take photo" />
+          <CamSide aria-label="Selling">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 3v18h18" />
+              <path d="M7 15l4-4 3 3 5-6" />
+            </svg>
+          </CamSide>
+          <div className="uikitchen-thumb" style={{ ...grad('#2B3A4A', '#3665F3'), position: 'relative' }}>
+            <PhotoRemoveDot style={{ position: 'absolute', top: 3, right: 3 }} />
+          </div>
+        </div>
       </section>
 
       <section>

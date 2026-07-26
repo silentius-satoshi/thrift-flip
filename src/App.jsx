@@ -24,6 +24,13 @@ function AppInner() {
     if (saved === 'preview') return 'listing';
     return valid.includes(saved) ? saved : 'shop';
   });
+  const [camActive, setCamActive] = useState(() => {
+    // Direct read — sync required for useState lazy init; mirrors ShoppingMode's phase restore
+    try {
+      const v = JSON.parse(localStorage.getItem('thrift-flip-shopping-verdict'));
+      return !(v?.phase === 'pencil' || v?.phase === 'verdict');
+    } catch { return true; }
+  });
   const [previewData, setPreviewData] = useState(null);
   const [flipTargetId, setFlipTargetId] = useState(null);
   const [previousScreen, setPreviousScreen] = useState(() => {
@@ -148,6 +155,8 @@ function AppInner() {
           onAddToCart={addItem}
           onNavigateToCart={() => setCurrentScreen('cart')}
           onGoToFlip={(id) => { setPreviousScreen('shop'); setFlipTargetId(id); setCurrentScreen('flip'); }}
+          onGoToSelling={() => setCurrentScreen('history')}
+          onCamActive={setCamActive}
         />
       )}
       {currentScreen === 'flip' && (
@@ -195,7 +204,7 @@ function AppInner() {
           onRestoreDraft={handleRestoreDraft}
         />
       )}
-      {currentScreen !== 'preview' && (
+      {currentScreen !== 'preview' && !(currentScreen === 'shop' && camActive) && (
         <Nav
           currentScreen={currentScreen}
           setCurrentScreen={setCurrentScreen}
