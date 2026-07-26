@@ -1,0 +1,18 @@
+.ui-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 15px;
+  min-height: 38px;
+  border-radius: var(--r-chip);
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--line-2);
+  color: var(--fg-2);
+  transition: border-color var(--fast) var(--ease), color var(--fast) var(--ease), background var(--fast) var(--ease);
+}
+.ui-chip.selected {
+  border-color: var(--fg);
+  color: var(--fg);
+  background: var(--card-2);
+}

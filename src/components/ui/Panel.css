@@ -1,0 +1,32 @@
+.ui-panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  padding: 16px;
+}
+.ui-panel-title {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+.ui-panel-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 5px 0;
+  font-size: 14px;
+}
+.ui-panel-row-label { color: var(--fg-2); }
+.ui-panel-row-value { font-weight: 600; }
+.ui-panel-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-top: 1px solid var(--line);
+  margin-top: 8px;
+  padding-top: 11px;
+}
+.ui-panel-total-label { font-size: 15px; font-weight: 700; }
+.ui-panel-total-value { font-size: var(--t-earnings); font-weight: 800; }
+.ui-panel-total-green { color: var(--green); }
+.ui-panel-total-red { color: var(--red); }

@@ -1,0 +1,18 @@
+.ui-actionbar {
+  position: fixed;
+  bottom: var(--nav-total);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: var(--column);
+  height: var(--bar-h);
+  display: flex;
+  gap: 8px;
+  padding: 9px var(--gutter);
+  background: rgba(15,15,15,.92);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid var(--line);
+  z-index: 45;
+}
+.ui-actionbar > * { flex: 1; }

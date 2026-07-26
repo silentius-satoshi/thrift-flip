@@ -1,6 +1,6 @@
 /* ── Layout utilities ── */
 .screen {
-  padding: 16px 16px 80px;
+  padding: 16px var(--gutter) calc(var(--nav-total) + 16px);
   min-height: 100dvh;
 }
 
@@ -80,13 +80,13 @@
 /* ── Toast ── */
 .toast-container {
   position: fixed;
-  bottom: 140px;
+  bottom: calc(var(--nav-total) + var(--bar-h) + 16px);
   left: 50%;
   transform: translateX(-50%);
   z-index: 200;
   pointer-events: none;
-  width: calc(100% - 32px);
-  max-width: 358px;
+  width: calc(100% - var(--gutter) * 2);
+  max-width: calc(var(--column) - var(--gutter) * 2);
 }
 .toast {
   background: var(--bg-card);

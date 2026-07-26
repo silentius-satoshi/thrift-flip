@@ -1,0 +1,13 @@
+.ui-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.ui-tag-green { background: var(--green-wash); color: var(--green); }
+.ui-tag-red { background: var(--red-wash); color: var(--red); }
+.ui-tag-yellow { background: var(--yellow-wash); color: var(--yellow); }
+.ui-tag-blue { background: var(--blue-wash); color: var(--blue-lt); }
+.ui-tag-mute { background: var(--card-2); color: var(--fg-2); }

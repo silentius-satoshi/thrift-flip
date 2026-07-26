@@ -1,0 +1,36 @@
+.uikitchen {
+  padding-bottom: calc(var(--nav-total) + var(--bar-h) + 20px);
+}
+.uikitchen-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.uikitchen-title {
+  font-size: var(--t-title);
+  font-weight: 800;
+}
+.uikitchen section {
+  margin-bottom: 26px;
+}
+.uikitchen section > .lbl {
+  display: block;
+  margin-bottom: 10px;
+}
+.uikitchen-cluster {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.uikitchen-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.uikitchen-thumb {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+}

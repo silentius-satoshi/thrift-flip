@@ -1,0 +1,37 @@
+.ui-sheet-dim {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.6);
+  z-index: 200;
+}
+.ui-sheet {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: var(--column);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-bottom: none;
+  border-radius: 18px 18px 0 0;
+  padding: 10px 20px calc(26px + var(--safe-b));
+  z-index: 200;
+  animation: ui-sheet-up 300ms var(--ease);
+}
+@keyframes ui-sheet-up {
+  from { transform: translate(-50%, 100%); }
+  to { transform: translate(-50%, 0); }
+}
+.ui-sheet-handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line-2);
+  margin: 0 auto 16px;
+}
+.ui-sheet-title {
+  font-size: 17px;
+  font-weight: 800;
+  margin-bottom: 12px;
+}

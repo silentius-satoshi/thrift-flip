@@ -1,4 +1,4 @@
-import './Nav.css';
+import NavBar from './ui/NavBar';
 
 function ShopIcon() {
   return (
@@ -49,33 +49,12 @@ function HistoryIcon() {
 
 export default function Nav({ currentScreen, setCurrentScreen, cartCount, hasActiveListing }) {
   const tabs = [
-    { id: 'shop',    label: 'Shopping', Icon: ShopIcon    },
-    { id: 'flip',    label: 'Flip',     Icon: ChatIcon    },
-    { id: 'cart',    label: 'Cart',     Icon: CartIcon    },
-    { id: 'listing', label: 'Listing',  Icon: TagIcon     },
-    { id: 'history', label: 'History',  Icon: HistoryIcon },
+    { id: 'shop',    label: 'Shopping', icon: <ShopIcon /> },
+    { id: 'flip',    label: 'Flip',     icon: <ChatIcon /> },
+    { id: 'cart',    label: 'Cart',     icon: <CartIcon />, badge: cartCount > 0 ? (cartCount > 9 ? '9+' : cartCount) : null },
+    { id: 'listing', label: 'Listing',  icon: <TagIcon />,  badgeDot: hasActiveListing },
+    { id: 'history', label: 'History',  icon: <HistoryIcon /> },
   ];
 
-  return (
-    <nav className="nav">
-      {tabs.map(({ id, label, Icon }) => (
-        <button
-          key={id}
-          className={`nav-tab ${currentScreen === id ? 'active' : ''}`}
-          onClick={() => setCurrentScreen(id)}
-        >
-          <span className="nav-icon-wrap">
-            <Icon />
-            {id === 'cart' && cartCount > 0 && (
-              <span className="nav-badge">{cartCount > 9 ? '9+' : cartCount}</span>
-            )}
-            {id === 'listing' && hasActiveListing && (
-              <span className="nav-badge nav-badge-dot" />
-            )}
-          </span>
-          {label}
-        </button>
-      ))}
-    </nav>
-  );
+  return <NavBar tabs={tabs} active={currentScreen} onSelect={setCurrentScreen} />;
 }

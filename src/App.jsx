@@ -12,6 +12,7 @@ import ListingMode from './components/ListingMode';
 import PreviewMode from './components/PreviewMode';
 import HistoryMode from './components/HistoryMode';
 import DraftsMode from './components/DraftsMode';
+import UIKitchen from './components/UIKitchen';
 import './App.css';
 
 function AppInner() {
@@ -19,7 +20,7 @@ function AppInner() {
   const [currentScreen, setCurrentScreen] = useState(() => {
     // Direct read — sync required for useState lazy init
     const saved = localStorage.getItem('thrift-flip-screen');
-    const valid = ['shop', 'flip', 'cart', 'listing', 'history', 'drafts'];
+    const valid = ['shop', 'flip', 'cart', 'listing', 'history', 'drafts', 'uikit'];
     if (saved === 'preview') return 'listing';
     return valid.includes(saved) ? saved : 'shop';
   });
@@ -187,6 +188,7 @@ function AppInner() {
         />
       )}
       {currentScreen === 'history' && <HistoryMode />}
+      {currentScreen === 'uikit' && <UIKitchen />}
       {currentScreen === 'drafts' && (
         <DraftsMode
           onBack={() => setCurrentScreen('listing')}

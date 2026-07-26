@@ -1,0 +1,54 @@
+.ui-listing-preview-strip {
+  display: flex;
+  gap: 2px;
+  height: 150px;
+}
+.ui-listing-preview-strip > * {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+}
+.ui-listing-preview-strip img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.ui-listing-preview-body { padding: 14px 16px; }
+.ui-listing-preview-title { font-size: 15px; line-height: 1.35; }
+.ui-listing-preview-cond {
+  font-size: 13px;
+  color: var(--fg-2);
+  margin-top: 3px;
+}
+.ui-listing-preview-price {
+  font-size: 26px;
+  font-weight: 800;
+  margin-top: 8px;
+}
+.ui-listing-preview-obo {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--fg-2);
+}
+.struck .ui-listing-preview-price {
+  text-decoration: line-through var(--red) 3px;
+  color: var(--fg-2);
+}
+.ui-listing-preview-ship {
+  font-size: 13px;
+  color: var(--fg-2);
+  margin-top: 2px;
+}
+.ui-listing-preview-sold {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--red);
+  margin-top: 7px;
+  padding: 0;
+  text-align: left;
+}
+button.ui-listing-preview-sold {
+  text-decoration: underline dashed;
+  text-underline-offset: 3px;
+}

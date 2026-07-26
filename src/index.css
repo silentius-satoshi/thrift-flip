@@ -5,40 +5,51 @@ input, textarea, select { font: inherit; }
 img { display: block; max-width: 100%; }
 
 /* ── Design tokens ── */
-:root {
-  --bg-base:        #0a0a0a;
-  --bg-primary:     #111111;
-  --bg-card:        #161616;
-  --bg-input:       #1a1a1a;
-  --border:         #1e1e1e;
-  --border-mid:     #2a2a2a;
-  --text-primary:   #e8e8e8;
-  --text-secondary: #888888;
-  --text-muted:     #555555;
-  --green:          #22c55e;
-  --green-bg:       #052015;
-  --green-border:   #0a3020;
-  --red:            #ef4444;
-  --red-bg:         #200505;
-  --red-border:     #3a0a0a;
-  --amber:          #f59e0b;
-  --amber-bg:       #2a1f00;
-  --amber-border:   #3a2a00;
-  --blue:           #3b82f6;
-  --blue-bg:        #051020;
-  --blue-border:    #1d4ed8;
+:root{
+  /* Surfaces — eBay dark */
+  --bg:#0F0F0F; --card:#1B1B1B; --card-2:#242424;
+  --line:#2E2E2E; --line-2:#3E3E3E;
+  /* Text */
+  --fg:#F7F7F7; --fg-2:#A8A8A8; --fg-3:#6E6E6E;
+  /* Brand + meaning. Blue = action only. Green = profit. Red = sold/skip. Yellow = pending. */
+  --blue:#3665F3; --blue-lt:#6592FD;
+  --green:#86B817; --red:#E9403B; --yellow:#F5AF02;
+  --green-wash:rgba(134,184,23,.14); --red-wash:rgba(233,64,59,.14);
+  --yellow-wash:rgba(245,175,2,.14); --blue-wash:rgba(54,101,243,.16);
+  /* Type */
+  --font:"Market Sans",-apple-system,BlinkMacSystemFont,"Helvetica Neue","Segoe UI",Arial,sans-serif;
+  --t-label:11px; --t-sub:13px; --t-body:16px; --t-title:21px;
+  --t-price:26px; --t-earnings:22px; --t-hero:34px;
+  /* Shape */
+  --r-pill:24px; --r-card:12px; --r-chip:20px; --r-input:8px;
+  /* Layout — single source of truth for the bottom chrome */
+  --nav-h:56px; --bar-h:64px;
+  --safe-b:env(safe-area-inset-bottom,0px);
+  --nav-total:calc(var(--nav-h) + var(--safe-b));
+  --gutter:16px; --column:390px;
+  /* Motion */
+  --ease:cubic-bezier(.32,.72,0,1); --fast:150ms; --base:240ms;
+}
 
-  --radius-input: 8px;
-  --radius-card:  12px;
-  --radius-pill:  99px;
+/* LEGACY ALIASES — bridge for un-migrated screen CSS. Delete in F4.
+   This list was generated from actual var(--…) usage in the repo. */
+:root{
+  --bg-base:var(--bg); --bg-primary:var(--bg); --bg-card:var(--card); --bg-input:var(--card-2);
+  --border:var(--line); --border-mid:var(--line-2);
+  --text-primary:var(--fg); --text-secondary:var(--fg-2); --text-muted:var(--fg-3);
+  --amber:var(--yellow); --amber-bg:var(--yellow-wash); --amber-border:rgba(245,175,2,.35);
+  --green-bg:var(--green-wash);  --green-border:rgba(134,184,23,.35);
+  --red-bg:var(--red-wash);      --red-border:rgba(233,64,59,.35);
+  --blue-bg:var(--blue-wash);    --blue-border:rgba(54,101,243,.45);
+  --radius-input:var(--r-input); --radius-card:var(--r-card); --radius-pill:var(--r-pill);
 }
 
 /* ── Base ── */
 html, body {
-  background: var(--bg-base);
-  color: var(--text-primary);
-  font-family: system-ui, -apple-system, sans-serif;
-  font-size: 15px;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
+  font-size: var(--t-body);
   line-height: 1.5;
   color-scheme: dark;
   -webkit-font-smoothing: antialiased;
@@ -46,9 +57,9 @@ html, body {
   min-height: 100dvh;
 }
 
-/* ── App shell: centered 390px column ── */
+/* ── App shell: centered column ── */
 #root {
-  max-width: 390px;
+  max-width: var(--column);
   margin: 0 auto;
   min-height: 100dvh;
   display: flex;
@@ -56,3 +67,10 @@ html, body {
   position: relative;
   background: var(--bg-primary);
 }
+
+/* ── Globals ── */
+* { -webkit-tap-highlight-color: transparent; }
+:focus-visible { outline: 2px solid var(--blue-lt); outline-offset: 2px; border-radius: 4px; }
+.money { font-variant-numeric: tabular-nums; }
+.lbl { font-size: var(--t-label); letter-spacing: .05em; text-transform: uppercase; color: var(--fg-3); font-weight: 700; }
+input, textarea, select { font-size: var(--t-body); } /* Safari zooms the page below 16px */

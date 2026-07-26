@@ -1,0 +1,26 @@
+.ui-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  min-height: 64px;
+  width: 100%;
+  text-align: left;
+  color: inherit;
+}
+.ui-row + .ui-row { border-top: 1px solid var(--line); }
+.ui-row-thumb { flex-shrink: 0; }
+.ui-row-main { flex: 1; min-width: 0; }
+.ui-row-title {
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ui-row-sub {
+  font-size: 13px;
+  color: var(--fg-2);
+  margin-top: 3px;
+}
+.ui-row-trailing { flex-shrink: 0; }

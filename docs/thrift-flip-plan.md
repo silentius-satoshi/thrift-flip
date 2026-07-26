@@ -172,14 +172,14 @@ Then, ninety days later, the only accuracy test that really counts: of the items
 ## 7. Working Conventions (how this project is actually run)
 
 - **Division of labor:** this chat/Cowork session = diagnosis, design, spec, plan review. **Claude Code (VS Code extension)** = implementation, fed complete prompts.
-- **The loop:** feed prompt → Claude Code returns a *plan* → review the plan against spec + repo (catch scope creep, wrong assumptions) → approve with *"This plan looks good. Please implement it exactly as written."* (plus any single amendment) → run the numbered verification steps → commit.
-- **Git block — standing instruction (Founder, July 2026).** After *every* change approved for commit, the Cowork session issues a complete, copy-pasteable block in exactly this three-line form, with a real message in place of the placeholder. Not a description of what to commit, not a single `git commit` line — the whole block, every time, unprompted:
+- **The loop (amended July 2026):** feed prompt → Claude Code returns a *plan* → Cowork reviews the plan against spec + repo (catch scope creep, wrong assumptions) → approve with *"This plan looks good. Please implement it exactly as written."* (plus any single amendment) → **Cowork issues the git block immediately with the approval** → Founder implements via Claude Code, runs the numbered verification steps, commits → Founder says it's committed → **Cowork reads the actual code in the connected folder and reviews it post-commit**, flagging anything that needs a follow-up fix (which becomes its own small commit). No implementation summaries pass through the Founder — the post-commit code review replaces them.
+- **Git block — standing instruction (Founder, July 2026).** Issued with every plan approval and after every doc change, as a complete copy-pasteable block in exactly this three-line form with a precise, concise message — never a description of what to commit, never a lone `git commit` line:
   ```
   git add .
   git commit -m '[commit message]'
   git push
   ```
-  Applies to doc-only changes (`docs/`, specs, prompts) as well as code. Still issued *after* the change is approved and any verification steps pass — never as a suggestion to commit something unreviewed.
+  Applies to doc-only changes (`docs/`, specs, prompts) as well as code. The Founder runs it only after implementation + verification pass; issuing it early is a convenience, not permission to skip verification.
 - **Model/effort per task:** Fable 5 · Extra High for foundational/cross-cutting work (V1, F1, E1 OAuth); **Ultracode reserved for the vault** (N1, or N1-lite if §6.1's option 1 is taken); Sonnet 5 · High for mechanical migrations (F4) and single-file fixes.
 - **Practical:** emoji cannot be pasted into Claude Code — use HTML entities (`&#128278;`) in prompts. Prompts should cite exact file:line targets and include explicit do-not-touch lists and false-positive warnings — **and any prompt written against a specific commit must be re-verified if the repo moved underneath it** (the F1 prompt is the live example, §6.1).
 - **Every build prompt opens by reading §6.1.** The specs are internally consistent but each assumes its own track ran first; §6.1 is where the interleaving is reconciled.

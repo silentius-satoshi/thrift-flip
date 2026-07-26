@@ -1,0 +1,13 @@
+.ui-fourdot {
+  display: inline-flex;
+  gap: 3px;
+}
+.ui-fourdot span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.ui-fourdot span:nth-child(1) { background: var(--red); }
+.ui-fourdot span:nth-child(2) { background: var(--blue); }
+.ui-fourdot span:nth-child(3) { background: var(--yellow); }
+.ui-fourdot span:nth-child(4) { background: var(--green); }

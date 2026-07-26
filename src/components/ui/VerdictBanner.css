@@ -1,0 +1,17 @@
+.ui-verdict {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-radius: var(--r-card);
+  padding: 13px 16px;
+}
+.ui-verdict-label { font-size: 16px; font-weight: 800; }
+.ui-verdict-detail { font-size: 12px; font-weight: 600; opacity: .85; }
+
+.ui-verdict-go { background: var(--green); color: #0B0F02; }
+.ui-verdict-skip { background: var(--red); color: #fff; }
+.ui-verdict-pencil {
+  background: transparent;
+  border: 1.5px dashed var(--line-2);
+  color: var(--fg-2);
+}

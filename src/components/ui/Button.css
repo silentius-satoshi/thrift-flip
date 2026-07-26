@@ -1,0 +1,22 @@
+.ui-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 46px;
+  padding: 12px 22px;
+  border-radius: var(--r-pill);
+  font-weight: 700;
+  font-size: 15px;
+  transition: transform var(--fast) var(--ease);
+}
+.ui-btn:active { transform: scale(.97); }
+.ui-btn:disabled { opacity: .4; }
+
+.ui-btn-sm { min-height: 38px; padding: 8px 16px; font-size: 13px; }
+
+.ui-btn-primary { background: var(--blue); color: #fff; }
+.ui-btn-outline { background: transparent; border: 1px solid var(--line-2); color: var(--fg); }
+.ui-btn-danger { background: transparent; border: 1px solid rgba(233,64,59,.45); color: var(--red); }
+
+.ui-btn-full { width: 100%; }
