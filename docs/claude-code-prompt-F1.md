@@ -1,17 +1,11 @@
 # Claude Code Prompt — F1: Tokens + UI Component Layer
 <!-- Model: Fable 5 · Effort: Extra High · Verified against repo @ b22906b -->
 
-> ## ⚠ RE-VERIFY BEFORE RUNNING — this prompt is pinned to commit `b22906b`
+> ## ✅ THIS IS NEXT — and it is valid exactly as written
 >
-> The build order was resequenced in July 2026 (`thrift-flip-plan.md` §6). **F1 is no longer next**: V0 (model validation), V1+S1 (real Gemini, first Settings screen, pencil floor, PWA manifest, JSON export/import) and T1 (a real thrift-store trip) all run first. The substance of this prompt is unchanged and still correct — the token block, the component inventory, the layout system and the UIKitchen gate all stand. But **five things below are pinned to the pre-V1 repo and V1/S1 will move them.** Re-check each against the actual repo before feeding this to Claude Code:
+> The build order was resequenced twice in July 2026 and landed back here: **F1 runs first**, against commit `b22906b`, with nothing moved underneath it (`thrift-flip-plan.md` §6). Every file:line target below was re-read out of the working tree and confirmed — see plan §3.1. An earlier draft of this file carried a re-verification warning because V1 was briefly scheduled ahead of F1; that ordering was dropped, and the warning with it.
 >
-> 1. **Part 3's file:line targets.** `src/App.css` ~3/~83, `ShoppingMode.css` ~35/~61/~72/~89, `ListingMode.css` ~223. V1 edits `ShoppingMode.css` to add the interim pencil-verdict styling, so those line numbers will drift. Re-grep and re-anchor.
-> 2. **Part 4's `valid` screen array.** It currently reads `['shop','flip','cart','listing','history','drafts']`. V1 adds a Settings screen and an AI-key detail sub-view; the real array will be longer.
-> 3. **Verification step 2's "all 7 screens."** There will be more than seven.
-> 4. **Part 1's `index.html` edit.** `viewport-fit=cover` and `<meta name="theme-color">` are now shipped by **S1**, before this prompt runs. That step becomes verify-and-skip, not an edit.
-> 5. **New CSS that didn't exist at `b22906b`.** V1 adds stylesheets for the Settings screen and the key sub-screen, plus pencil rules in `ShoppingMode.css`. They are written in the *old* idiom deliberately (plan §6.1) and F1 must fold them in like any other legacy file — add them to the alias/retoken sweep rather than leaving them behind.
->
-> Part 1's own instruction to re-run `grep -rhoE 'var\(--[a-z0-9-]+' src | sort -u` before finalizing the alias list already self-heals token drift. Nothing self-heals items 1–4.
+> One thing this prompt does **not** cover, deliberately: the four-tab camera-first restructure. F1 builds the component layer only, and the components are structure-agnostic on purpose (frontend v2 §4) — **F2+A** is the next prompt and it uses them to build both the new verdict and the new shell. Do not let an F1 plan wander into restructuring.
 
 Implement F1 of the Thrift Flip front-end redesign: a new design token system (eBay dark language) plus a shared UI component layer. This is architectural — NO business logic, storage, webhook, context, or flow changes. All existing screens must work identically after this change, just wearing the new palette. The tab structure stays exactly as is. Do not touch `src/utils/*`, `src/hooks/useGemini.js`, `src/hooks/useCart.js`, or `src/contexts/*`.
 
@@ -64,10 +58,10 @@ Replace the current `:root` token block with the new set, then add a legacy alia
 
 Notes:
 - `--green`, `--red`, `--blue`, `--amber`→`--yellow` are name-collisions on purpose: old CSS referencing them simply picks up the new eBay values. Only names absent from the new set get aliases.
-- Before finalizing, re-run `grep -rhoE 'var\(--[a-z0-9-]+' src | sort -u` and confirm every name found is defined in one of the two blocks. If anything new appears, extend the alias block. Nothing may reference an undefined variable. **This sweep is what catches the V1-era stylesheets (see the warning above).**
+- Before finalizing, re-run `grep -rhoE 'var\(--[a-z0-9-]+' src | sort -u` and confirm every name found is defined in one of the two blocks. If anything new appears, extend the alias block. Nothing may reference an undefined variable.
 
 Then update the base styles in the same file:
-- `html, body`: `background: var(--bg)`, `color: var(--fg)`, `font-family: var(--font)`, `font-size: var(--t-body)` (this raises the 15px base to 16px — intended, it is the iOS focus-zoom fix). **V1 will have set explicit 16px on its own inputs to work around the old base; those declarations become redundant but harmless — leave them or fold them into the `ui/` components, do not hunt them.**
+- `html, body`: `background: var(--bg)`, `color: var(--fg)`, `font-family: var(--font)`, `font-size: var(--t-body)` (this raises the 15px base to 16px — intended, it is the iOS focus-zoom fix; the current 15px is confirmed at `index.css` line 41).
 - `#root`: `max-width: var(--column)`; background follows the alias automatically.
 - Add global rules:
 ```css
@@ -78,7 +72,7 @@ Then update the base styles in the same file:
 input, textarea, select { font-size: var(--t-body); } /* Safari zooms the page below 16px */
 ```
 
-In `index.html`: **verify** the viewport meta reads `content="width=device-width, initial-scale=1, viewport-fit=cover"` and that `<meta name="theme-color" content="#0F0F0F">` is present. S1 ships both; only add them if they are missing.
+In `index.html`: change the viewport meta to `content="width=device-width, initial-scale=1, viewport-fit=cover"` and add `<meta name="theme-color" content="#0F0F0F">`. (Currently line 6 reads `width=device-width, initial-scale=1.0` with no theme-color — confirmed.)
 
 ---
 
@@ -108,16 +102,15 @@ Create 14 components, each as `Name.jsx` + `Name.css` in `src/components/ui/`. R
 ## PART 3 — Layout system migration (the shell)
 
 1. **Nav adapter:** rewrite `Nav.jsx` to render the new `<NavBar>` — same tabs, same SVG icons, same props from App.jsx (`cartCount` → numeric badge on Cart, `hasActiveListing` → dot on Listing). Nav.css shrinks to nothing (delete it and its import) — NavBar owns all styling. Visual deltas expected and intended: cart badge turns red (was amber), safe-area padding appears, background frosts.
-2. **Retoken every hardcoded bottom-chrome constant.** Targets below were verified at `b22906b` — **re-grep and re-anchor them first** (see the warning at the top; V1 edits `ShoppingMode.css`):
+2. **Retoken every hardcoded bottom-chrome constant.** Every target below was re-read out of the working tree at `b22906b` and confirmed, including the exact line numbers:
    - `src/App.css` line ~3, `.screen`: `padding: 16px 16px 80px` → `padding: 16px var(--gutter) calc(var(--nav-total) + 16px)`
    - `src/App.css` line ~83, toast container: `bottom: 140px` → `bottom: calc(var(--nav-total) + var(--bar-h) + 16px)`
    - `src/components/ShoppingMode.css` ~35: `min-height: calc(100dvh - 80px)` → `calc(100dvh - var(--nav-total))`
    - `ShoppingMode.css` ~61, `.verdict-page`: `padding: 12px 16px 130px` → `padding: 12px var(--gutter) calc(var(--nav-total) + var(--bar-h) + 20px)`
    - `ShoppingMode.css` ~72, `.verdict-action-bar`: `bottom: 60px` → `bottom: var(--nav-total)`; set `height: var(--bar-h)`; add the frosted treatment (bg rgba(15,15,15,.92) + backdrop blur + border-top var(--line))
-   - `ShoppingMode.css` ~89, `.verdict-chat-bubble`: `bottom: calc(60px + 56px + 16px)` → `bottom: calc(var(--nav-total) + var(--bar-h) + 12px)`; keep the existing `right: max(...)` but swap literals for `var(--gutter)` and `var(--column)`
+   - `ShoppingMode.css` **line 87**, `.verdict-chat-bubble`: `bottom: calc(60px + 56px + 16px)` → `bottom: calc(var(--nav-total) + var(--bar-h) + 12px)`; keep the existing `right: max(...)` but swap literals for `var(--gutter)` and `var(--column)`
    - `src/components/ListingMode.css` ~223 (listing action bar): `bottom: 60px` → `bottom: var(--nav-total)`; same height + frost treatment
-   - **Any equivalent constants in the V1-era Settings / key-detail stylesheets** — they were written in the old idiom on purpose; sweep them the same way.
-   - **False positives — do NOT touch:** `DraftsMode.css` ~108 (`padding: 80px 32px` is empty-state spacing), `ShoppingMode.css` thumb sizes (`width/height: 80px`), all `margin-bottom` hits, `ListingMode.css` ~52 (`bottom: 0` inside a modal), `PreviewMode.css` padding-bottom 32px (no nav on preview).
+   - **False positives — do NOT touch:** `DraftsMode.css` ~108 (`padding: 80px 32px` is empty-state spacing), `ShoppingMode.css` **lines 128/129 and 155/156** (`width`/`height: 80px` photo thumbs — confirmed), all `margin-bottom` hits, `ListingMode.css` ~52 (`bottom: 0` inside a modal), `PreviewMode.css` padding-bottom 32px (no nav on preview).
    List every file:line changed in your summary.
 3. No other screen restyling — the aliases handle the recolor automatically.
 
@@ -128,7 +121,7 @@ Create 14 components, each as `Name.jsx` + `Name.css` in `src/components/ui/`. R
 Create `src/components/UIKitchen.jsx` (+ css): a scrollable screen rendering EVERY ui/ component in EVERY variant with realistic thrift data — Buttons (3 variants × md/sm, one full, one disabled), Chip selected/unselected, all 5 StatusTag tones, Card, a complete earnings Panel titled "Your earnings" (rows: Item price $94.50 / Selling costs −$12.82 / Shipping −$12.00 / Paid at Goodwill −$8.00; PanelTotal "You'd keep" $61.68 green), all 3 VerdictBanner verdicts, ListingPreviewCard twice (normal with a CSS-gradient div as photo, `soldLine="12 sold in the last 30 days"` tappable; and `struck` skip variant), Sheet behind an "Open sheet" button, 3 Rows with gradient thumbs + StatusTag trailings, Field+Input+TextArea, StatGrid with 4 Stats (one green), FourDotMark, and one ActionBar at the bottom with outline + primary buttons.
 
 Register it in `src/App.jsx`:
-- Add `'uikit'` to the `valid` array in the `currentScreen` lazy initializer. **Read the array from the repo rather than assuming it** — at `b22906b` it was `['shop','flip','cart','listing','history','drafts']`, and V1 will have added Settings and the key sub-view.
+- Add `'uikit'` to the `valid` array in the `currentScreen` lazy initializer — `src/App.jsx` **line 22**, currently `['shop', 'flip', 'cart', 'listing', 'history', 'drafts']` (confirmed). Note line 23 redirects `'preview'` to `'listing'`; leave that alone.
 - Render `{currentScreen === 'uikit' && <UIKitchen />}` alongside the other screens; nav stays visible.
 - No visible navigation to it — dev route is `localStorage.setItem('thrift-flip-screen','uikit')` + refresh, using the existing screen-persistence mechanism.
 
@@ -141,10 +134,10 @@ Do not touch: `src/utils/*` (storageService, stores, webhooks/ai, calculations),
 ## Verification (run after implementing)
 
 1. `grep -rhoE 'var\(--[a-z0-9-]+' src | sort -u` — every name is defined in index.css (new set or alias block)
-2. App boots → **every screen** reachable and functionally identical, recolored to the eBay dark palette (count them from the repo; it was 7 at `b22906b` and V1 added more)
+2. App boots → all 7 screens reachable and functionally identical, recolored to the eBay dark palette
 3. Nav: cart badge red with count; listing dot blue; active tab var(--blue-lt); frosted background visible when content scrolls under it
 4. Verdict phase: action bar flush against nav, chat bubble above it, last content scrolls fully clear
 5. Toasts appear above the action bar, not behind it
 6. `localStorage.setItem('thrift-flip-screen','uikit')` + refresh → UIKitchen renders every component; Sheet opens and swipe-dismisses
-7. Focused inputs do not zoom the page (16px verified) — including the BYOK paste field V1 added
+7. Focused inputs do not zoom the page (16px verified) — the base was 15px before this step
 8. `npm run build` clean

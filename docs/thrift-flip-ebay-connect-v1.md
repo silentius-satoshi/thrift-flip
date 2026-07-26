@@ -14,7 +14,7 @@
 2. The **RuName redirect** mapped to `https://<app-domain>/ebay/callback`, plus its sandbox equivalent.
 3. The **Marketplace Account Deletion endpoint** (§4) live and responding to eBay's challenge — ~30 lines, and the one thing that actually blocks hobbyists.
 
-**But E1's code is not next.** The July 2026 resequencing (`thrift-flip-plan.md` §6) puts model validation, a working AI verdict, a real thrift-store trip, and the front-end component layer ahead of it: **E1–E2 run after F4.** Doing the three setup items above now means E1 starts cold when it arrives, which is the whole reason they are off the critical path rather than on it.
+**But E1's code is not next.** The July 2026 resequencing (`thrift-flip-plan.md` §6) puts the front-end component layer, the four-tab restructure, the real AI verdict and the remaining screen migrations ahead of it: **E1–E2 run after V1.5/E0.** Doing the three setup items above now means E1 starts cold when it arrives, which is the whole reason they are off the critical path rather than on it.
 
 The invitation-only wall people hit is **Marketplace Insights** (sold-price data), which this architecture already routes around (vision spec §4) and never depends on.
 
@@ -139,9 +139,9 @@ Cache verdict-cheap: last pull timestamp in prefs; a manual refresh is always al
 
 ## 8. Build Order
 
-*(Position in the overall sequence: after F4. See `thrift-flip-plan.md` §6.)*
+*(Position in the overall sequence: after V1.5/E0, which is after F4. See `thrift-flip-plan.md` §6.)*
 
-**E0 — Copy-assist floor (ships with vision V1.5, right after the first trip, zero eBay dependency).** "Copy for eBay" package + deep-link. *Gate:* full listing pastes cleanly into eBay's Sell flow on the phone.
+**E0 — Copy-assist floor (ships with vision V1.5, zero eBay dependency).** "Copy for eBay" package + deep-link. *Gate:* full listing pastes cleanly into eBay's Sell flow on the phone.
 
 **E1 — Sandbox connect.** Deletion endpoint live, RuName configured, sandbox test user created, `/api/ebay/oauth` + token storage per the §0 credential decision, Connect flow against that test user. *Gate:* sandbox connect round-trips; kill network mid-callback → clean retry, no token loss; an unauthenticated call to `/api/ebay/oauth` is rejected; and **tokens present only in their agreed store, absent from logs, URLs, and error messages.** The original gate — *tokens visible only as ciphertext* — passes here only if N1-lite was built; otherwise it moves to whenever a vault ships, **which is currently unscheduled. Do not record it as passed** (plan §6.1).
 

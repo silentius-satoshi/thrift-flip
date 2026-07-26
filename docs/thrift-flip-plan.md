@@ -20,7 +20,7 @@ Long-term it becomes a sovereign, subscription-ready product (Bitcoin/Lightning 
 | `thrift-flip-vision-pipeline-v1.md` | Photo → identify → listing via direct Gemini BYOK; comps ladder; §2.5 BYOK onboarding; V1.5 Mercari/Vendoo | **Current** — §0 erratum applied July 2026 (n8n references retired) |
 | `thrift-flip-nostr-spec-v1.md` | Identity (Face ID/PRF + 12 words), encrypted relay storage, Blossom media | **Current but DEFERRED** — §0 erratum + deferral note applied July 2026; see §6.1 |
 | `thrift-flip-ebay-connect-v1.md` | eBay OAuth, thin edge relays, drafts out / sold data in | **Current** — **developer account is APPROVED** ✅, §0 corrected |
-| `claude-code-prompt-F1.md` | The F1 build prompt | **Correct as of `b22906b`, and V1/S1 will invalidate parts of it — re-verify before running** (§6.1) |
+| `claude-code-prompt-F1.md` | The F1 build prompt | **Valid as written and NEXT.** F1 runs first again, against `b22906b` exactly — the staleness warning in its header no longer applies and has been removed (§6.1) |
 | `thrift-flip-design-v3-1-ebay.html` | Interactive reference prototype (10 screens, eBay dark) | **Current visual reference** |
 | frontend-spec-v1, design-v2.html, design-v3.html | Earlier directions | Superseded — do not use |
 
@@ -56,32 +56,32 @@ React 19 + Vite 8, **zero other dependencies**, ~2,800 LOC, plain CSS per compon
 
 ## 5. Superseded Decisions — do not resurrect
 
-n8n on Railway (deleted before ever wired — **the vision and nostr specs were written against it; both now carry a §0 erratum, but treat any surviving "proxy"/"workflow" phrasing in them as the edge relays, never as n8n**) · ImgBB · Google Lens / SerpApi Lens engine · Supabase/Stripe-first subscription plan (payments come later, Lightning/BTCPay-aligned, per the **EH** hosted-tier model — ebay-connect §1) · NIP-49 passphrase unlock (→ PRF) · the paper-tag/warm-graphite theme (frontend v1) · full-screen chat modal on the verdict (→ bubble navigates to the Flip conversation; `previousScreen` handles back) · marketplace form-filling automation · Nostr Step N5 as its own build step (NIP-98 now ships on the edge relays with E1) · pencil-verdict math as A-track work (pulled into V1, §6.1) · **F1-first sequencing** (the design-system refactor ahead of any working feature — superseded by §6's validate-ship-observe order; the F1 *prompt* is still substantively right but its file:line targets go stale at V1, §6.1) · any assumption the eBay dev account is missing (it is approved).
+n8n on Railway (deleted before ever wired — **the vision and nostr specs were written against it; both now carry a §0 erratum, but treat any surviving "proxy"/"workflow" phrasing in them as the edge relays, never as n8n**) · ImgBB · Google Lens / SerpApi Lens engine · Supabase/Stripe-first subscription plan (payments come later, Lightning/BTCPay-aligned, per the **EH** hosted-tier model — ebay-connect §1) · NIP-49 passphrase unlock (→ PRF) · the paper-tag/warm-graphite theme (frontend v1) · full-screen chat modal on the verdict (→ bubble navigates to the Flip conversation; `previousScreen` handles back) · marketplace form-filling automation · Nostr Step N5 as its own build step (NIP-98 now ships on the edge relays with E1) · pencil-verdict math as A-track work (pulled into V1, §6.1) · **the validate-ship-observe sequencing** (V0 as a gate, V1 ahead of F1, the trip as a mid-build step — adopted and then superseded within the same July 2026 session once the Founder chose to build the whole app before calibrating; V0 survives as a one-hour parallel input, §6.2) · **the five-tab intermediate migration** (F4-migrates-then-A-track-restructures; the build now targets the v3.1 four-tab camera-first structure directly and never constructs the intermediate, §6) · any assumption the eBay dev account is missing (it is approved).
 
 ## 6. Build Order & Status
 
-**The organizing principle:** the app currently has a complete UI and no validated behavior. So the order below spends the next three steps buying information — does the model work, does the app help, does the flow match how he actually shops — and only then spends a week on the component layer, which is easier to build correctly once the answers are in. Nothing in the specs is discarded; the *sequence* changed.
+**The organizing principle (Founder decision, July 2026): build the whole app, then calibrate it on real trips.** Dad does not use it mid-build, so the order below is no longer optimised for getting value onto his phone early. It is optimised for **the least total rework** — build the shared layer first, build straight to the final structure, and let every later step assemble rather than migrate.
 
 | Step | What | Status |
 |---|---|---|
 | — | Full 5-tab UI, storage abstraction, drafts/history/persistence | ✅ Done (`b22906b`) |
-| **V0** | **Model validation — no code, no repo change.** 10–15 real thrift items through AI Studio on the actual system prompt + `responseSchema`; score identification, pricing, and calibration | **NEXT** — §6.2 |
-| **V1 (+§2.5)** | Real Gemini analyze, structured output, **the first Settings screen + AI-key detail sub-screen**, BYOK onboarding, **pencil floor math + interim render**, `calculations.js` unit tests — built on the **current** theme | After V0 — scope detail in §6.1 |
-| **S1** | Trip prep, rides with V1: PWA manifest + icon + `standalone` + `viewport-fit=cover`; **JSON export *and* import**, credential keys excluded; photo-quota guard | With V1 |
-| **T1** | **The first real trip.** Dad uses it at Goodwill; structured observation per §6.3 | After V1/S1 |
-| V1.5 / E0 | Mercari variant + Copy-for-eBay/Mercari + Vendoo lane documented — the after-trip listing half, informed by what he actually bought | After T1 |
-| F1 | Tokens + `ui/` component layer + layout system + UIKitchen gate. **Re-verify the prompt against the post-V1 repo first** (§6.1) | After V1.5/E0 |
-| F2 | Verdict rebuilt: VerdictBanner + ListingPreviewCard + earnings Panel (go/skip/pencil) | After F1 |
-| **A-track** | Camera-first Buy, 4-tab consolidation — **gate is T1, and it runs BEFORE the bulk migration** | After F2, if T1 endorses it |
-| F3 | Chrome: frosted nav/bars, History→Selling rename, emoji→SVG, focus rings | After the structure settles |
-| F4 | Migrate remaining screens onto `ui/`, into the settled structure; delete legacy aliases | After F3 |
-| E1–E2 | eBay OAuth connect (sandbox→prod), deletion endpoint, outbound drafts. **Credential-at-rest decision required first** (§6.1) | Config unblocked now; code after F4 |
+| **V0** | **Model check — one hour in AI Studio, no code, runs in parallel.** Not a gate; it fixes the model string and tests calibration before that string spreads | **Do it any time before V1** — §6.2 |
+| **F1** | Tokens + `ui/` component layer + layout system + UIKitchen gate | **NEXT — prompt ready and valid** (`claude-code-prompt-F1.md`) |
+| **F2 + A** | **One step.** Verdict rebuilt (VerdictBanner + ListingPreviewCard + earnings Panel) **and** the v3.1 four-tab camera-first shell, assembled from F1's components. The five-tab intermediate is never built | After F1 |
+| **V1 (+§2.5)** | Real Gemini analyze, structured output, Settings + AI-key detail screens, BYOK onboarding, pencil floor math, `calculations.js` tests + Vitest | After F2+A — scope detail in §6.1 |
+| **S1** | PWA manifest + icon + `standalone` + `viewport-fit=cover`; **JSON export *and* import**, credential keys excluded; photo-quota guard | With V1 |
+| F3 | Chrome: frosted nav/bars, History→Selling rename, emoji→SVG, focus rings | After V1/S1 |
+| F4 | Migrate the remaining screens onto `ui/` — Flip, Cart, Listing, Drafts, Selling, Preview, Chat; delete legacy aliases | After F3 |
+| V1.5 / E0 | Mercari variant + Copy-for-eBay/Mercari + Vendoo lane documented | After F4 |
+| E1–E2 | eBay OAuth connect (sandbox→prod), deletion endpoint, outbound drafts. **Credential-at-rest decision required first** (§6.1) | Config unblocked now; code after V1.5/E0 |
 | V2–V4 | Comps provider on `/api/serpapi/comps.js` + Browse fallback + source chip; chat & listing-gen on the direct call; ImgBB decommission | After E1–E2 |
 | E3–E4 | Inbound sold/traffic → Selling + comps flywheel (fills tier 0); token lifecycle | After V2–V4 |
+| **Calibration** | **Dad, real trips, repeatedly.** The recording protocol and what counts as success: §6.3 | After the build |
 | N1–N4, N6 | Identity vault, NostrStore, sync engine, Blossom, relay mgmt | **Deferred — gated on the subscription product, not on Dad** (§6.1) |
-| ~~F5~~ | PWA | Absorbed into S1; leftovers ride with F3 |
+| ~~F5~~ | PWA | Absorbed into S1 |
+| ~~A-track~~ | Camera-first Buy, 4-tab consolidation | Merged into **F2+A**; no longer a separate gated step |
 
-Recommended sequence: **V0 → V1+S1 → T1 → V1.5/E0 → F1 → F2 → A-track → F3 → F4 → E1–E2 → V2–V4 → E3–E4 → N-track when the business case arrives.**
+Recommended sequence: **V0 (parallel) → F1 → F2+A → V1+S1 → F3 → F4 → V1.5/E0 → E1–E2 → V2–V4 → E3–E4 → calibrate on real trips → N-track when the business case arrives.**
 
 Off the critical path, do any time: create the sandbox test user, configure the RuName redirect, and stand up the account-deletion endpoint (ebay-connect §2 steps 3, 5–6 and §4). About an hour, blocks nothing, and E1 starts cold without it.
 
@@ -89,33 +89,28 @@ Off the critical path, do any time: create the sandbox test user, configure the 
 
 **This section outranks the companion specs wherever they disagree about *when* something exists.** Each spec was written as if its own track ran first; this is where the interleaving is reconciled.
 
-**Why V0 is first.** Every line of the five specs rests on one untested empirical claim: that a vision model can identify thrift inventory from three phone photos in bad light and price it usefully. It has never been checked once. It is checkable in under an hour with no code — which makes it the highest information-per-hour action available. If IDs come back at 2/5 instead of 4/5, the fix is upstream (a clarifying-question loop, 3.6-flash as default, a photo protocol) and you want that news before a week of component work.
+**How this order was arrived at, and why it flipped twice.** Ordering was always a function of one question — *when does Dad start using it?* An earlier pass put V1 ahead of F1 and inserted a mid-build trip, on the reasoning that a working decision instrument on his phone weeks earlier was worth some rework. The Founder then decided to **build the whole app before handing it over**, which removes that premise entirely: nobody is using it early, so "value on his phone sooner" buys nothing, and the ordering should minimise rework instead. That is what the table above does. Two consequences worth stating plainly, because they reverse earlier text in these documents:
 
-**Why V1 precedes F1.** The standard argument for the design system first is that you avoid migrating screens twice, and it loses here on magnitude — but by less than the first draft of this section claimed, so size V1 honestly (below). What the swap buys is a working decision instrument on his phone weeks earlier, and — via T1 — the information that makes F1 through F4 build the right thing once.
+- **F1 goes first again**, and this deletes four seams the interim ordering had created: no hand-rolled pencil render on `VerdictCard` for F2 to delete, no bespoke Settings CSS for F4 to migrate, no explicit-16px workaround for the 15px base (F1 raises it), and no `--t-hero` hardcoding. It also means **`claude-code-prompt-F1.md` is valid exactly as written against `b22906b`** — nothing has moved underneath it, and its re-verification warning has been removed.
+- **The five-tab intermediate is never built.** The original plan had F4 migrate five screens onto the component layer and *then* the A-track restructure them into four with a camera-first Buy. Since the destination is already decided — the v3.1 prototype is the reference and camera-first is the direction — F2+A builds the four-tab shell straight from F1's components, and F4 migrates the remaining screens into a structure that has already settled. One migration, not two, and one fewer approval gate.
 
-**Why the trip is a build step.** The plan previously deferred all user feedback to the A-track, at the very end, for an app with exactly one user who is available on Saturdays. Worse, it sequenced F4 (migrate five screens onto the component layer) *before* the A-track (restructure those same screens into four tabs). Running T1 early fixes both: the A-track's gate becomes T1, the structural decision lands before the bulk migration, and F4 migrates once. If T1 says the five-tab form-first flow is fine, the A-track is dropped and nothing was lost.
+**Why V0 still happens, and why it isn't a gate.** The claim that a vision model can identify thrift inventory from phone photos in store lighting has never been checked once, and it is checkable in an hour with no code. But it was over-weighted as a *gate*: the AI layer is one hook (`useGemini.js`) and one utils file behind a `compsProvider` interface built to be swapped, so a poor result changes a model string or leans on `clarifying_question` — it does not invalidate the architecture. What V0 is actually for: fixing the model string in `src/config/gemini.js` before it spreads through the escalation rule and the cost table, and answering the calibration question (does `confidence: high` correlate with being right?) before the verdict screen starts stamping numbers. Run it whenever, as long as it is before V1.
+
+**Why the trip moved to the end.** A half-built app produces half-signal. "The form is too much typing standing up" is not a discovery that needs a Saturday — it is already the conclusion that produced the camera-first v3.1 prototype. And the measurement that actually matters, the ninety-day sold data that fills comps tier 0 and reveals whether the estimates were any good, is a months-long instrument no amount of upfront sequencing manufactures early. §6.3 keeps the recording protocol; it just runs after the build rather than inside it.
 
 **Why the N-track is deferred.** Its user-facing benefit for Dad is that his business record survives a lost phone; for that, a JSON export/import pair covers the disaster case, and it ships in S1 before the first trip. The vault, PRF unlock, sync engine and relay reconciliation are the most complex, highest-risk work in the project, and their real justification is the sovereign subscription product: portable identity, no accounts, the pubkey that becomes the billing hook. Sequencing them by the product roadmap rather than by Dad's needs is the change; the architecture is unchanged. **But deferring N1 indefinitely has consequences the first draft of this plan waved through — see "what the deferral costs" below.**
 
 **Sizing V1 honestly.** This plan first described V1's UI surface as "a Settings row, a paste screen, and a pencil state." That was wrong: **there is no Settings screen in the repo at all** (§3). V1 therefore builds:
 
-- a **Settings screen** — a new tab or a header entry point, joining the lazy-init + persist pattern (§8) or refresh will eject him;
-- a **"Your keys" section** with the Verdicts row, plus an **AI-key detail sub-screen** (Test / Replace / Revoke help, and the interim risk note) — that is a second new sub-view, and sub-views have their own persistence trap (§8);
+- a **Settings screen** — reachable from a header entry point, **not a sixth tab**, since the shell is four tabs by the time V1 runs; it joins the lazy-init + persist pattern (§8) or refresh will eject him;
+- a **"Your keys" section** with the Verdicts row, plus an **AI-key detail sub-screen** (Test / Replace / Revoke help, and the interim risk note) — a second new sub-view, with its own persistence trap (§8);
 - the BYOK paste flow, the direct-Gemini call and schema wiring;
-- the pencil arithmetic in `calculations.js` plus its interim render;
-- unit tests on `calculations.js`.
+- the pencil arithmetic in `calculations.js` (formula below), feeding the `VerdictBanner variant="pencil"` that F2+A already built;
+- Vitest plus specs on `calculations.js`.
 
-That is a real chunk of work, not an afternoon. It is still the right thing to do before F1 — the screens are simple and F4 migrates them like any other — but budget it as such, and note that these two new screens are the *only* new screens F4 has to migrate that the original plan didn't foresee.
+Because F1 and F2+A run first, both new screens are **composed from `ui/` components** — `Row`, `Field`, `Button`, `StatusTag` — with no bespoke stylesheets, so F4 has nothing extra to migrate and the pencil needs no interim render. That is the single biggest saving from the reordering: under the earlier sequence these two screens were hand-rolled first and migrated later.
 
-**What "don't touch the theme" precisely means at V1.** V1 ships on the current tokens and the current 13 stylesheets. That means: do not introduce the new `:root` block, do not retokenize existing rules, do not rename variables, do not restyle any screen. It does **not** mean V1 writes no CSS — it necessarily adds pencil-state rules to `ShoppingMode.css` and new stylesheets for the two new screens, in the existing idiom. F1 absorbs all of it.
-
-**Three F1-era rules V1 must honor early, because it ships new UI before F1 exists:**
-
-1. **Every input V1 adds gets an explicit `font-size: 16px`.** The base is still 15px until F1 raises it, and an input at the base zooms the page on focus (§8). The BYOK paste field is the one that will bite.
-2. **The pencil render cannot use F1 tokens.** `--t-hero`, the `.money` tabular-figures rule, and the `:focus-visible` ring all arrive with F1's `:root`. Hardcode the equivalents at V1 and let F2 tokenize them when it rebuilds the verdict.
-3. **S1 owns `viewport-fit=cover` and `theme-color`, not F1.** Both are listed in F1's prompt (Part 1) and in frontend §5/§10. S1 ships them first; F1's step becomes a verify-and-skip.
-
-**The F1 prompt goes stale at V1 — re-verify before running it.** This plan previously asserted the prompt was "unchanged and still correct." It is substantively right and its token/alias work self-heals via its own re-grep step, but four things in it are pinned to `b22906b` and V1/S1 will move them: the file:line targets in Part 3 (`ShoppingMode.css` ~35/~61/~72/~89 — the same file V1 edits), the `valid` screen array in Part 4 (V1 adds `'settings'` and the key sub-view), the "all 7 screens reachable" check in Verification step 2, and Part 1's `index.html` viewport/theme-color edit (now S1's). Re-run the greps against the post-V1 repo and update those five spots before feeding it.
+**What V1 must not do.** With F1 and F2+A already in, V1 composes from `ui/` and adds **no screen-level CSS for buttons, cards, inputs, or money rows** — frontend v2 §4's grep rule is live from F1 onward, and V1's screens are the first ones written under it rather than migrated into it. If a V1 plan proposes a new stylesheet with a `border-radius` on an interactive element, that is the tell. Inputs also need no explicit `font-size` workaround: F1 raised the base from 15px to 16px (§3.1), which is what the workaround existed for.
 
 **What the deferral costs — read this before E1.** With N1 unscheduled, four things that were framed as temporary are now open-ended, and they were sized against a horizon that no longer exists:
 
@@ -143,19 +138,19 @@ Decide before E1's prompt is written. Until then, both credentials remain plaint
   floor = max( 3 × goodwillPrice ,  (20 + 0.30 + shipping + goodwillPrice) / (1 − 0.1325) )
   ```
 
-  **Shipping must be a real input, not `calcProfit`'s `5.00` default.** The `$46.50` figure used as the canonical example throughout these specs is `goodwillPrice = 8`, `shipping = 12` → `40.30 / 0.8675 = 46.45`, rounded up. Ship the pencil tag with a shipping assumption Dad can see and change, or the headline number will silently disagree with every example in the docs.
+  **Shipping must be a real input, not `calcProfit`'s `5.00` default.** The `$46.50` figure used as the canonical example throughout these specs is `goodwillPrice = 8`, `shipping = 12` → `40.30 / 0.8675 = 46.45`, rounded up. Ship the pencil tag with a shipping assumption Dad can see and change, or the headline number will silently disagree with every example in the docs. The render already exists by then — F2+A built `VerdictBanner variant="pencil"` against mock data; V1 supplies the arithmetic behind it.
 
 - **V1 — the one test worth writing now, and what it actually costs.** `calculations.js` is the file that must never be wrong; a bad verdict costs real money on a real purchase. Unit-test `calcProfit`, `checkRules`, and the new pencil inversion against worked examples (including the `$46.50` case above) before T1. **The catch: there is no test runner in the repo** (§3.1) — no `test` script, no vitest. So this is "add Vitest + one config line + a spec file," not "write a test." Still small on Vite, but it breaks the repo's zero-dev-dependency streak and the V1 prompt should say so explicitly rather than letting Claude Code discover it mid-task. (This was previously framed as "the only test this project needs before N1's derivation vector" — with N1 unscheduled, that bound is gone: E1/E2's OAuth and refresh paths deserve their own tests when they land.)
-- **T1 → A-track.** If the trip endorses camera-first, the structural change runs after F2 and **before** F3/F4, so the migration happens once. It remains a separately approved step. If the trip is ambiguous, take a second trip rather than guessing.
+- **F2+A — the one step that carries real product risk.** Merging the verdict rebuild with the four-tab camera-first restructure means committing to a structure without having watched Dad use it. That is the accepted cost of building before calibrating, and it is accepted because the destination was already reasoned to (the v3.1 prototype) rather than guessed. Two mitigations: build it against the prototype rather than improvising, and keep the change reversible in git — if calibration says the form-first flow was better, `git revert` is cheaper than having built both.
 - **E1 — relay auth.** Ship `/api/ebay/*` behind a shared bearer secret baked into the client build, and call it what it is: a speed bump against a stranger who finds the URL, not authentication. Never ungated — `oauth.js` holds the eBay client secret. (`/api/ebay/deletion.js` is the deliberate exception; eBay calls it unauthenticated.) With NIP-98 unscheduled, treat this as the posture, not a placeholder.
 - **E2 — item ids.** The SKU is the item's **local id**, the one `saveDraft` already upserts by (plan §8), carrying forward unchanged if it ever becomes an event id. eBay §6 already reads this way; do not mint a second identifier.
 - **E2 — photos. Open question, resolve before starting.** eBay §6 sources listing photos from Blossom URLs (N4), now deferred indefinitely, which makes this question more urgent rather than less — and vision §6's ImgBB-decommission row carries the same Blossom assumption. Candidates: create drafts photo-less and let Dad add photos in Seller Hub, where he already reviews before publishing (cheapest, zero new surface, and now probably the right answer); the legacy Trading API `UploadSiteHostedPictures`, which takes a binary upload rather than a public URL; or a relay-side upload endpoint. **Not yet researched** — amend eBay §6, do not improvise inside a build prompt.
 - **E3 — sold history.** Results go to `thrift-flip-sold-history`, a `storageService` store keyed by item id, joining the d-tag map (nostr §7) if N2 ever happens. V2 wires the tier-0 lookup against that store returning empty; E3 fills it. Note that eBay §1's **EH** tier (hosted keyset) and §8's **E3** (inbound) are different things — the letter collision is why §1's tier was renamed.
 - **N1 vs N2, if and when they run.** N1 owns the credential write path; N2 preserves it rather than rebuilding it.
 
-### 6.2 V0 — the validation pass (the next thing to do)
+### 6.2 V0 — the one-hour model check (parallel, not a gate)
 
-No repo change, no prompt to Claude Code. Roughly an hour.
+No repo change, no prompt to Claude Code. Roughly an hour, any time before V1 needs a model string. It does not block F1 or F2+A.
 
 Shoot **10–15 items** that look like a real trip's inventory and deliberately span the difficulty range: unbranded vintage ceramics, a no-label wool coat, a piece of Pyrex, a power tool, a book, a labelled jacket, something with the tag cut out. Shoot them the way he actually would — handheld, store lighting, three angles, no staging.
 
@@ -163,11 +158,11 @@ Within that shoot, include **the same five items vision §7's V1 gate names — 
 
 Run each through AI Studio using the **actual** three-mode system prompt and the `responseSchema` in **`thrift-flip-vision-pipeline-v1.md` §5**, not an ad-hoc prompt. For each item record: identification correct (brand + model), condition grade plausible, price estimate versus what a manual eBay sold-filter search says, and the model's own stated `confidence`. The number that matters most is not accuracy but **calibration** — whether `confidence: high` is actually more accurate than `confidence: low`. A model that is wrong and knows it is usable; one that is wrong and confident is dangerous, because the verdict screen will stamp it.
 
-Gate: **≥4 of the 5 core items** correct on brand+model, price estimates inside a defensible range, and confidence that tracks accuracy across the wider set. Miss it and the fix is upstream — default to `gemini-3.6-flash`, fire `clarifying_question` more aggressively, or add photo guidance to the capture UI — before V1 is written.
+What a good result looks like: **≥4 of the 5 core items** correct on brand+model, price estimates inside a defensible range, and confidence that tracks accuracy across the wider set. A poor result does not stop the build — it changes three specific things before V1 hardcodes them: the default in `src/config/gemini.js` (promote `gemini-3.6-flash`), how aggressively `clarifying_question` fires, and whether the capture UI needs photo guidance. Write whatever you find into a short amendment to vision §3 so V1's prompt inherits it.
 
-### 6.3 T1 — the trip (what to record, and what "it worked" means)
+### 6.3 Calibration — the trips, after the build
 
-Set this up before going, or the trip produces impressions instead of data.
+This runs once the app is complete through E3–E4. Set the recording up before the first trip, or it produces impressions instead of data — and since the build no longer pauses to collect feedback, these trips are the *only* mechanism that turns Dad's experience into changes.
 
 Per item he considers, record: what it was, the Goodwill price, whether the ID was right, the app's estimate and verdict, what he actually did, and — the important one — **why, whenever he overrode it.** Also count the items he did *not* bother opening the app for; that number is the honest measure of whether it is fast enough to be worth pulling out a phone in an aisle.
 
@@ -205,10 +200,11 @@ Then, ninety days later, the only accuracy test that really counts: of the items
 
 ## 9. Immediate Next Actions
 
-1. **Run V0** (§6.2). No code. Shoot the item set — including the five core items — and run it through AI Studio on the real prompt and the vision spec's §5 schema. Score ID / condition / price / calibration.
-2. Write the V0 findings into a short amendment to vision §3 (default model, escalation rule, any photo guidance the capture UI needs).
-3. **Then V1 + S1** in one Claude Code prompt (Fable 5, Extra High), sized per §6.1 and citing §3.1's verified line numbers: Settings screen + AI-key detail sub-screen, both on the persistence pattern, both added to `App.jsx`'s screen array at line 22; `analyzeItem` wired to direct Gemini with the structured schema; BYOK row with interim localStorage custody and the risk note; **every new input at explicit `font-size: 16px`** (base is 15px until F1); pencil floor math per §6.1's formula plus its interim `VerdictCard` render with hardcoded (not tokenized) values; **Vitest added** plus specs for `calcProfit` / `checkRules` / the pencil inversion; PWA manifest/icon/standalone and the `index.html` viewport + `theme-color` edit; JSON export **and** import excluding credential keys; the photo-quota guard. Do-not-touch: the `:root` token block in `index.css`, existing variable names, and any restyling of existing screens — new CSS in the existing idiom is expected and fine (§6.1).
-4. **Then take him to Goodwill** (§6.3), with the recording sheet set up beforehand.
-5. In parallel whenever convenient, off the critical path: create the sandbox test user, configure the RuName redirect, build the deletion endpoint (ebay-connect §2 steps 3, 5–6 and §4).
-6. After T1: V1.5/E0 for the listing half. Then **re-verify `claude-code-prompt-F1.md` against the post-V1 repo** (§6.1) before running F1, and take the A-track decision.
+1. **Run `claude-code-prompt-F1.md`** in Claude Code (Fable 5, Extra High). It is valid exactly as written against `b22906b` — §3.1 confirms every file:line target in it. Review the returned plan before approving; watch for the alias list being generated from its own grep, the centered-column fixed positioning being preserved, and **no early screen migration** (F1 ends recolored, not rebuilt). Verify with its 8-step checklist, then commit.
+2. **In parallel, run V0** (§6.2) — an hour in AI Studio, no code. Write the findings into a short amendment to vision §3. Needs to be done before V1, not before F1.
+3. **F2+A** as one prompt: the verdict rebuilt as `VerdictBanner + ListingPreviewCard + Panel` (all three variants, pencil included and data-driven), *and* the v3.1 four-tab camera-first shell, both assembled from F1's `ui/` components. Build against the prototype, not from improvisation (§6.1).
+4. **V1 + S1** in one prompt, sized per §6.1: Settings screen behind a header entry point plus the AI-key detail sub-screen, both composed from `ui/` and both on the persistence pattern; `analyzeItem` wired to direct Gemini with the structured schema; BYOK row with interim localStorage custody and the risk note; pencil floor math per §6.1's formula feeding the existing pencil banner; **Vitest added** plus specs for `calcProfit` / `checkRules` / the pencil inversion; PWA manifest/icon/standalone and the `index.html` viewport + `theme-color` edit; JSON export **and** import excluding credential keys; the photo-quota guard.
+5. **F3, then F4** — chrome and focus rings, then migrate Flip, Cart, Listing, Drafts, Selling, Preview and Chat onto `ui/` and delete the legacy aliases.
+6. **V1.5/E0 → E1–E2 → V2–V4 → E3–E4.** Off the critical path and worth doing now: create the sandbox test user, configure the RuName redirect, build the deletion endpoint (ebay-connect §2 steps 3, 5–6 and §4).
 7. Before E1's prompt: settle the re-opened credential-storage decision (§6.1).
+8. **Then Dad, and the trips** (§6.3).

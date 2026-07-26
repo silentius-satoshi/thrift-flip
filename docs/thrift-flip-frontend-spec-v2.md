@@ -2,7 +2,7 @@
 ### eBay design language, dark mode, built as a component layer — not a reskin
 ### Supersedes v1 (warm graphite / paper tag). Reference prototype: `thrift-flip-design-v3-1-ebay.html`
 ### Repo: `silentius-satoshi/thrift-flip` · Target: iOS Safari PWA, 390pt column
-### §3, §4, §6, §8, §10 amended July 2026 for the resequencing — **the whole F-track now runs after V1 and after the first real trip** (`thrift-flip-plan.md` §6)
+### §3, §4, §6, §8, §10 amended July 2026 — **F1 runs first, F2 absorbs the A-track's four-tab restructure, and the five-tab intermediate is never built** (`thrift-flip-plan.md` §6)
 
 ---
 
@@ -20,7 +20,7 @@
 
 ## 2. Token System
 
-Drop-in `:root` for `src/index.css`. Everything below is referenced by name in §4–§6. **None of it exists until F1**, which now runs after V1 — so anything V1 ships is hand-rolled in the old idiom and folded in later (§10).
+Drop-in `:root` for `src/index.css`. Everything below is referenced by name in §4–§6. **F1 is the first build step**, so every later step composes against these tokens rather than working around their absence.
 
 ```css
 :root{
@@ -60,7 +60,7 @@ Rules that ride with the tokens:
 - **Money:** bold weight (700–800) in the UI face, `font-variant-numeric: tabular-nums` everywhere a dollar figure appears (columns must align even in proportional type). Sizes: `--t-price` on listing previews, `--t-earnings` on panel totals, `--t-hero` on the pencil floor figure — *hardcode the equivalent at V1, since the token arrives with F1.*
 - **Blue is action, never information.** Links, primary buttons, tappable numbers. A blue that isn't tappable is a bug.
 - **Red means "sold" or "no."** The sold-count line and skip surfaces only — never decoration, never warnings-in-general (those are yellow).
-- **Inputs stay 16px** (`--t-body`) — the iOS focus-zoom rule is unchanged and non-negotiable. **Until F1 raises the 15px base, every new input needs an explicit `font-size: 16px`** — an input left at the current base zooms the page just as surely as a smaller one. V1's BYOK paste field is the first to hit this.
+- **Inputs stay 16px** (`--t-body`) — the iOS focus-zoom rule is unchanged and non-negotiable. The repo's base is 15px today (`index.css` line 41), which zooms the page just as surely as a smaller value; F1's `html, body` rule is what fixes it, and because F1 goes first no later step needs a per-input workaround.
 - The four logo-colored dots (`--red --blue --yellow --green`, 6px) appear as a header mark **at most once per screen**.
 
 ---
@@ -73,7 +73,7 @@ v1 spent its boldness on a paper price tag. v2 spends it on recognition:
 
 **B. The "Your earnings" panel.** The profit math is laid out exactly as Seller Hub's earnings breakdown: label/amount rows in `--fg-2`/`--fg`, hairline divider, then **You'd keep** with the total in `--t-earnings` green. The 3×/$20 rule checks sit under it as green checks. This is the panel eBay shows him *after* a sale; Thrift Flip shows it *before* the purchase. That inversion is the product, and the styling makes it legible instantly.
 
-The pencil (offline) state reuses panel B with a dashed no-color banner ("Your call for now — figured on this phone") and the inverted question: **What it must sell for — $46.50 or more.** Same component, `variant="pencil"` — **at F2. V1 ships this state first, hand-rolled on the existing `VerdictCard` with no `ui/` component and no tokens** (§10), because the pencil math was pulled forward and the component layer was pushed back. F2 is where the two meet.
+The pencil (offline) state reuses panel B with a dashed no-color banner ("Your call for now — figured on this phone") and the inverted question: **What it must sell for — $46.50 or more.** Same component, `variant="pencil"`. **F2 builds it against mock data; V1 later supplies the arithmetic behind it** (plan §6.1 carries the derived formula, and the $46.50 example is `goodwillPrice = 8, shipping = 12` — not `calcProfit`'s $5 default).
 
 ---
 
@@ -107,7 +107,7 @@ Rules:
 
 This is a ~1-day investment that converts every future screen (and the aisle restructure) from CSS archaeology into assembly.
 
-**Two notes the resequencing adds.** First, **F1 is the F-step that moved** — from first in the whole plan to after V1 and T1 (plan §5 lists "F1-first sequencing" as superseded); F2/F3/F4 kept their positions relative to it, and the A-track moved *inward* to sit between F2 and F3 (§10). Second, that reordering is safe precisely because **this inventory is structure-agnostic**: every component above is a primitive that serves the current five-tab app and the four-tab camera-first app equally, so F1 can be built before the structural question is answered. The migration that follows it is what must wait for the answer. Note also that F4 now has two screens to migrate that this table did not originally anticipate — the Settings screen and the AI-key detail sub-screen, which V1 builds (plan §6.1); both are `Row`- and `Field`-shaped and need no new components.
+**Why F1 goes first, and why that is safe.** The inventory above is deliberately **structure-agnostic**: every component is a primitive that serves the current five-tab app and the four-tab camera-first app equally well. That is what lets F1 be built before anything structural happens — and it is why F2 can then assemble the *new* shell from these parts rather than restyling the old one. Two later screens land on this layer without needing new components: the Settings screen and the AI-key detail sub-screen that V1 adds (plan §6.1) are `Row`-, `Field`- and `Button`-shaped, and because they are written *after* F1 they compose rather than migrate.
 
 ---
 
@@ -135,7 +135,7 @@ Carried from v1 verbatim in spirit — it was correct and unbuilt:
 | History → **Selling** | rename the tab. `StatGrid` (90-day: Listed / Earnings / Sold / Avg-to-sell) + Sold `Row`s with green `+$` trailing + Working section |
 | Toasts | `--card` + hairline; success/error tint via wash tokens |
 
-**These redlines describe the app's current structure, and whether that is still its structure by migration time is an open question with a scheduled answer.** The v3 structural moves (camera-first Buy, 4 tabs) are gated on the first real trip, T1 (`thrift-flip-plan.md` §6.3) — which happens *before* any of this migration. If T1 endorses camera-first, the A-track lands between F2 and F3 and this table is re-cut before F4 runs; if it doesn't, the table stands. Either way the composition per screen barely changes, because the components are the same ones either structure is assembled from. *(The pencil verdict was formerly listed among the A-track structural moves; its math and an interim render now ship at V1 — see §10.)*
+**These redlines describe the five-tab app, which is not the app being built.** The Founder chose to build straight to the destination: **F2 assembles the v3.1 four-tab camera-first shell** from F1's components, and the five-tab intermediate is never constructed (`thrift-flip-plan.md` §6). Read the table as a per-screen composition reference — *what a Cart row is made of, what the Listing editor is made of* — not as an IA. The four-tab mapping comes from `thrift-flip-design-v3-1-ebay.html`, which is the structural reference of record; where this table and the prototype disagree about **where** a screen lives, the prototype wins, and where they disagree about **what it is built from**, this table wins. Settings and the AI-key detail screen are additions V1 makes behind a header entry point, not tabs. *(The pencil verdict was formerly listed among the A-track structural moves; F2 builds its render and V1 supplies the math — §10.)*
 
 ---
 
@@ -149,7 +149,7 @@ eBay's app is nearly motionless, and that's correct here too. Keep: screen cross
 
 Manifest (`display: standalone`, `background_color/theme_color: #0F0F0F`), apple-touch-icon, `black-translucent` status bar, `viewport-fit=cover`. Icon: the four-dot mark on `--bg`.
 
-**This ships early, not late.** It was F5, at the end of the F-track; it moved to **S1**, alongside V1 and before the first trip (`thrift-flip-plan.md` §6), for a plain reason — he needs to launch this from his home screen like an app, not hunt for a Safari tab in a Goodwill aisle. **S1 therefore owns the `index.html` viewport and `theme-color` edits, and F1's corresponding step becomes verify-and-skip.** The icon uses the four-dot mark on `#0F0F0F` even though the eBay-dark palette formally arrives at F1; the value is a constant either way, so nothing has to be redone.
+**This is split across two steps.** `viewport-fit=cover` and `theme-color` are part of **F1**'s `index.html` edit, because the layout system in §5 depends on the viewport meta and F1 is where that system lands. The rest — manifest, icons, `standalone`, the `black-translucent` status bar — ships with **S1** alongside V1 (`thrift-flip-plan.md` §6), early enough that Dad launches the finished app from his home screen rather than hunting for a Safari tab. It was formerly F5 at the very end of the F-track; nothing is gained by waiting. The icon uses the four-dot mark on `#0F0F0F`, a constant either way.
 
 ---
 
@@ -160,35 +160,31 @@ Carried from v1 with palette-specific checks:
 - `--green #86B817` on `--card` ≈ 5.6:1 ✓ for the earnings total; `--blue-lt` (not `--blue`) for text links on dark
 - `vb-go` banner: `--green` bg with near-black text ✓; `vb-skip`: `--red` bg + white — pair every banner with its verdict word, never color alone
 - 16px inputs, 44px targets, `:focus-visible` ring in `--blue-lt`, `aria-current` on nav, `role="status"` toasts, tabular figures for all money
-- **The focus ring is an F1 global.** V1's new screens should hand-roll a visible focus style rather than shipping none and waiting.
+- **The focus ring is an F1 global**, so every screen built after F1 — including V1's Settings and key-detail screens — inherits it for free.
 
 ---
 
 ## 10. Build Order
 
-**The whole F-track now runs after V1 and after the first real trip** (`thrift-flip-plan.md` §6). Nothing below changed in content; the sequence around it did, and one step moved out of it in each direction — the PWA manifest moved *earlier* (§8), the pencil math moved *earlier still* (to V1), and the A-track moved *inward*, ahead of the bulk migration.
+**F1 is the first build step in the whole project** (`thrift-flip-plan.md` §6), and the A-track has been folded into F2. Nothing below changed in content; two things changed in shape — the PWA work split between F1 and S1 (§8), and the four-tab restructure stopped being a separate gated step.
 
-**F1 — Tokens + component layer.** New `:root`, `ui/` inventory complete (§4 table), layout system (§5). No screen visually migrated yet beyond what the shell forces. Safe to build before the structural question is answered, because the components are structure-agnostic (§4).
-
-> ⚠ **Re-verify `claude-code-prompt-F1.md` before running it.** The prompt is substantively correct and its token/alias work self-heals via its own re-grep step, but it is pinned to commit `b22906b` and **V1/S1 will move five things in it**: the `ShoppingMode.css` file:line targets (V1 edits that file for the pencil render), the `valid` screen array (V1 adds Settings and the key sub-view), the "all 7 screens" verification count, Part 1's `index.html` viewport/theme-color edit (now S1's, §8), and the V1-era stylesheets that need folding into the alias sweep. The prompt itself carries this warning at the top. Earlier drafts of the plan asserted it was "still correct line-for-line" — that was wrong.
-
+**F1 — Tokens + component layer.** New `:root`, `ui/` inventory complete (§4 table), layout system (§5), the `index.html` viewport + `theme-color` edit (§8). No screen visually migrated yet beyond what the shell forces. Safe to build before anything structural because the components are structure-agnostic (§4). **`claude-code-prompt-F1.md` is valid exactly as written** — every file:line target in it was re-read out of the working tree at `b22906b` (plan §3.1).
 *Gate:* a scratch route renders every `ui/` component in all variants; nav clears the home indicator on-device; inputs don't zoom; `grep -rn "60px\|80px\|130px\|140px" src/components/*.css` returns nothing layout-related.
 
-**F2 — The verdict.** ShoppingMode verdict phase rebuilt as `VerdictBanner + ListingPreviewCard + Panel` (go/skip/pencil variants all render). Now informed by T1 — if the trip showed the verdict is unreadable at arm's length or that he only looks at one number, fix that here rather than shipping the redline unexamined.
-*Gate:* verdict screen contains zero bespoke CSS for buttons/cards/money rows; skip state readable in greyscale (banner word + struck price, not hue alone); the pencil variant renders from the same data V1's interim render used, and **V1's hand-rolled pencil styling is deleted in this step**.
+**F2 + A — The verdict, and the shell it lives in. One step.** The verdict phase rebuilt as `VerdictBanner + ListingPreviewCard + Panel` (go/skip/pencil, all data-driven against mock data), **and** the v3.1 four-tab camera-first structure, both assembled from F1's components. These merged because they are the same work: the verdict is the payoff screen of the camera-first flow, and building it inside the old five-tab form-first shell would mean building it twice. **Build against `thrift-flip-design-v3-1-ebay.html`**, not from improvisation — it is the structural reference of record (§6).
+*Gate:* four tabs, camera-first Buy reaching a rendered verdict end-to-end on mock data; verdict screen contains zero bespoke CSS for buttons/cards/money rows; skip state readable in greyscale (banner word + struck price, not hue alone); the pencil variant renders from data with the arithmetic still stubbed — V1 supplies it later.
 
-**A-track — the structural decision (conditional, runs here or not at all).** Camera-first Buy and the 4-tab consolidation, assembled from the F1 components. **Its gate is T1** — no longer "post-migration." It sits between F2 and F3 for one reason: F4 migrates every screen onto the component layer, and migrating them into a structure the trip already showed to be wrong means doing that work twice. Decide here, migrate once. Still separately approved before it starts.
-*Gate:* the four-tab shell and camera-first Buy run on real data end-to-end; a second trip confirms it beats the current form-first flow, or it is reverted. If T1 was ambiguous, take another trip rather than guessing.
-
-**F3 — Chrome.** NavBar/ActionBar frosted + safe-area, History→Selling rename, four-dot mark, all emoji→SVG. Plus any PWA leftovers not covered by S1 (§8).
+**F3 — Chrome.** NavBar/ActionBar frosted + safe-area, History→Selling rename, four-dot mark, all emoji→SVG (`App.jsx` line 134 has a live one).
 *Gate:* tab through every screen with visible focus; no emoji in `src/` (`grep -P "[\x{1F300}-\x{1FAFF}]"` empty).
 
-**F4 — Screen migration.** Every remaining screen onto the layer per §6 — in whatever structure the A-track settled, and including V1's Settings and key-detail screens; per-screen CSS reduced to layout glue.
+**F4 — Screen migration.** Every remaining screen onto the layer per §6 — Flip, Cart, Listing, Drafts, Selling, Preview, Chat — into the structure F2+A settled; per-screen CSS reduced to layout glue; legacy aliases deleted. V1's Settings and key-detail screens need no migration: they were composed from `ui/` when they were written.
 *Gate:* the §4 grep rule holds repo-wide; visual pass on-device against the v3.1 prototype.
 
-**~~F5 — PWA.~~** Absorbed into S1, before the first trip (§8). Leftovers ride with F3.
+**~~F5 — PWA.~~** Split: viewport and `theme-color` into F1, manifest and icons into S1 (§8).
 
-**Not in the F-track: the pencil verdict math.** It was A-track work and has been **pulled forward into V1** (`thrift-flip-plan.md` §6.1), because vision §2.5's no-key completion gate depends on it. V1 ships the arithmetic plus a hand-rolled pencil state on the *existing* `VerdictCard` — no `ui/` component and no tokens, since **V1 now runs before F1 and neither exists yet**. F2 replaces that render and deletes the interim styling.
+**~~A-track.~~** Merged into F2+A above. It is no longer a separate approval gate — the trade-off, and its one risk, are recorded in plan §6.1.
+
+**Not in the F-track: the pencil verdict math.** F2+A builds the pencil *render*; the arithmetic lands with **V1** (`thrift-flip-plan.md` §6.1 carries the derived formula), because vision §2.5's no-key gate depends on it. There is no interim render and nothing to delete later — the ordering was changed specifically to remove that step.
 
 ---
 
