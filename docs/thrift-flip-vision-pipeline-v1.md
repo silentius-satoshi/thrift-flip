@@ -21,7 +21,7 @@ If any line below still reads like a server sits between the phone and Gemini, t
 
 **Sequencing note.** `thrift-flip-plan.md` §6.1 is the authority on *when* things exist and outranks this document. Three things it changes here:
 
-- **V0 is a one-hour parallel check, not a gate.** Run it in AI Studio any time before V1 needs a model string; it does not block the front-end work that comes first. Plan §6.2 defines it, scored on the same five core items §7's V1 gate names, so the two tests chain against one baseline.
+- **V0 is skipped, and the model is decided:** `gemini-3.6-flash`, on the strength of Dad's own sustained use (plan §6.2). Its two residual checks — anchoring and confidence calibration — ride with V1's gate (§7).
 - **V1 runs after F1 and F2+A**, so the `ui/` component layer, the eBay-dark tokens, the 16px base and the four-tab camera-first shell all exist by the time this spec's UI lands. Everything V1 adds is *composed* from `ui/` — no hand-rolled stylesheets, no interim pencil render, no per-input font-size workaround.
 - **The vault is deferred indefinitely** (nostr §0.2), so §2.5's "encrypted under the vault's `STORE_ENC_INFO` key" and its kind-30078 sync describe a state with no date. The key ships plaintext under `storageService` with a risk note. That was accepted for this key on its merits — free tier, one-tap revoke — and remains so; the eBay token got re-opened, this one did not.
 
@@ -115,16 +115,16 @@ Gemini 2.0 models were shut down June 1, 2026 — anything in old notes pointing
 
 | Model | Input / Output per 1M tokens | Vision | Fit |
 |---|---|---|---|
-| **`gemini-3-flash-preview`** | **$0.25 / $1.50** | ✅ | **Default.** Strong ID + copywriting, 1M context, fast |
-| `gemini-2.5-flash-lite` | $0.10 / $0.40 | ✅ | Budget tier / high-volume fallback |
-| `gemini-3.6-flash` | $1.50 / $7.50 | ✅ | Quality tier for hard antiques; released July 21, 2026 |
+| **`gemini-3.6-flash`** | $1.50 / $7.50 | ✅ | **Default (amended July 2026, plan §6.2)** — Dad already uses it manually on real thrift items and it identifies them well; that real-world evidence replaced the V0 staged test. ≈ $0.01–0.02 per full item |
+| `gemini-3-flash-preview` | $0.25 / $1.50 | ✅ | Budget fallback (was the default before the amendment) |
+| `gemini-2.5-flash-lite` | $0.10 / $0.40 | ✅ | High-volume floor |
 | Gemini 3.x Pro | $2.00+ / $12.00+ | ✅ | Overkill — not used |
 
-**Free tier reality (changed April 2026):** AI Studio free access is now Flash/Flash-Lite only, ~1,500 requests/day on Flash models, Pro is paid-only. 1,500 RPD still covers every realistic Goodwill trip for $0. Keep the model id in **one client-side config constant** (`src/config/gemini.js`) so tiering is a one-line change, and route "rare/antique" escalations (Flip conversation asks for a second opinion) to 3.6-flash.
+**Free tier reality (changed April 2026):** AI Studio free access is now Flash/Flash-Lite only, ~1,500 requests/day on Flash models, Pro is paid-only. 1,500 RPD still covers every realistic Goodwill trip for $0. Keep the model id in **one client-side config constant** (`src/config/gemini.js`) so tiering is a one-line change. With 3.6-flash as the default there is no upward escalation tier left worth wiring; the budget fallback exists for quota exhaustion, not quality.
 
-**Cost per full item** (3 photos ≈ 1,700–2,500 img tokens + prompt + ~800 out): ≈ **$0.002–0.004** on 3-flash. A 20-item trip costs under a dime, before the free tier makes it $0.
+**Cost per full item** (3 photos ≈ 1,700–2,500 img tokens + prompt + ~800 out): ≈ **$0.01–0.02** on 3.6-flash. A 20-item trip stays under fifty cents, before any free-tier allowance applies.
 
-> **Amend this section from V0's findings before V1 is written** (plan §6.2, §9.2). V0 scores real thrift inventory against the default model and, critically, tests *calibration* — whether `confidence: high` is actually more accurate than `confidence: low`. If the default underperforms, the fix lands here: promote `gemini-3.6-flash`, tighten the escalation rule, or add capture guidance to the UI.
+> **V0 was skipped** (plan §6.2) — Dad's sustained manual use of 3.6-flash answered the identification question. The two checks a staged V0 would have added that his usage does not cover — the **anchoring test** (does the estimate move with the stated purchase price?) and **confidence calibration** (is `high` actually more accurate than `low`?) — run as part of V1's verification instead. Both are defined in plan §6.2; the sheet and system prompt live in `docs/v0-model-check.md`.
 
 ---
 
@@ -209,11 +209,11 @@ The existing three-mode Flip system prompt survives nearly intact — Mode 1 gai
 
 ## 7. Build Order
 
-*(Position in the overall sequence: V0 runs in parallel any time before V1; V1+S1 come after F1 and F2+A; V1.5/E0 after F3/F4; V2–V4 after E1–E2. Calibration with Dad happens after the whole build. See `thrift-flip-plan.md` §6.)*
+*(Position in the overall sequence: V1+S1 come after F1 and F2+A; V1.5/E0 after F3/F4; V2–V4 after E1–E2. Calibration with Dad happens after the whole build. See `thrift-flip-plan.md` §6.)*
 
-**V0 — Model check, no code (about an hour, runs in parallel).** Defined in plan §6.2: 10–15 real thrift items through AI Studio on the §5 schema and the real system prompt, scoring identification, price, and calibration. A good result is **≥4 of the 5 core items** (sneaker, book, tool, mug, vintage electronics) correct on brand+model, defensible price ranges, and confidence that tracks accuracy. It is not a gate — a poor result amends §3 (default model, escalation rule, capture guidance) before V1 hardcodes any of it.
+**~~V0~~ — skipped** (plan §6.2). Dad's real-world use of 3.6-flash answered the identification question; its residual checks moved into V1's gate below.
 
-**V1 — Real analyze, model-only pricing, the pencil arithmetic, and the Settings surface.** Runs after F1 and F2+A, so it composes from `ui/` and the pencil banner already exists. Gemini structured call wired end-to-end **direct from the client**, comps = tier C only. Plus the pencil math in `calculations.js`, Vitest and its first specs, and the §2.5 Settings + key-detail screens. Gate: **the same 5 core items from V0, re-shot through the app**, ≥4 correct brand+model — V0 tested the model, this tests the wiring against a known baseline; JSON parses with zero cleanup code anywhere in the path; the §2.5 no-key gate holds end-to-end; and both new screens survive a refresh.
+**V1 — Real analyze, model-only pricing, the pencil arithmetic, and the Settings surface.** Runs after F1 and F2+A, so it composes from `ui/` and the pencil banner already exists. Gemini structured call wired end-to-end **direct from the client** on `gemini-3.6-flash`, comps = tier C only; the system prompt from `docs/v0-model-check.md` §3 lands in `src/config/prompt.js`. Plus the pencil math in `calculations.js`, Vitest and its first specs, and the §2.5 Settings + key-detail screens. Gate: **5 core items shot through the app** (sneaker, book, tool, mug, vintage electronics), ≥4 correct brand+model; JSON parses with zero cleanup code anywhere in the path; the §2.5 no-key gate holds end-to-end; both new screens survive a refresh; **the anchoring test passes** (same item, $4 vs $30 stated price → estimate does not move; if it moves, stop sending `goodwillPrice` to the model); and the **first calibration pass** is recorded (plan §6.2 — if `confidence: high` isn't more accurate than `low`, the UI treats all estimates as low-confidence until V2's comps).
 
 **V1.5 — Marketplace variants + the Vendoo handoff (an hour, rides on V1's code; scheduled after F3/F4).** Add `listing_mercari` to the responseSchema (one schema block, zero new dependencies — the same call now returns both registers). Client: a "Copy for Mercari" button on the generated listing that copies title + description + hashtags and deep-links to the Mercari app; ListingMode shows which variant is on the clipboard. Document the distribution path in the README: **Send to eBay (our API, one tap) → Vendoo imports the eBay listing → Vendoo's automation crosslists to Mercari/Poshmark/FB.** We never build marketplace automation ourselves — eBay is the API-real spine, Vendoo is an optional fan-out that our listing quality feeds, and the copy-assist covers the no-Vendoo case. Running it after T1 means the listing half gets built against items he actually bought. Gate: analyze one item → both listings present in one response; Copy for Mercari pastes cleanly into the Mercari app's form. *(The third original check — "the eBay draft created by Send-to-eBay appears in Vendoo's import screen untouched" — needs API draft creation, which is E2. It runs as part of E2's gate; at V1.5 the only eBay lane is E0's clipboard.)*
 
