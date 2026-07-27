@@ -1,3 +1,5 @@
+import IconButton from './ui/IconButton';
+import StatusTag from './ui/StatusTag';
 import './PreviewMode.css';
 
 export default function PreviewMode({ previewData, onBack }) {
@@ -5,14 +7,13 @@ export default function PreviewMode({ previewData, onBack }) {
   const filledSpecifics = Object.entries(specifics).filter(([, v]) => v.trim());
 
   return (
-    <div className="preview-screen">
+    <div className="preview-screen ui-light">
       <div className="preview-topbar">
-        <button className="preview-back-btn" onClick={onBack}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <IconButton label="Back to listing" size="sm" className="preview-back-btn" onClick={onBack}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="15 18 9 12 15 6" />
           </svg>
-          Listing
-        </button>
+        </IconButton>
         <span className="preview-topbar-title">Preview</span>
         <span className="preview-topbar-spacer" />
       </div>
@@ -32,7 +33,7 @@ export default function PreviewMode({ previewData, onBack }) {
             <span className="preview-price">
               {price ? `$${parseFloat(price).toFixed(2)}` : '—'}
             </span>
-            <span className="pill pill-muted">{selectedCondition}</span>
+            <StatusTag tone="mute">{selectedCondition}</StatusTag>
           </div>
 
           {filledSpecifics.length > 0 && (

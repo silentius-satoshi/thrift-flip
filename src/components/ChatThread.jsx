@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect, Fragment } from 'react';
 import { sendChatMessage } from '../utils/webhooks';
+import { TextArea } from './ui/Field';
+import IconButton from './ui/IconButton';
 import './ChatThread.css';
 
 function ChatIcon() {
@@ -101,8 +103,8 @@ export default function ChatThread({ chatHistory, onUpdateHistory, itemContext }
         )}
       </div>
       <div className="chat-input-row">
-        <textarea
-          className="chat-input"
+        <TextArea
+          className="composer"
           placeholder="Ask about this item..."
           rows={1}
           value={inputValue}
@@ -110,13 +112,17 @@ export default function ChatThread({ chatHistory, onUpdateHistory, itemContext }
           onKeyDown={handleKeyDown}
           disabled={isTyping}
         />
-        <button
-          className="chat-send-btn"
+        <IconButton
+          label="Send"
+          size="md"
+          tone="blue"
           onClick={handleSend}
           disabled={isTyping || !inputValue.trim()}
         >
-          ↑
-        </button>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 19V5M5 12l7-7 7 7" />
+          </svg>
+        </IconButton>
       </div>
     </div>
   );

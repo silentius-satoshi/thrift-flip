@@ -1,0 +1,20 @@
+.ui-iconbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  padding: 0;
+  color: var(--fg-2);
+  transition: transform var(--fast) var(--ease), opacity var(--fast) var(--ease);
+}
+.ui-iconbtn:active { transform: scale(.94); }
+.ui-iconbtn:disabled { opacity: .4; }
+
+.ui-iconbtn-sm { width: 34px; height: 34px; }
+.ui-iconbtn-md { width: 40px; height: 40px; }
+.ui-iconbtn-lg { width: 44px; height: 44px; }
+
+.ui-iconbtn-plain { background: transparent; }
+.ui-iconbtn-blue { background: var(--blue); color: #fff; }
+.ui-iconbtn-accent { background: transparent; color: var(--blue-lt); }

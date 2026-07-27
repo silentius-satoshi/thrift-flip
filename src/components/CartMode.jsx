@@ -2,7 +2,12 @@ import { useState } from 'react';
 import { generateListing } from '../utils/webhooks';
 import { markStatus } from '../utils/conversationStore';
 import { useToast } from '../contexts/ToastContext';
+import Button from './ui/Button';
+import Card from './ui/Card';
 import FourDotMark from './ui/FourDotMark';
+import { Panel, PanelRow, PanelTotal } from './ui/Panel';
+import Sheet from './ui/Sheet';
+import StatusTag from './ui/StatusTag';
 import './CartMode.css';
 
 function CartIcon() {
@@ -66,37 +71,36 @@ export default function CartMode({ cart, onRemoveItem, onReadyToList, listingIte
 
   return (
     <div className="screen">
-      {showConflictModal && pendingCartItem && (
-        <div className="conflict-modal-overlay" onClick={() => { setShowConflictModal(false); setPendingCartItem(null); }}>
-          <div className="conflict-modal-card" onClick={e => e.stopPropagation()}>
-            <div className="conflict-modal-title">Active listing in progress</div>
-            <div className="conflict-modal-body">
-              You have an unsaved listing in progress. What would you like to do?
-            </div>
-            <div className="conflict-modal-actions">
-              <button className="btn btn-ghost btn-full" onClick={() => {
-                onSaveCurrentAsDraft?.();
-                proceedWithListing(pendingCartItem);
-              }}>
-                Save as draft &amp; continue
-              </button>
-              <button className="btn btn-red btn-full" onClick={() => proceedWithListing(pendingCartItem)}>
-                Discard &amp; continue
-              </button>
-              <button className="btn btn-ghost btn-full" onClick={() => { setShowConflictModal(false); setPendingCartItem(null); }}>
-                Cancel
-              </button>
-            </div>
-          </div>
+      <Sheet
+        open={showConflictModal && !!pendingCartItem}
+        onClose={() => { setShowConflictModal(false); setPendingCartItem(null); }}
+        title="Active listing in progress"
+      >
+        <p className="conflict-modal-body">
+          You have an unsaved listing in progress. What would you like to do?
+        </p>
+        <div className="conflict-modal-actions">
+          <Button variant="outline" full onClick={() => {
+            onSaveCurrentAsDraft?.();
+            proceedWithListing(pendingCartItem);
+          }}>
+            Save as draft &amp; continue
+          </Button>
+          <Button variant="danger" full onClick={() => proceedWithListing(pendingCartItem)}>
+            Discard &amp; continue
+          </Button>
+          <Button variant="outline" full onClick={() => { setShowConflictModal(false); setPendingCartItem(null); }}>
+            Cancel
+          </Button>
         </div>
-      )}
+      </Sheet>
       <div className="cart-header">
         <h2><FourDotMark />{cart.length} {cart.length === 1 ? 'item' : 'items'}</h2>
         <span className="cart-meta">Est. profit: ${totalProfit.toFixed(2)}</span>
       </div>
 
       {cart.map(item => (
-        <div className="card" key={item.id}>
+        <Card className="cart-item" key={item.id}>
           <div className="cart-item-header">
             <div>
               <div className="cart-item-name">{item.name}</div>
@@ -107,49 +111,33 @@ export default function CartMode({ cart, onRemoveItem, onReadyToList, listingIte
           </div>
 
           <div className="cart-item-pills">
-            <span className={`pill ${item.netProfit >= 20 ? 'pill-green' : 'pill-amber'}`}>
+            <StatusTag tone={item.netProfit >= 20 ? 'green' : 'yellow'}>
               ${item.netProfit.toFixed(2)} profit
-            </span>
-            <span className="pill pill-blue">{item.avgDaysToSell}d avg sale</span>
-            <span className="pill pill-muted">{item.sellThroughRate}% sell-through</span>
+            </StatusTag>
+            <StatusTag tone="blue">{item.avgDaysToSell}d avg sale</StatusTag>
+            <StatusTag tone="mute">{item.sellThroughRate}% sell-through</StatusTag>
           </div>
 
           {loadingId === item.id ? (
             <div className="cart-item-loading">Generating your listing...</div>
           ) : (
             <div className="cart-item-actions">
-              <button
-                className="btn btn-red btn-sm"
-                onClick={() => onRemoveItem(item.id)}
-              >
+              <Button variant="danger" size="sm" onClick={() => onRemoveItem(item.id)}>
                 Remove
-              </button>
-              <button
-                className="btn btn-primary btn-sm"
-                onClick={() => handleReadyToList(item)}
-              >
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => handleReadyToList(item)}>
                 Ready to list →
-              </button>
+              </Button>
             </div>
           )}
-        </div>
+        </Card>
       ))}
 
-      <div className="card">
-        <div className="cart-summary-row">
-          <span className="sr-label">Total Goodwill cost</span>
-          <span className="sr-value">-${totalCost.toFixed(2)}</span>
-        </div>
-        <div className="cart-summary-row">
-          <span className="sr-label">Est. total revenue</span>
-          <span className="sr-value">${totalRevenue.toFixed(2)}</span>
-        </div>
-        <div className="cart-summary-divider" />
-        <div className="cart-summary-row total">
-          <span className="sr-label">Est. total profit</span>
-          <span className="sr-value">${totalProfit.toFixed(2)}</span>
-        </div>
-      </div>
+      <Panel title="Trip so far">
+        <PanelRow label="Total Goodwill cost" value={`−$${totalCost.toFixed(2)}`} />
+        <PanelRow label="Est. total revenue" value={`$${totalRevenue.toFixed(2)}`} />
+        <PanelTotal label="Est. total profit" value={`$${totalProfit.toFixed(2)}`} tone={totalProfit >= 0 ? 'green' : 'red'} />
+      </Panel>
     </div>
   );
 }

@@ -1,6 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { getIndex, saveConversation, updateChatHistory, getConversation, deleteConversation, archiveConversation, unarchiveConversation, pinConversation } from '../utils/conversationStore';
 import ChatThread from './ChatThread';
+import Button from './ui/Button';
+import Card from './ui/Card';
+import IconButton from './ui/IconButton';
+import MenuItem from './ui/MenuItem';
+import Row from './ui/Row';
+import StatusTag from './ui/StatusTag';
 import './FlipMode.css';
 
 function PinIcon() {
@@ -225,14 +231,14 @@ export default function FlipMode({ cart, listingItem, onNavigateToCart, onNaviga
             left: Math.min(contextMenu.x, 240),
           }}
         >
-          <button onClick={() => handlePin(contextMenu.id, !conv?.pinned)}>
+          <MenuItem onClick={() => handlePin(contextMenu.id, !conv?.pinned)}>
             {conv?.pinned ? 'Unpin' : 'Pin to top'}
-          </button>
+          </MenuItem>
           {conv?.archived
-            ? <button onClick={() => { handleUnarchive(contextMenu.id); setContextMenu(null); }}>Unarchive</button>
-            : <button onClick={() => { handleArchive(contextMenu.id); setContextMenu(null); }}>Archive</button>
+            ? <MenuItem onClick={() => { handleUnarchive(contextMenu.id); setContextMenu(null); }}>Unarchive</MenuItem>
+            : <MenuItem onClick={() => { handleArchive(contextMenu.id); setContextMenu(null); }}>Archive</MenuItem>
           }
-          <button className="flip-menu-delete" onClick={() => { handleDelete(contextMenu.id); setContextMenu(null); }}>Delete</button>
+          <MenuItem tone="danger" onClick={() => { handleDelete(contextMenu.id); setContextMenu(null); }}>Delete</MenuItem>
         </div>
       </>
     );
@@ -244,31 +250,29 @@ export default function FlipMode({ cart, listingItem, onNavigateToCart, onNaviga
       <div key={c.id} className="conv-row-wrap">
         <div className="swipe-bg-left">Archive</div>
         <div className="swipe-bg-right">Delete</div>
-        <button
-          type="button"
+        <Row
           className="conv-row-inner"
           ref={el => { rowRefs.current[c.id] = el; }}
-          onClick={() => openChat(c.id)}
+          onPress={() => openChat(c.id)}
           onTouchStart={e => handleTouchStart(e, c.id)}
           onTouchMove={e => handleTouchMove(e, c.id)}
           onTouchEnd={e => handleTouchEnd(e, c.id)}
-        >
-          <div className={`conv-avatar conv-avatar-${color}`}>
-            {(c.itemName?.[0] ?? '?').toUpperCase()}
-          </div>
-          <div className="conv-center">
-            <div className="conv-name-row">
+          thumb={<div className={`conv-avatar conv-avatar-${color}`}>{(c.itemName?.[0] ?? '?').toUpperCase()}</div>}
+          title={
+            <span className="conv-name-row">
               <span className="conv-name">{c.itemName}</span>
-              {c.status === 'cart'   && <span className="conv-pill conv-pill-amber">In Cart</span>}
-              {c.status === 'listed' && <span className="conv-pill conv-pill-blue">In Listing</span>}
-            </div>
-            <div className="conv-preview">{c.lastMessage ?? 'No messages yet'}</div>
-          </div>
-          <div className="conv-right">
-            <span className="conv-time">{formatAge(c.createdAt)}</span>
-            {c.pinned && <span className="conv-pin" aria-label="Pinned"><PinIcon /></span>}
-          </div>
-        </button>
+              {c.status === 'cart'   && <StatusTag tone="yellow">In Cart</StatusTag>}
+              {c.status === 'listed' && <StatusTag tone="blue">In Listing</StatusTag>}
+            </span>
+          }
+          sub={c.lastMessage ?? 'No messages yet'}
+          trailing={
+            <span className="conv-right">
+              <span className="conv-time">{formatAge(c.createdAt)}</span>
+              {c.pinned && <span className="conv-pin" aria-label="Pinned"><PinIcon /></span>}
+            </span>
+          }
+        />
       </div>
     );
   }
@@ -277,18 +281,20 @@ export default function FlipMode({ cart, listingItem, onNavigateToCart, onNaviga
     return (
       <div className="screen flip-screen">
         <div className="flip-chat-header">
-          <button className="flip-back-btn" onClick={() => { if (returnScreen) { onReturn?.(); } else { handleBack(); } }}>←</button>
+          <IconButton label="Back" size="sm" className="flip-back-btn" onClick={() => { if (returnScreen) { onReturn?.(); } else { handleBack(); } }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+          </IconButton>
           <span className="flip-chat-title">{activeConv?.itemName ?? 'Chat'}</span>
         </div>
         {inCart && (
-          <button type="button" className="flip-banner" onClick={onNavigateToCart}>
+          <Card className="flip-banner" onPress={onNavigateToCart}>
             <CartIcon /> This item is in your cart — tap to view
-          </button>
+          </Card>
         )}
         {!inCart && inListing && (
-          <button type="button" className="flip-banner" onClick={onNavigateToListing}>
+          <Card className="flip-banner" onPress={onNavigateToListing}>
             <TagIcon /> Currently in Listing Mode — tap to view
-          </button>
+          </Card>
         )}
         <div className="flip-chat-body">
         <ChatThread
@@ -306,7 +312,9 @@ export default function FlipMode({ cart, listingItem, onNavigateToCart, onNaviga
     return (
       <div className="screen flip-screen">
         <div className="flip-list-header">
-          <button className="flip-back-btn flip-back-btn-small" onClick={() => setView('list')}>←</button>
+          <IconButton label="Back" size="sm" className="flip-back-btn" onClick={() => setView('list')}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+          </IconButton>
           <span className="flip-list-title">Archived Chats</span>
           <span style={{ width: 40 }} />
         </div>
@@ -329,7 +337,7 @@ export default function FlipMode({ cart, listingItem, onNavigateToCart, onNaviga
     <div className="screen flip-screen">
       <div className="flip-list-header">
         <span className="flip-list-title">Flip</span>
-        <button className="flip-new-btn" onClick={handleNewChat}>+ New</button>
+        <Button variant="plain" onClick={handleNewChat}>+ New</Button>
       </div>
 
       <div className="flip-conv-list">
@@ -354,11 +362,13 @@ export default function FlipMode({ cart, listingItem, onNavigateToCart, onNaviga
             )}
           </>
         )}
-        <button type="button" className="conv-archived-row" onClick={() => setView('archived')}>
-          <div className="conv-archived-icon"><ArchiveIcon /></div>
-          <span className="conv-archived-label">Archived</span>
-          <span className="conv-archived-count">{conversations.filter(c => c.archived).length}</span>
-        </button>
+        <Row
+          className="conv-archived-row"
+          onPress={() => setView('archived')}
+          thumb={<span className="conv-archived-icon"><ArchiveIcon /></span>}
+          title="Archived"
+          trailing={<span className="conv-archived-count">{conversations.filter(c => c.archived).length}</span>}
+        />
       </div>
 
       {renderContextMenu()}

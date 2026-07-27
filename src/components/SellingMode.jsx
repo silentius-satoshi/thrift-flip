@@ -2,7 +2,14 @@ import { useState } from 'react';
 import { getHistory, deleteHistoryEntry, clearHistory } from '../utils/historyStore';
 import { useToast } from '../contexts/ToastContext';
 import { useUser } from '../contexts/UserContext';
+import { getDrafts } from '../utils/draftsStore';
+import Button from './ui/Button';
+import Card from './ui/Card';
 import FourDotMark from './ui/FourDotMark';
+import IconButton from './ui/IconButton';
+import Row from './ui/Row';
+import { StatGrid, Stat } from './ui/StatGrid';
+import StatusTag from './ui/StatusTag';
 import './SellingMode.css';
 
 function formatSentDate(ts) {
@@ -41,6 +48,13 @@ export default function SellingMode({ onOpenSettings }) {
   const [history, setHistory] = useState(() => getHistory());
   const [pendingDelete, setPendingDelete] = useState(null);
   const [clearAllPending, setClearAllPending] = useState(false);
+  // Working = drafts not yet sent. The prototype's Sold section has no backing
+  // data (entries carry one hardcoded status and no sale record), so it is not
+  // built here — see docs; the real source lands at E3–E4.
+  const [working] = useState(() => getDrafts());
+  // Read the clock once per mount, not per render — the 90-day window does not
+  // need to move mid-session, and Date.now() during render is impure.
+  const [windowStart] = useState(() => Date.now() - 90 * 24 * 60 * 60 * 1000);
 
   function handleDelete(id) {
     if (pendingDelete === id) {
@@ -66,10 +80,12 @@ export default function SellingMode({ onOpenSettings }) {
     }
   }
 
-  const totalItems = history.length;
-  const totalProfit = history.reduce((s, e) => s + (e.estProfit || 0), 0);
+  const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+  const recent = history.filter(e => num(e.sentAt) > windowStart);
+  const totalItems = recent.length;
+  const totalProfit = recent.reduce((s, e) => s + num(e.estProfit), 0);
   const avgProfit = totalItems > 0 ? totalProfit / totalItems : 0;
-  const bestFlip = history.reduce((best, e) => (!best || e.estProfit > best.estProfit) ? e : best, null);
+  const bestFlip = recent.reduce((best, e) => (!best || num(e.estProfit) > num(best.estProfit)) ? e : best, null);
 
   const header = (withClear) => (
     <div className="selling-header">
@@ -78,11 +94,11 @@ export default function SellingMode({ onOpenSettings }) {
         <span className="selling-title">Selling</span>
       </div>
       <div className="selling-header-actions">
-        <button className="selling-settings-btn" onClick={onOpenSettings} aria-label="Settings"><KeyIcon /></button>
+        <IconButton label="Settings" size="sm" onClick={onOpenSettings}><KeyIcon /></IconButton>
         {withClear && (
-          <button className="selling-clear-btn" onClick={handleClearAll}>
+          <Button variant="plain" className="selling-clear-btn" onClick={handleClearAll}>
             {clearAllPending ? 'Confirm?' : 'Clear all'}
-          </button>
+          </Button>
         )}
       </div>
     </div>
@@ -104,50 +120,50 @@ export default function SellingMode({ onOpenSettings }) {
     <div className="screen">
       {header(true)}
 
-      <div className="selling-summary-grid">
-        <div className="selling-summary-card">
-          <div className="summary-value">{totalItems}</div>
-          <div className="summary-label">Items sent</div>
-        </div>
-        <div className="selling-summary-card">
-          <div className="summary-value green">${totalProfit.toFixed(2)}</div>
-          <div className="summary-label">Total est. profit</div>
-        </div>
-        <div className="selling-summary-card">
-          <div className="summary-value">${avgProfit.toFixed(2)}</div>
-          <div className="summary-label">Avg per item</div>
-        </div>
-        <div className="selling-summary-card">
-          <div className="summary-value green">${(bestFlip?.estProfit ?? 0).toFixed(2)}</div>
-          <div className="summary-label">
-            Best flip{bestFlip ? `: ${bestFlip.title.slice(0, 18)}…` : ''}
-          </div>
-        </div>
-      </div>
+      <StatGrid className="selling-stats">
+        <Stat value={totalItems} label="SENT · 90 DAYS" />
+        <Stat value={`$${totalProfit.toFixed(2)}`} label="EST. PROFIT" tone="green" />
+        <Stat value={`$${avgProfit.toFixed(2)}`} label="AVG PER ITEM" />
+        <Stat value={`$${num(bestFlip?.estProfit).toFixed(2)}`} label={bestFlip ? `BEST: ${bestFlip.title.slice(0, 14)}…` : 'BEST FLIP'} tone="green" />
+      </StatGrid>
 
-      <div className="selling-list">
+      <div className="lbl selling-section">Sent to eBay</div>
+      <Card className="selling-list">
         {history.map(entry => (
-          <div key={entry.id} className="selling-card">
-            <div className="selling-card-top">
-              <span className="selling-card-title">{entry.title}</span>
-              <button
-                className={`remove-btn${pendingDelete === entry.id ? ' pending' : ''}`}
-                onClick={() => handleDelete(entry.id)}
-              >Remove</button>
-            </div>
-            <div className="selling-card-date">{formatSentDate(entry.sentAt)}</div>
-            <div className="selling-card-price-row">
-              Listed at ${entry.price.toFixed(2)} · Paid ${entry.goodwillPrice.toFixed(2)} ·{' '}
-              <span className="selling-profit">Profit ${entry.estProfit.toFixed(2)}</span>
-            </div>
-            <div className="selling-card-pills">
-              <span className="selling-pill">{entry.condition}</span>
-              <span className="selling-pill">{entry.category}</span>
-              <span className="selling-status-pill">Draft sent</span>
-            </div>
-          </div>
+          <Row
+            key={entry.id}
+            title={entry.title}
+            sub={`${formatSentDate(entry.sentAt)} · $${num(entry.price).toFixed(2)} · paid $${num(entry.goodwillPrice).toFixed(2)}`}
+            trailing={
+              <span className="selling-row-trailing">
+                <b className="money selling-profit">+${num(entry.estProfit).toFixed(2)}</b>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  className={pendingDelete === entry.id ? 'pending' : ''}
+                  onClick={() => handleDelete(entry.id)}
+                >{pendingDelete === entry.id ? 'Confirm?' : 'Remove'}</Button>
+              </span>
+            }
+          />
         ))}
-      </div>
+      </Card>
+
+      {working.length > 0 && (
+        <>
+          <div className="lbl selling-section">Working</div>
+          <Card className="selling-list">
+            {working.map(d => (
+              <Row
+                key={d.id}
+                title={d.title || 'Untitled draft'}
+                sub={`Saved draft · $${num(d.price).toFixed(2)}`}
+                trailing={<StatusTag tone={d.source === 'auto-saved' ? 'yellow' : 'blue'}>{d.source === 'auto-saved' ? 'Auto-saved' : 'Saved'}</StatusTag>}
+              />
+            ))}
+          </Card>
+        </>
+      )}
     </div>
   );
 }

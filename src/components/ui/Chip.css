@@ -16,3 +16,4 @@
   color: var(--fg);
   background: var(--card-2);
 }
+.ui-chip:disabled { opacity: .4; }

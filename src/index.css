@@ -16,6 +16,9 @@ img { display: block; max-width: 100%; }
   --green:#86B817; --red:#E9403B; --yellow:#F5AF02;
   --green-wash:rgba(134,184,23,.14); --red-wash:rgba(233,64,59,.14);
   --yellow-wash:rgba(245,175,2,.14); --blue-wash:rgba(54,101,243,.16);
+  /* Tinted hairlines — the wash alphas are too faint to read as a border */
+  --green-line:rgba(134,184,23,.35); --red-line:rgba(233,64,59,.35);
+  --yellow-line:rgba(245,175,2,.35); --blue-line:rgba(54,101,243,.45);
   /* Type */
   --font:"Market Sans",-apple-system,BlinkMacSystemFont,"Helvetica Neue","Segoe UI",Arial,sans-serif;
   --t-label:11px; --t-sub:13px; --t-body:16px; --t-title:21px;
@@ -31,17 +34,14 @@ img { display: block; max-width: 100%; }
   --ease:cubic-bezier(.32,.72,0,1); --fast:150ms; --base:240ms;
 }
 
-/* LEGACY ALIASES — bridge for un-migrated screen CSS. Delete in F4.
-   This list was generated from actual var(--…) usage in the repo. */
-:root{
-  --bg-base:var(--bg); --bg-primary:var(--bg); --bg-card:var(--card); --bg-input:var(--card-2);
-  --border:var(--line); --border-mid:var(--line-2);
-  --text-primary:var(--fg); --text-secondary:var(--fg-2); --text-muted:var(--fg-3);
-  --amber:var(--yellow); --amber-bg:var(--yellow-wash); --amber-border:rgba(245,175,2,.35);
-  --green-bg:var(--green-wash);  --green-border:rgba(134,184,23,.35);
-  --red-bg:var(--red-wash);      --red-border:rgba(233,64,59,.35);
-  --blue-bg:var(--blue-wash);    --blue-border:rgba(54,101,243,.45);
-  --radius-input:var(--r-input); --radius-card:var(--r-card); --radius-pill:var(--r-pill);
+/* Light surface — Preview renders the buyer's view of a listing, so it inverts.
+   Re-binding the surface tokens lets ui/ components render there unchanged. */
+.ui-light{
+  --bg:#FFFFFF; --card:#FFFFFF; --card-2:#F7F7F7;
+  --line:#E5E5E5; --line-2:#D4D4D4;
+  --fg:#191919; --fg-2:#5A5A5A; --fg-3:#8A8A8A;
+  background: var(--bg);
+  color: var(--fg);
 }
 
 /* ── Base ── */
@@ -65,7 +65,7 @@ html, body {
   display: flex;
   flex-direction: column;
   position: relative;
-  background: var(--bg-primary);
+  background: var(--bg);
 }
 
 /* ── Globals ── */

@@ -39,3 +39,5 @@
 .uikitchen-cam {
   align-items: center;
 }
+.uikitchen-menu { max-width: 200px; }
+.uikitchen-solo { margin-top: 10px; }

@@ -7,7 +7,7 @@
 /* The mark lives inside the h2 (prototype .hd h2) so the header's own
    align-items: baseline can't knock it out of line with the title. */
 .cart-header h2       { font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 9px; }
-.cart-header .cart-meta { font-size: 13px; color: var(--text-muted); }
+.cart-header .cart-meta { font-size: 13px; color: var(--fg-3); }
 
 .cart-empty {
   display: flex;
@@ -17,8 +17,8 @@
   padding: 80px 32px;
   text-align: center;
 }
-.cart-empty .empty-icon { display: flex; color: var(--text-muted); }
-.cart-empty p           { color: var(--text-secondary); font-size: 15px; line-height: 1.5; }
+.cart-empty .empty-icon { display: flex; color: var(--fg-3); }
+.cart-empty p           { color: var(--fg-2); font-size: 15px; line-height: 1.5; }
 
 .cart-item-header {
   display: flex;
@@ -27,7 +27,7 @@
   margin-bottom: 10px;
 }
 .cart-item-name { font-weight: 600; font-size: 15px; }
-.cart-item-meta { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+.cart-item-meta { font-size: 12px; color: var(--fg-3); margin-top: 3px; }
 
 .cart-item-pills { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
 
@@ -41,57 +41,15 @@
   justify-content: center;
   gap: 8px;
   padding: 12px;
-  color: var(--text-muted);
+  color: var(--fg-3);
   font-size: 13px;
 }
 
-/* ── Summary card ── */
-.cart-summary-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 7px 0;
-  font-size: 14px;
-}
-.cart-summary-row .sr-label { color: var(--text-secondary); }
-.cart-summary-row .sr-value { font-weight: 500; }
-.cart-summary-divider       { height: 1px; background: var(--border); margin: 6px 0; }
-.cart-summary-row.total .sr-value { color: var(--green); font-size: 18px; font-weight: 700; }
-
 /* ── Conflict modal ── */
-.conflict-modal-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 200;
-  background: rgba(0,0,0,0.7);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-}
-.conflict-modal-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-mid);
-  border-radius: var(--radius-card);
-  padding: 20px 16px;
-  width: 100%;
-  max-width: 358px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.conflict-modal-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--text-primary);
-}
+.conflict-modal-actions { display: flex; flex-direction: column; gap: 8px; }
+.cart-item { margin-bottom: 12px; }
 .conflict-modal-body {
   font-size: 14px;
-  color: var(--text-secondary);
+  color: var(--fg-2);
   line-height: 1.5;
-}
-.conflict-modal-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
 }

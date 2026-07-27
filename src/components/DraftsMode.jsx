@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { getDrafts, deleteDraft, clearDrafts } from '../utils/draftsStore';
 import { useToast } from '../contexts/ToastContext';
+import Button from './ui/Button';
+import Card from './ui/Card';
+import IconButton from './ui/IconButton';
+import StatusTag from './ui/StatusTag';
 import './DraftsMode.css';
 
 function NoteIcon() {
@@ -56,14 +60,18 @@ export default function DraftsMode({ onBack, onRestoreDraft }) {
   return (
     <div className="screen">
       <div className="drafts-header">
-        <button className="drafts-back-btn" onClick={onBack}>←</button>
+        <IconButton label="Back" size="sm" className="drafts-back-btn" onClick={onBack}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </IconButton>
         <span className="drafts-title">Saved Drafts</span>
         {drafts.length > 0 ? (
-          <button className="drafts-clear-btn" onClick={handleClearAll}>
+          <Button variant="plain" onClick={handleClearAll}>
             {clearAllPending ? 'Confirm?' : 'Clear all'}
-          </button>
+          </Button>
         ) : (
-          <span style={{ width: 56 }} />
+          <span className="drafts-header-spacer" />
         )}
       </div>
 
@@ -75,18 +83,20 @@ export default function DraftsMode({ onBack, onRestoreDraft }) {
       ) : (
         <div className="drafts-list">
           {drafts.map(draft => (
-            <div key={draft.id} className="draft-card">
+            <Card key={draft.id} className="draft-card">
               <div className="draft-card-top">
                 <span className="draft-card-title">{draft.title || 'Untitled draft'}</span>
-                <button
-                  className={`remove-btn${pendingDelete === draft.id ? ' pending' : ''}`}
+                <Button
+                  variant="danger"
+                  size="sm"
+                  className={pendingDelete === draft.id ? 'pending' : ''}
                   onClick={() => handleDelete(draft.id)}
-                >Remove</button>
+                >{pendingDelete === draft.id ? 'Confirm?' : 'Remove'}</Button>
               </div>
               <div className="draft-card-meta-row">
-                <span className={`draft-source-badge ${draft.source === 'auto-saved' ? 'amber' : 'blue'}`}>
-                  {draft.source === 'auto-saved' ? 'Auto-saved' : 'Manually saved'}
-                </span>
+                <StatusTag tone={draft.source === 'auto-saved' ? 'yellow' : 'blue'}>
+                  {draft.source === 'auto-saved' ? 'Auto-saved' : 'Saved'}
+                </StatusTag>
                 <span className="draft-card-date">{formatSavedDate(draft.savedAt)}</span>
               </div>
               <div className="draft-card-price-row">
@@ -94,24 +104,15 @@ export default function DraftsMode({ onBack, onRestoreDraft }) {
                 <span className="draft-profit">Est. profit ${(draft.estProfit ?? 0).toFixed(2)}</span>
               </div>
               <div className="draft-card-pills">
-                {draft.condition && <span className="draft-pill">{draft.condition}</span>}
-                {draft.category && <span className="draft-pill">{draft.category}</span>}
+                {draft.condition && <StatusTag tone="mute">{draft.condition}</StatusTag>}
+                {draft.category && <StatusTag tone="mute">{draft.category}</StatusTag>}
               </div>
               <div className="draft-card-actions">
-                <button
-                  className="btn btn-red btn-sm"
-                  onClick={() => handleDelete(draft.id)}
-                >
-                  {pendingDelete === draft.id ? 'Confirm?' : 'Delete'}
-                </button>
-                <button
-                  className="btn btn-green btn-sm"
-                  onClick={() => onRestoreDraft(draft)}
-                >
+                <Button variant="success" size="sm" full onClick={() => onRestoreDraft(draft)}>
                   Restore to listing
-                </button>
+                </Button>
               </div>
-            </div>
+            </Card>
           ))}
         </div>
       )}

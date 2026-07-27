@@ -1,0 +1,14 @@
+.ui-menuitem {
+  display: block;
+  width: 100%;
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 15px;
+  color: var(--fg);
+  background: none;
+}
+.ui-menuitem + .ui-menuitem { border-top: 1px solid var(--line); }
+.ui-menuitem:active { background: var(--card-2); }
+.ui-menuitem-danger { color: var(--red); }
+/* menus clip to their radius, so the ring has to sit inside the item */
+.ui-menuitem:focus-visible { outline-offset: -2px; }

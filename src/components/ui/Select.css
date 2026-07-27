@@ -1,0 +1,26 @@
+.ui-select-wrap {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+.ui-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--card);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-input);
+  color: var(--fg);
+  padding: 12px 36px 12px 13px;
+  font-size: var(--t-body);
+  min-height: 46px;
+  width: 100%;
+}
+.ui-select:focus { border-color: var(--blue); }
+.ui-select-caret {
+  position: absolute;
+  right: 13px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--fg-3);
+  pointer-events: none;
+}

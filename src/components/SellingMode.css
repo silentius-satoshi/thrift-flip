@@ -6,108 +6,17 @@
 }
 /* Mark + title travel together; the header's space-between would split them */
 .selling-title-group { display: flex; align-items: center; gap: 9px; }
-.selling-title { font-size: 18px; font-weight: 700; color: var(--text-primary); }
+.selling-title { font-size: 18px; font-weight: 700; color: var(--fg); }
 /* Trailing actions stay grouped so space-between keeps Clear all on the edge */
 .selling-header-actions { display: flex; align-items: center; gap: 14px; }
-.selling-settings-btn { display: flex; color: var(--text-secondary); }
-.selling-clear-btn {
-  font-size: 13px;
-  color: var(--red);
-  font-weight: 600;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 4px 0;
-}
+.selling-settings-btn { display: flex; color: var(--fg-2); }
 
 /* Summary grid */
-.selling-summary-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  padding: 0 16px 16px;
-}
-.selling-summary-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  padding: 12px 14px;
-}
-.summary-value {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--text-primary);
-  line-height: 1.2;
-}
-.summary-value.green { color: var(--green); }
-.summary-label {
-  font-size: 11px;
-  color: var(--text-muted);
-  margin-top: 4px;
-  line-height: 1.3;
-}
 
 /* Entry list */
-.selling-list { display: flex; flex-direction: column; gap: 8px; padding: 0 16px 16px; }
-.selling-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  padding: 12px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.selling-card-top {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
-}
-.selling-card-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.remove-btn {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--red);
-  background: var(--red-bg);
-  border: 1px solid var(--red-border);
-  border-radius: 8px;
-  padding: 5px 10px;
-  cursor: pointer;
-}
-/* box-shadow, not outline — an outline here would outrank the focus ring
-   exactly when the button is in its destructive-confirm state */
-.remove-btn.pending {
-  opacity: 0.7;
-  box-shadow: 0 0 0 1px var(--red);
-}
-.selling-card-date { font-size: 12px; color: var(--text-muted); }
-.selling-card-price-row { font-size: 13px; color: var(--text-secondary); }
+
 .selling-profit { color: var(--green); font-weight: 600; }
 
-.selling-card-pills { display: flex; flex-wrap: wrap; gap: 6px; }
-.selling-pill {
-  font-size: 11px;
-  padding: 2px 8px;
-  border-radius: var(--radius-pill);
-  background: var(--bg-input);
-  color: var(--text-muted);
-}
-.selling-status-pill {
-  font-size: 11px;
-  padding: 2px 8px;
-  border-radius: var(--radius-pill);
-  background: var(--amber-bg);
-  color: var(--amber);
-}
 
 /* Empty state */
 .selling-empty {
@@ -118,5 +27,14 @@
   padding: 80px 32px;
   text-align: center;
 }
-.selling-empty-icon { display: flex; color: var(--text-muted); }
-.selling-empty p { color: var(--text-secondary); font-size: 15px; line-height: 1.5; }
+.selling-empty-icon { display: flex; color: var(--fg-3); }
+.selling-empty p { color: var(--fg-2); font-size: 15px; line-height: 1.5; }
+
+.selling-stats { padding: 0 var(--gutter) 4px; }
+.selling-section { display: block; padding: 12px var(--gutter) 6px; }
+.selling-list { margin: 0 var(--gutter) 12px; }
+.selling-row-trailing { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.selling-profit { color: var(--green); font-size: 15px; }
+/* destructive-confirm state on the ui/Button */
+.selling-list .ui-btn.pending { box-shadow: 0 0 0 1px var(--red); opacity: .7; }
+.selling-clear-btn { color: var(--red); }

@@ -13,6 +13,9 @@ import { StatGrid, Stat } from './ui/StatGrid';
 import ActionBar from './ui/ActionBar';
 import FourDotMark from './ui/FourDotMark';
 import { Shutter, CamSide, PhotoRemoveDot } from './ui/CameraControls';
+import IconButton from './ui/IconButton';
+import MenuItem from './ui/MenuItem';
+import Select from './ui/Select';
 import './UIKitchen.css';
 
 const grad = (a, b) => ({ background: `linear-gradient(135deg, ${a}, ${b})` });
@@ -34,6 +37,8 @@ export default function UIKitchen() {
           <Button>List it</Button>
           <Button variant="outline">Save draft</Button>
           <Button variant="danger">Remove</Button>
+          <Button variant="plain">+ New</Button>
+          <Button variant="success" size="sm">Restore</Button>
         </div>
         <div className="uikitchen-cluster">
           <Button size="sm">List it</Button>
@@ -50,6 +55,7 @@ export default function UIKitchen() {
           {['Like New', 'Excellent', 'Good', 'Fair'].map((c) => (
             <Chip key={c} selected={condition === c} onPress={() => setCondition(c)}>{c}</Chip>
           ))}
+          <Chip disabled>Disabled</Chip>
         </div>
       </section>
 
@@ -77,6 +83,9 @@ export default function UIKitchen() {
           <PanelRow label="Shipping" value="−$12.00" />
           <PanelRow label="Paid at Goodwill" value="−$8.00" />
           <PanelTotal label="You'd keep" value="$61.68" tone="green" />
+        </Panel>
+        <Panel className="uikitchen-solo">
+          <PanelTotal solo label="You'd keep (thin margin)" value="$12.40" tone="yellow" />
         </Panel>
       </section>
 
@@ -183,6 +192,36 @@ export default function UIKitchen() {
           <Stat value="$55.83" label="AVG SALE" />
           <Stat value="4.2d" label="AVG TIME TO SELL" />
         </StatGrid>
+      </section>
+
+      <section>
+        <div className="lbl">Icon buttons</div>
+        <div className="uikitchen-cluster uikitchen-cam">
+          <IconButton label="Send" size="md" tone="blue">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5M5 12l7-7 7 7" /></svg>
+          </IconButton>
+          <IconButton label="Back" size="sm">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+          </IconButton>
+          <IconButton label="Accent" size="lg" tone="accent">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+          </IconButton>
+        </div>
+      </section>
+
+      <section>
+        <div className="lbl">Select</div>
+        <Select aria-label="Category" defaultValue="Clothing, Shoes & Accessories"
+          options={['Clothing, Shoes & Accessories', 'Home & Garden', 'Electronics']} />
+      </section>
+
+      <section>
+        <div className="lbl">Menu</div>
+        <Card flush className="uikitchen-menu">
+          <MenuItem>Pin to top</MenuItem>
+          <MenuItem>Archive</MenuItem>
+          <MenuItem tone="danger">Delete</MenuItem>
+        </Card>
       </section>
 
       <section>

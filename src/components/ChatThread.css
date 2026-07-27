@@ -8,14 +8,14 @@
   padding: 8px 12px 16px;
   display: flex;
   flex-direction: column;
-  background: var(--bg-base);
+  background: var(--bg);
 }
 .chat-messages::-webkit-scrollbar { display: none; }
 
 /* Empty state */
 .chat-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
-.chat-empty-icon { display: flex; color: var(--text-muted); }
-.chat-empty-text { font-size: 13px; color: var(--text-muted); }
+.chat-empty-icon { display: flex; color: var(--fg-3); }
+.chat-empty-text { font-size: 13px; color: var(--fg-3); }
 
 /* Bubble wrap — row layout: avatar + bubble for AI, right-justified for user */
 .chat-bubble-wrap { display: flex; align-items: flex-end; margin-top: 12px; }
@@ -28,8 +28,8 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: var(--bg-input);
-  color: var(--text-muted);
+  background: var(--card-2);
+  color: var(--fg-3);
   font-size: 11px;
   font-weight: 700;
   display: flex;
@@ -50,7 +50,7 @@
 }
 
 /* AI: card surface + border, tail on last in sequence */
-.chat-bubble.ai { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-primary); }
+.chat-bubble.ai { background: var(--card); border: 1px solid var(--line); color: var(--fg); }
 .chat-bubble.ai.has-tail { border-radius: 18px 18px 18px 4px; }
 
 /* User: solid blue, white text, tail on last in sequence */
@@ -58,19 +58,19 @@
 .chat-bubble.user.has-tail { border-radius: 18px 18px 4px 18px; }
 
 /* Time separator */
-.chat-time-sep { text-align: center; font-size: 11px; color: var(--text-muted); margin: 8px 0 4px; }
+.chat-time-sep { text-align: center; font-size: 11px; color: var(--fg-3); margin: 8px 0 4px; }
 
 /* Typing indicator */
 .chat-typing {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+  background: var(--card);
+  border: 1px solid var(--line);
   padding: 12px 16px;
   border-radius: 18px 18px 18px 4px;
 }
-.chat-typing span { width: 7px; height: 7px; background: var(--text-muted); border-radius: 50%; animation: chatBounce 1.2s infinite; }
+.chat-typing span { width: 7px; height: 7px; background: var(--fg-3); border-radius: 50%; animation: chatBounce 1.2s infinite; }
 .chat-typing span:nth-child(2) { animation-delay: 0.15s; }
 .chat-typing span:nth-child(3) { animation-delay: 0.3s; }
 @keyframes chatBounce {
@@ -84,39 +84,9 @@
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
-  border-top: 1px solid var(--border);
-  background: var(--bg-primary);
+  border-top: 1px solid var(--line);
+  background: var(--bg);
   flex-shrink: 0;
 }
-.chat-input {
-  flex: 1;
-  background: var(--bg-card);
-  border: 1px solid var(--border-mid);
-  border-radius: 22px;
-  padding: 10px 16px;
-  font-size: 14px;
-  color: var(--text-primary);
-  resize: none;
-  overflow-y: auto;
-  max-height: calc(4 * 1.5em + 20px);
-  line-height: 1.5;
-  font-family: inherit;
-}
-.chat-input::placeholder { color: var(--text-muted); }
-.chat-input:disabled { opacity: 0.5; }
-.chat-send-btn {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: var(--blue);
-  color: #fff;
-  font-size: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  line-height: 1;
-  border: none;
-  cursor: pointer;
-}
-.chat-send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+/* composer input + send are ui/ components; only the row is glue here */
+.chat-input-row > .ui-input { flex: 1; }

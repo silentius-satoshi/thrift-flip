@@ -17,22 +17,13 @@
   padding: 12px 16px 8px;
   flex-shrink: 0;
 }
-.flip-list-title { font-size: 18px; font-weight: 700; color: var(--text-primary); }
-.flip-new-btn {
-  font-size: 14px;
-  color: var(--blue);
-  font-weight: 600;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 4px 0;
-}
+.flip-list-title { font-size: 18px; font-weight: 700; color: var(--fg); }
 
 /* ── Section labels ── */
 .flip-section-label {
   font-size: 11px;
   font-weight: 600;
-  color: var(--text-muted);
+  color: var(--fg-3);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   padding: 8px 16px 4px;
@@ -48,13 +39,13 @@
 .swipe-bg-left {
   position: absolute;
   inset: 0;
-  background: var(--amber-bg);
+  background: var(--yellow-wash);
   display: flex;
   align-items: center;
   padding-left: 20px;
   font-size: 13px;
   font-weight: 600;
-  color: var(--amber);
+  color: var(--yellow);
 }
 .swipe-bg-right {
   position: absolute;
@@ -71,20 +62,12 @@
 
 /* ── Row inner (slides on swipe) ── */
 .conv-row-inner {
-  width: 100%;
-  text-align: left;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  background: var(--bg-primary);
-  cursor: pointer;
-  position: relative;
-  z-index: 1;
+  padding-left: var(--gutter);
+  padding-right: var(--gutter);
   transition: transform 0.2s ease;
   -webkit-tap-highlight-color: transparent;
 }
-.conv-row-inner:active { background: var(--bg-card); }
+.conv-row-inner:active { background: var(--card); }
 /* .conv-row-wrap clips the swipe backgrounds, which would eat an outset ring */
 .conv-row-inner:focus-visible { outline-offset: -2px; }
 
@@ -100,9 +83,9 @@
   font-weight: 700;
   flex-shrink: 0;
 }
-.conv-avatar-amber { background: var(--amber-bg); color: var(--amber); }
-.conv-avatar-blue  { background: var(--blue-bg);  color: var(--blue);  }
-.conv-avatar-gray  { background: var(--bg-card);  color: var(--text-secondary); }
+.conv-avatar-amber { background: var(--yellow-wash); color: var(--yellow); }
+.conv-avatar-blue  { background: var(--blue-wash);  color: var(--blue);  }
+.conv-avatar-gray  { background: var(--card);  color: var(--fg-2); }
 
 /* ── Center content ── */
 .conv-center {
@@ -117,32 +100,8 @@
   align-items: center;
   gap: 6px;
 }
-.conv-name {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.conv-preview {
-  font-size: 13px;
-  color: var(--text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 
 /* Status pills */
-.conv-pill {
-  font-size: 10px;
-  font-weight: 600;
-  padding: 2px 6px;
-  border-radius: var(--radius-pill);
-  flex-shrink: 0;
-}
-.conv-pill-amber { background: var(--amber-bg); color: var(--amber); }
-.conv-pill-blue  { background: var(--blue-bg);  color: var(--blue);  }
 
 /* ── Right side ── */
 .conv-right {
@@ -152,8 +111,8 @@
   gap: 4px;
   flex-shrink: 0;
 }
-.conv-time { font-size: 11px; color: var(--text-muted); }
-.conv-pin  { display: inline-flex; color: var(--amber); }
+.conv-time { font-size: 11px; color: var(--fg-3); }
+.conv-pin  { display: inline-flex; color: var(--yellow); }
 
 /* ── Chat view header ── */
 .flip-chat-header {
@@ -162,21 +121,12 @@
   padding: 12px 16px 8px;
   gap: 12px;
   flex-shrink: 0;
-  border-bottom: 1px solid var(--border);
-}
-.flip-back-btn {
-  font-size: 20px;
-  color: var(--blue);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0 4px 0 0;
-  line-height: 1;
+  border-bottom: 1px solid var(--line);
 }
 .flip-chat-title {
   font-size: 16px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--fg);
   flex: 1;
   text-align: center;
   white-space: nowrap;
@@ -186,21 +136,6 @@
 }
 
 /* ── Banners ── */
-.flip-banner {
-  display: block;
-  width: calc(100% - 32px);
-  box-sizing: border-box;
-  text-align: left;
-  background: var(--amber-bg);
-  border: 1px solid var(--amber-border);
-  border-radius: var(--radius-input);
-  padding: 9px 12px;
-  font-size: 13px;
-  color: var(--amber);
-  margin: 8px 16px 0;
-  cursor: pointer;
-  transition: opacity 0.15s;
-}
 .flip-banner:active { opacity: 0.7; }
 
 /* ── Context menu ── */
@@ -208,49 +143,20 @@
 .flip-context-menu {
   position: fixed;
   z-index: 201;
-  background: var(--bg-card);
-  border: 1px solid var(--border-mid);
-  border-radius: var(--radius-card);
+  background: var(--card);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-card);
   overflow: hidden;
   min-width: 160px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
-.flip-context-menu button {
-  display: block;
-  width: 100%;
-  padding: 12px 16px;
-  text-align: left;
-  font-size: 15px;
-  color: var(--text-primary);
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--border);
-  cursor: pointer;
-}
-/* the menu clips to its radius, so the ring has to sit inside the button */
-.flip-context-menu button:focus-visible { outline-offset: -2px; }
-.flip-context-menu button:last-child { border-bottom: none; }
-.flip-context-menu button:active { background: var(--bg-input); }
-.flip-menu-delete { color: #ef4444 !important; }
 
 /* ── Archived row ── */
-.conv-archived-row {
-  width: 100%;
-  text-align: left;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  cursor: pointer;
-  border-top: 1px solid var(--border);
-  -webkit-tap-highlight-color: transparent;
-}
-.conv-archived-row:active { background: var(--bg-card); }
+.conv-archived-row { padding-left: var(--gutter); padding-right: var(--gutter); border-top: 1px solid var(--line); }
 .conv-archived-icon { display: flex; align-items: center; justify-content: center; width: 44px; flex-shrink: 0; }
-.conv-archived-label { flex: 1; font-size: 15px; color: var(--text-secondary); }
-.conv-archived-count { font-size: 14px; color: var(--text-muted); }
+.conv-archived-label { flex: 1; font-size: 15px; color: var(--fg-2); }
+.conv-archived-count { font-size: 14px; color: var(--fg-3); }
 
-.flip-back-btn-small { font-size: 16px; }
 
 .flip-chat-body {
   flex: 1;
@@ -269,5 +175,22 @@
   padding: 80px 32px;
   text-align: center;
 }
-.flip-empty .empty-icon { display: flex; color: var(--text-muted); }
-.flip-empty p { color: var(--text-secondary); font-size: 15px; line-height: 1.5; }
+.flip-empty .empty-icon { display: flex; color: var(--fg-3); }
+.flip-empty p { color: var(--fg-2); font-size: 15px; line-height: 1.5; }
+
+/* banner tint only — Card owns the radius and padding */
+.flip-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px var(--gutter) 0;
+  width: calc(100% - var(--gutter) * 2);
+  font-size: 13px;
+  background: var(--yellow-wash);
+  border-color: var(--yellow-line);
+  color: var(--yellow);
+}
+.flip-back-btn { color: var(--blue); margin-left: -8px; }
+.conv-name-row { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.conv-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.conv-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }

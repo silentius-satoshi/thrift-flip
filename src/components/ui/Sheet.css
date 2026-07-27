@@ -23,12 +23,19 @@
   from { transform: translate(-50%, 100%); }
   to { transform: translate(-50%, 0); }
 }
+.ui-sheet:focus { outline: none; }
+/* full-width grab area so the 4px handle is a usable drag target */
+.ui-sheet-grab {
+  padding: 4px 0 14px;
+  margin: 0 -20px;
+  touch-action: none;
+}
 .ui-sheet-handle {
   width: 36px;
   height: 4px;
   border-radius: 2px;
   background: var(--line-2);
-  margin: 0 auto 16px;
+  margin: 0 auto;
 }
 .ui-sheet-title {
   font-size: 17px;

@@ -19,4 +19,7 @@
 .ui-btn-outline { background: transparent; border: 1px solid var(--line-2); color: var(--fg); }
 .ui-btn-danger { background: transparent; border: 1px solid rgba(233,64,59,.45); color: var(--red); }
 
+.ui-btn-plain { background: transparent; color: var(--blue-lt); padding: 4px 6px; min-height: 34px; font-size: 14px; }
+.ui-btn-success { background: transparent; border: 1px solid var(--green-line); color: var(--green); }
+
 .ui-btn-full { width: 100%; }

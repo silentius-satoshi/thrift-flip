@@ -1,9 +1,14 @@
 import './Card.css';
 
-export default function Card({ flush = false, className = '', children, ...rest }) {
+export default function Card({ flush = false, onPress, className = '', children, ...rest }) {
+  const Tag = onPress ? 'button' : 'div';
   return (
-    <div className={`ui-card${flush ? ' flush' : ''}${className ? ` ${className}` : ''}`} {...rest}>
+    <Tag
+      {...(onPress ? { type: 'button', onClick: onPress } : {})}
+      className={`ui-card${flush ? ' flush' : ''}${onPress ? ' tappable' : ''}${className ? ` ${className}` : ''}`}
+      {...rest}
+    >
       {children}
-    </div>
+    </Tag>
   );
 }

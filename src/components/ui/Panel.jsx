@@ -22,7 +22,8 @@ export function PanelRow({ label, value, onValueTap, className = '', ...rest }) 
   );
 }
 
-export function PanelTotal({ label, value, tone = 'green', className = '', ...rest }) {
+export function PanelTotal({ label, value, tone = 'green', solo = false, className = '', ...rest }) {
+  className = `${solo ? 'solo' : ''}${className ? ` ${className}` : ''}`.trim();
   return (
     <div className={`ui-panel-total${className ? ` ${className}` : ''}`} {...rest}>
       <span className="ui-panel-total-label">{label}</span>

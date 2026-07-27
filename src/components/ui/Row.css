@@ -9,6 +9,8 @@
   color: inherit;
 }
 .ui-row + .ui-row { border-top: 1px solid var(--line); }
+/* opaque and stacked so a swipe wrapper's action backgrounds stay behind it */
+.ui-row { background: var(--bg); position: relative; z-index: 1; }
 .ui-row-thumb { flex-shrink: 0; }
 .ui-row-main { flex: 1; min-width: 0; }
 .ui-row-title {

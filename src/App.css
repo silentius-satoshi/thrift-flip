@@ -5,76 +5,17 @@
 }
 
 .card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
   padding: 16px;
   margin-bottom: 12px;
 }
 
-/* ── Pills ── */
-.pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 10px;
-  border-radius: var(--radius-pill);
-  font-size: 12px;
-  font-weight: 500;
-  white-space: nowrap;
-}
-.pill-green { background: var(--green-bg);  color: var(--green);          border: 1px solid var(--green-border); }
-.pill-red   { background: var(--red-bg);    color: var(--red);            border: 1px solid var(--red-border);   }
-.pill-amber { background: var(--amber-bg);  color: var(--amber);          border: 1px solid var(--amber-border); }
-.pill-blue  { background: var(--blue-bg);   color: var(--blue);           border: 1px solid var(--blue-border);  }
-.pill-muted { background: var(--bg-input);  color: var(--text-secondary); border: 1px solid var(--border-mid);   }
-
-/* ── Buttons ── */
-.btn {
-  padding: 12px 20px;
-  border-radius: var(--radius-input);
-  font-size: 15px;
-  font-weight: 500;
-  transition: opacity 0.15s;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.btn:active   { opacity: 0.75; }
-.btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.btn-primary  { background: var(--blue);     color: #fff; }
-.btn-ghost    { background: var(--bg-input); color: var(--text-primary); border: 1px solid var(--border-mid); }
-.btn-green    { background: var(--green);    color: #000; }
-.btn-red      { background: var(--red-bg);   color: var(--red); border: 1px solid var(--red-border); }
-.btn-amber    { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-border); }
-.btn-full     { width: 100%; text-align: center; }
-.btn-sm       { padding: 8px 14px; font-size: 13px; }
-
-/* ── Form elements ── */
-.form-group    { display: flex; flex-direction: column; gap: 6px; }
-.form-label    { font-size: 13px; color: var(--text-secondary); font-weight: 500; display: flex; align-items: center; gap: 6px; }
-.ai-label      { font-size: 11px; color: var(--blue); font-weight: 400; }
-
-.form-input,
-.form-textarea {
-  background: var(--bg-input);
-  border: 1px solid var(--border-mid);
-  border-radius: var(--radius-input);
-  color: var(--text-primary);
-  padding: 10px 12px;
-  font-size: 15px;
-  transition: border-color 0.15s;
-  width: 100%;
-}
-.form-input:focus,
-.form-textarea:focus  { border-color: var(--blue); }
-.form-input::placeholder,
-.form-textarea::placeholder { color: var(--text-muted); }
-.form-textarea { resize: vertical; min-height: 80px; }
-
-.form-input-prefix          { position: relative; }
-.form-input-prefix .prefix  { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); pointer-events: none; font-size: 15px; }
-.form-input-prefix .form-input { padding-left: 24px; }
+/* The global control kit (.btn/.pill/.form-*) retired at F4 — every screen
+   composes from src/components/ui/ now. Only layout + toast glue remains. */
+.listing-field-label { font-size: 13px; color: var(--fg-2); font-weight: 500; display: flex; align-items: center; gap: 6px; }
+.ai-label { font-size: 11px; color: var(--blue); font-weight: 400; }
 
 /* ── Toast ── */
 .toast-container {
@@ -88,18 +29,18 @@
   max-width: calc(var(--column) - var(--gutter) * 2);
 }
 .toast {
-  background: var(--bg-card);
-  border: 1px solid var(--border-mid);
-  border-radius: var(--radius-card);
+  background: var(--card);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-card);
   padding: 12px 16px;
   font-size: 14px;
-  color: var(--text-primary);
+  color: var(--fg);
   box-shadow: 0 8px 24px rgba(0,0,0,0.4);
   animation: slideUp 0.2s ease;
   text-align: center;
 }
-.toast.success { border-color: var(--green-border); color: var(--green); background: var(--green-bg); }
-.toast.error   { border-color: var(--red-border);   color: var(--red);   background: var(--red-bg);   }
+.toast.success { border-color: var(--green-line); color: var(--green); background: var(--green-wash); }
+.toast.error   { border-color: var(--red-line);   color: var(--red);   background: var(--red-wash);   }
 @keyframes slideUp {
   from { opacity: 0; transform: translateY(12px); }
   to   { opacity: 1; transform: translateY(0); }

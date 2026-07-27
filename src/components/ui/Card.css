@@ -8,3 +8,10 @@
   padding: 0;
   overflow: hidden;
 }
+.ui-card.tappable {
+  display: block;
+  width: 100%;
+  text-align: left;
+  color: inherit;
+}
+.ui-card.tappable:active { opacity: .75; }
