@@ -1,6 +1,8 @@
 // Response schema from docs/v0-model-check.md §4, in Gemini's schema dialect.
-// listing_mercari (vision §5) is deliberately absent — V1.5 concern, extra output tokens.
-// `nullable` is deliberately absent too: it made AI Studio reject the schema (v0 §4 note).
+// listing_mercari (vision §5) rides the same call at V1.5 — one block, no extra request.
+// Its register rules live in `description` fields because the system prompt is the
+// byte-verbatim prompt of record (v0 §3) and doc comments never reach the model.
+// `nullable` is deliberately absent: it made AI Studio reject the schema (v0 §4 note).
 export const RESPONSE_SCHEMA = {
   type: 'OBJECT',
   properties: {
@@ -48,6 +50,30 @@ export const RESPONSE_SCHEMA = {
       },
       required: ['title', 'description_html', 'item_specifics', 'condition_description'],
     },
+    listing_mercari: {
+      type: 'OBJECT',
+      description: 'The same item written in Mercari\'s register — not a copy of the eBay listing.',
+      properties: {
+        title: {
+          type: 'STRING',
+          description: '80 characters or fewer. Casual and keyword-front, unlike the brand-first eBay title.',
+        },
+        description: {
+          type: 'STRING',
+          description: 'Plain text, no HTML. Shorter than the eBay description; first person is fine.',
+        },
+        hashtags: {
+          type: 'ARRAY',
+          description: 'Three to five hashtags, each including the leading # — e.g. "#Pendleton", "#woolblanket".',
+          items: { type: 'STRING' },
+        },
+        suggested_price: {
+          type: 'NUMBER',
+          description: 'Mercari skews lower than eBay. Round to a price ending in 9 or 5.',
+        },
+      },
+      required: ['title', 'description', 'hashtags', 'suggested_price'],
+    },
     pricing: {
       type: 'OBJECT',
       properties: {
@@ -70,5 +96,5 @@ export const RESPONSE_SCHEMA = {
       required: ['platform', 'format', 'rarity_flag', 'timing_note'],
     },
   },
-  required: ['identification', 'condition_read', 'listing', 'pricing', 'strategy'],
+  required: ['identification', 'condition_read', 'listing', 'listing_mercari', 'pricing', 'strategy'],
 };

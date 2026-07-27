@@ -288,7 +288,8 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
     const ship = shippingCost();
     let payload;
     if (phase === 'verdict' && analysisResult) {
-      const { estSellPrice, fees, netProfit, soldCount, sellThroughRate, avgDaysToSell, activeListings } = analysisResult;
+      const { estSellPrice, fees, netProfit, soldCount, sellThroughRate, avgDaysToSell, activeListings,
+              listing, listingMercari } = analysisResult;
       payload = {
         id: itemId,
         name: details.slice(0, 60) || 'Unnamed Item',
@@ -304,6 +305,10 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
         sellThroughRate: sellThroughRate ?? '–',
         avgDaysToSell: avgDaysToSell ?? '–',
         activeListings: activeListings ?? 0,
+        // The model's own listing, both registers — the editor seeds from these
+        // instead of regenerating a placeholder one (V1.5/E0)
+        listing: listing ?? null,
+        listingMercari: listingMercari ?? null,
         chatHistory,
       };
     } else {
@@ -323,6 +328,10 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
         sellThroughRate: '–',
         avgDaysToSell: '–',
         activeListings: 0,
+        // Pencil items were never analyzed, so there is no model listing to carry;
+        // CartMode falls back to the mock generator for these.
+        listing: null,
+        listingMercari: null,
         chatHistory: [],
         pending: true,
       };

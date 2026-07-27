@@ -92,6 +92,7 @@ function AppInner() {
           photos: (edits.photos ?? []).map(d => ({ dataUrl: d, mimeType: 'image/jpeg' })),
           goodwillPrice: listingItem?.goodwillPrice ?? 0,
           estProfit: calcProfit(parseFloat(edits.price) || 0, listingItem?.goodwillPrice ?? 0).net,
+          listingMercari: listingItem?.listingMercari ?? null,
           source: 'auto-saved',
         });
       }
@@ -104,7 +105,7 @@ function AppInner() {
   }
 
   function handleRestoreDraft(draft) {
-    setListingItem({ id: draft.id, goodwillPrice: draft.goodwillPrice });
+    setListingItem({ id: draft.id, goodwillPrice: draft.goodwillPrice, listingMercari: draft.listingMercari ?? null });
     setListingData({
       title: draft.title,
       condition: draft.condition,
@@ -138,6 +139,7 @@ function AppInner() {
         photos: (edits.photos ?? []).map(d => ({ dataUrl: d, mimeType: 'image/jpeg' })),
         goodwillPrice: listingItem?.goodwillPrice ?? 0,
         estProfit: calcProfit(parseFloat(edits.price) || 0, listingItem?.goodwillPrice ?? 0).net,
+        listingMercari: listingItem?.listingMercari ?? null,
         source: 'manual',
       });
       showToast('Current listing saved as draft');

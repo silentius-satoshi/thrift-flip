@@ -93,7 +93,8 @@ function adapt(parsed, { goodwillPrice, shipping }) {
     rationale,
     identification,
     conditionRead: parsed.condition_read ?? null,
-    listing: parsed.listing ?? null,       // carried for V1.5 / E0
+    listing: parsed.listing ?? null,       // the eBay register — seeds the editor at V1.5
+    listingMercari: parsed.listing_mercari ?? null, // the Mercari register — copy-assist lane
     strategy: parsed.strategy ?? null,
     source: 'model',
     // No sold data at V1 — the Why sheet says so and links out to eBay's sold filter

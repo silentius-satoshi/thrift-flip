@@ -168,3 +168,7 @@
 .field-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 .specifics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .price-qty-row { display: flex; gap: 10px; }
+.distribution-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.distribution-copied { margin-top: 10px; }
+.distribution-hint { font-size: 12px; color: var(--fg-3); margin-top: 8px; line-height: 1.4; }
+.vendoo-body { font-size: 14px; color: var(--fg-2); line-height: 1.5; margin-bottom: 6px; }

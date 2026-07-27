@@ -361,7 +361,10 @@ function buildReport(rows, anchor, stamp) {
     };
     const cond = row.ungrounded.ok ? (row.ungrounded.result.conditionRead?.grade ?? '—') : '—';
     const conf = row.ungrounded.ok ? (row.ungrounded.result.identification?.confidence ?? '—') : '—';
-    return `| ${i + 1} | ${row.item.slug} | ${idCell(row, 'ungrounded')} | ${idCell(row, 'grounded')} | ${cond} | ${money(uEst)} | ${money(gEst)} | ${truth} | ${within(uEst)} / ${within(gEst)} | ${conf} | ${row.grounded.ok ? row.grounded.queries.length : '—'} |`;
+    const regs = row.ungrounded.ok
+      ? `${row.ungrounded.result.listing?.title ? 'eBay' : '—'} / ${row.ungrounded.result.listingMercari?.title ? 'Mercari' : '—'}`
+      : '—';
+    return `| ${i + 1} | ${row.item.slug} | ${idCell(row, 'ungrounded')} | ${idCell(row, 'grounded')} | ${cond} | ${money(uEst)} | ${money(gEst)} | ${truth} | ${within(uEst)} / ${within(gEst)} | ${conf} | ${regs} | ${row.grounded.ok ? row.grounded.queries.length : '—'} |`;
   }).join('\n');
 
   const hitRate = (arm) => {
@@ -379,8 +382,8 @@ _Model: \`${GEMINI_MODEL}\`. Items: ${rows.length}. Grounded search queries bill
 
 **${gatePass ? 'PASS' : 'FAIL'}** — ${coreCorrect}/${core.length} core items correct on brand+model (need ${CORE_GATE} of ${CORE_SLUGS.length}).
 ${core.length < CORE_SLUGS.length ? `\n> Missing fixtures for: ${CORE_SLUGS.filter((s) => !core.some((r) => r.item.slug === s)).join(', ')}. The gate cannot pass until all five exist.\n` : ''}
-| # | Item | Ungrounded ID | Grounded ID | Condition | Est. (ungrounded) | Est. (grounded) | Real sold median | Within range U/G | ID confidence | Search queries |
-|---|---|---|---|---|---|---|---|---|---|---|
+| # | Item | Ungrounded ID | Grounded ID | Condition | Est. (ungrounded) | Est. (grounded) | Real sold median | Within range U/G | ID confidence | Registers | Search queries |
+|---|---|---|---|---|---|---|---|---|---|---|---|
 ${sheet}
 
 Sold-range hit rate — ungrounded **${hitRate('ungrounded')}**, grounded **${hitRate('grounded')}**.
@@ -493,6 +496,12 @@ for (const item of items) {
   const ungrounded = await runUngrounded(item);
   const ungroundedScore = ungrounded.ok ? scoreId(item, ungrounded.result.identification) : 'wrong';
   say(`  ungrounded: ${ungrounded.ok ? `${ungroundedScore} · ${money(ungrounded.result.estSellPrice)}` : `error \`${ungrounded.code}\``}`);
+  if (ungrounded.ok) {
+    // vision §7's V1.5 gate: one analyze, both registers
+    const m = ungrounded.result.listingMercari;
+    const hasEbay = !!ungrounded.result.listing?.title;
+    say(`  registers:  eBay ${hasEbay ? '✓' : '✗'} · Mercari ${m?.title ? '✓' : '✗'}${m?.hashtags?.length ? ` (${m.hashtags.length} tags, ${money(Number(m.suggested_price))})` : ''}`);
+  }
   await sleep(GAP_MS);
 
   const grounded = await runGrounded(item);

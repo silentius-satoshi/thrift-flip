@@ -15,6 +15,8 @@ import Row from './ui/Row';
 import Select from './ui/Select';
 import Sheet from './ui/Sheet';
 import ActionBar from './ui/ActionBar';
+import StatusTag from './ui/StatusTag';
+import { buildEbayPackage, buildMercariPackage } from '../utils/listingFormat';
 import './ListingMode.css';
 
 function TagIcon({ size = 44 }) {
@@ -99,6 +101,8 @@ export default function ListingMode({ listingItem, listingData, onClearListing, 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [regenLoading, setRegenLoading] = useState(null);
   const [showSaveDraftModal, setShowSaveDraftModal] = useState(false);
+  const [showVendooSheet, setShowVendooSheet] = useState(false);
+  const [copied, setCopied] = useState(null); // 'ebay' | 'mercari' — which package is on the clipboard
 
   const photoInputRef = useRef(null);
 
@@ -227,9 +231,35 @@ export default function ListingMode({ listingItem, listingData, onClearListing, 
     showToast('Draft saved', 'success');
   }
 
+  const mercari = listingItem?.listingMercari ?? null;
   const sellPrice = parseFloat(price) || 0;
   const goodwillPrice = listingItem?.goodwillPrice || 0;
   const { net: liveProfit } = calcProfit(sellPrice, goodwillPrice);
+
+  // The clipboard write has to resolve inside the user gesture, before the
+  // window.open — Safari drops the permission otherwise.
+  async function copyAndOpen(variant, text, url) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(variant);
+      showToast(variant === 'ebay' ? 'eBay version copied' : 'Mercari version copied', 'success');
+    } catch {
+      showToast('Copy failed — long-press the fields to copy manually', 'error');
+      return;
+    }
+    window.open(url, '_blank', 'noopener');
+  }
+
+  function handleCopyForEbay() {
+    // Built from what is on screen now, not the original response
+    return copyAndOpen('ebay', buildEbayPackage({
+      title, price, condition: selectedCondition, specifics, description,
+    }), 'https://www.ebay.com/sl/sell');
+  }
+
+  function handleCopyForMercari() {
+    return copyAndOpen('mercari', buildMercariPackage(mercari), 'https://www.mercari.com/sell/');
+  }
 
   if (!listingItem) {
     return (
@@ -396,6 +426,38 @@ export default function ListingMode({ listingItem, listingData, onClearListing, 
           onChange={e => setDescription(e.target.value)}
         />
       </div>
+
+      {/* Distribution */}
+      <div className="listing-section">
+        <div className="listing-section-title">Where it goes</div>
+        <div className="distribution-row">
+          <Chip selected onPress={handleCopyForEbay}>Copy for eBay</Chip>
+          <Chip disabled={!mercari} onPress={mercari ? handleCopyForMercari : undefined}>Copy for Mercari</Chip>
+          <Chip onPress={() => setShowVendooSheet(true)}>Vendoo</Chip>
+        </div>
+        {copied && (
+          <StatusTag tone="green" className="distribution-copied">
+            {copied === 'ebay' ? 'eBay version copied' : 'Mercari version copied'}
+          </StatusTag>
+        )}
+        {!mercari && (
+          <p className="distribution-hint">Analyze the item to get the Mercari version.</p>
+        )}
+      </div>
+
+      <Sheet open={showVendooSheet} onClose={() => setShowVendooSheet(false)} title="How Vendoo fits">
+        <p className="vendoo-body">
+          Vendoo is an optional fan-out, not something this app automates. The path is:
+        </p>
+        <Row title="1 · Send to eBay" sub="One tap from the action bar (real API arrives at E2)" />
+        <Row title="2 · Vendoo imports the eBay listing" sub="It reads the listing you already made" />
+        <Row title="3 · Vendoo crosslists" sub="Mercari, Poshmark, Facebook Marketplace" />
+        <p className="vendoo-body">
+          We never build marketplace form-filling ourselves — that is Vendoo's full-time
+          business. Without it, the copy buttons above are the floor.
+        </p>
+        <Button variant="outline" full className="save-draft-cancel" onClick={() => setShowVendooSheet(false)}>Close</Button>
+      </Sheet>
 
       {/* Item specifics */}
       <div className="listing-section">

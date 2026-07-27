@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { generateListing } from '../utils/webhooks';
 import { markStatus } from '../utils/conversationStore';
 import { useToast } from '../contexts/ToastContext';
+import { htmlToText } from '../utils/listingFormat';
 import Button from './ui/Button';
 import Card from './ui/Card';
 import FourDotMark from './ui/FourDotMark';
@@ -29,6 +30,23 @@ export default function CartMode({ cart, onRemoveItem, onReadyToList, listingIte
   async function proceedWithListing(item) {
     setShowConflictModal(false);
     setPendingCartItem(null);
+
+    // Analyzed items already carry the model's own listing — seed the editor from
+    // it directly. No mock call, so no spinner: this path is synchronous.
+    if (item.listing) {
+      markStatus(item.id, 'listed');
+      onReadyToList(item, {
+        title: item.listing.title || '',
+        description: htmlToText(item.listing.description_html || ''),
+        condition: item.condition || 'Good',
+        price: item.estSellPrice,
+        specifics: item.listing.item_specifics ?? {},
+        conditionDescription: item.listing.condition_description || '',
+      });
+      return;
+    }
+
+    // Pencil items were never analyzed — fall back to the mock generator.
     setLoadingId(item.id);
     try {
       const listingData = await generateListing(item);
