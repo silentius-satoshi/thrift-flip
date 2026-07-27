@@ -38,3 +38,12 @@
 /* destructive-confirm state on the ui/Button */
 .selling-list .ui-btn.pending { box-shadow: 0 0 0 1px var(--red); opacity: .7; }
 .selling-clear-btn { color: var(--red); }
+
+/* The refresh control while it runs. Layout only — no padding or radius here;
+   the control itself is ui/IconButton. */
+.selling-refreshing svg {
+  animation: selling-spin 900ms linear infinite;
+}
+@keyframes selling-spin {
+  to { transform: rotate(360deg); }
+}

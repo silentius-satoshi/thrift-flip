@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { getHistory, deleteHistoryEntry, clearHistory } from '../utils/historyStore';
 import { useToast } from '../contexts/ToastContext';
 import { useUser } from '../contexts/UserContext';
 import { getDrafts } from '../utils/draftsStore';
+import { getSoldHistory, refreshInbound, realizedNet, daysToSell } from '../utils/ebayInbound';
 import Button from './ui/Button';
 import Card from './ui/Card';
 import FourDotMark from './ui/FourDotMark';
@@ -11,6 +12,23 @@ import Row from './ui/Row';
 import { StatGrid, Stat } from './ui/StatGrid';
 import StatusTag from './ui/StatusTag';
 import './SellingMode.css';
+
+// Refresh failures reuse the taxonomy every other eBay surface uses.
+const REFRESH_COPY = {
+  'not-connected': 'Connect eBay in Settings to pull your sales',
+  offline: "No signal — eBay can't be reached right now",
+  locked: 'Unlock cancelled — pulling sales needs your key',
+  default: "Couldn't reach eBay just now",
+};
+
+function RefreshIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12a9 9 0 11-2.64-6.36" />
+      <path d="M21 3v6h-6" />
+    </svg>
+  );
+}
 
 function formatSentDate(ts) {
   const d = new Date(ts);
@@ -52,9 +70,35 @@ export default function SellingMode({ onOpenSettings }) {
   // data (entries carry one hardcoded status and no sale record), so it is not
   // built here — see docs; the real source lands at E3–E4.
   const [working] = useState(() => getDrafts());
+  const [sold, setSold] = useState(() => getSoldHistory());
+  const [refreshing, setRefreshing] = useState(false);
   // Read the clock once per mount, not per render — the 90-day window does not
   // need to move mid-session, and Date.now() during render is impure.
   const [windowStart] = useState(() => Date.now() - 90 * 24 * 60 * 60 * 1000);
+
+  // Tab-open refresh, throttled inside refreshInbound. Silent either way: a man
+  // looking at his own sales has not asked to be sold an integration, so a
+  // disconnected account produces no nag here.
+  useEffect(() => {
+    let live = true;
+    refreshInbound({ manual: false })
+      .then(() => { if (live) { setHistory(getHistory()); setSold(getSoldHistory()); } })
+      .catch(() => { /* silent on open — the manual control reports */ });
+    return () => { live = false; };
+  }, []);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    try {
+      const result = await refreshInbound({ manual: true });
+      if (result.connected === false) showToast(REFRESH_COPY['not-connected'], 'error');
+      setHistory(getHistory());
+      setSold(getSoldHistory());
+    } catch (e) {
+      showToast(REFRESH_COPY[e?.code] ?? REFRESH_COPY.default, 'error');
+    }
+    setRefreshing(false);
+  }
 
   function handleDelete(id) {
     if (pendingDelete === id) {
@@ -83,9 +127,21 @@ export default function SellingMode({ onOpenSettings }) {
   const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
   const recent = history.filter(e => num(e.sentAt) > windowStart);
   const totalItems = recent.length;
-  const totalProfit = recent.reduce((s, e) => s + num(e.estProfit), 0);
-  const avgProfit = totalItems > 0 ? totalProfit / totalItems : 0;
-  const bestFlip = recent.reduce((best, e) => (!best || num(e.estProfit) > num(best.estProfit)) ? e : best, null);
+
+  // One row per sale, joined back to the entry it came from. An entry can in
+  // principle sell twice (a two-quantity offer), so this is a flat list rather
+  // than a per-entry field.
+  const soldRows = history.flatMap(entry =>
+    (sold[String(entry.sku ?? entry.id)] ?? []).map(sale => ({
+      entry, sale,
+      net: realizedNet(entry, sale),
+      span: daysToSell(entry, sale),
+    })));
+  soldRows.sort((a, b) => num(b.sale.soldAt) - num(a.sale.soldAt));
+
+  const earnings = soldRows.reduce((sum, r) => sum + r.net, 0);
+  const spans = soldRows.map(r => r.span?.days).filter(d => Number.isFinite(d));
+  const avgToSell = spans.length ? Math.round(spans.reduce((a, b) => a + b, 0) / spans.length) : null;
 
   const header = (withClear) => (
     <div className="selling-header">
@@ -94,6 +150,13 @@ export default function SellingMode({ onOpenSettings }) {
         <span className="selling-title">Selling</span>
       </div>
       <div className="selling-header-actions">
+        <IconButton
+          label="Refresh from eBay"
+          size="sm"
+          className={refreshing ? 'selling-refreshing' : ''}
+          disabled={refreshing}
+          onClick={handleRefresh}
+        ><RefreshIcon /></IconButton>
         <IconButton label="Settings" size="sm" onClick={onOpenSettings}><KeyIcon /></IconButton>
         {withClear && (
           <Button variant="plain" className="selling-clear-btn" onClick={handleClearAll}>
@@ -121,11 +184,31 @@ export default function SellingMode({ onOpenSettings }) {
       {header(true)}
 
       <StatGrid className="selling-stats">
-        <Stat value={totalItems} label="SENT · 90 DAYS" />
-        <Stat value={`$${totalProfit.toFixed(2)}`} label="EST. PROFIT" tone="green" />
-        <Stat value={`$${avgProfit.toFixed(2)}`} label="AVG PER ITEM" />
-        <Stat value={`$${num(bestFlip?.estProfit).toFixed(2)}`} label={bestFlip ? `BEST: ${bestFlip.title.slice(0, 14)}…` : 'BEST FLIP'} tone="green" />
+        <Stat value={totalItems} label="LISTED · 90 DAYS" />
+        <Stat value={`$${earnings.toFixed(2)}`} label="EARNINGS" tone="green" />
+        <Stat value={soldRows.length} label="SOLD" />
+        <Stat value={avgToSell === null ? '—' : `${avgToSell}d`} label="AVG. TO SELL" />
       </StatGrid>
+
+      {soldRows.length > 0 && (
+        <>
+          <div className="lbl selling-section">Sold</div>
+          <Card className="selling-list">
+            {soldRows.map(({ entry, sale, net, span }) => (
+              <Row
+                key={sale.orderId}
+                title={entry.title}
+                sub={[
+                  `Sold ${formatSentDate(sale.soldAt)}`,
+                  span ? `${span.approx ? '~' : ''}${span.days} day${span.days === 1 ? '' : 's'}` : null,
+                  `$${num(sale.soldPrice).toFixed(2)}`,
+                ].filter(Boolean).join(' · ')}
+                trailing={<b className="money selling-profit">+${net.toFixed(2)}</b>}
+              />
+            ))}
+          </Card>
+        </>
+      )}
 
       <div className="lbl selling-section">Sent to eBay</div>
       <Card className="selling-list">
@@ -133,9 +216,18 @@ export default function SellingMode({ onOpenSettings }) {
           <Row
             key={entry.id}
             title={entry.title}
-            sub={`${formatSentDate(entry.sentAt)} · $${num(entry.price).toFixed(2)} · paid $${num(entry.goodwillPrice).toFixed(2)}`}
+            sub={[
+              formatSentDate(entry.sentAt),
+              `$${num(entry.price).toFixed(2)}`,
+              `paid $${num(entry.goodwillPrice).toFixed(2)}`,
+              // Views only — eBay's Analytics traffic report has no watchers
+              // metric, and reaching one would mean a new API family and a
+              // fresh consent from him for a watch count.
+              Number.isFinite(Number(entry.views)) ? `${entry.views} views` : null,
+            ].filter(Boolean).join(' · ')}
             trailing={
               <span className="selling-row-trailing">
+                {entry.listingId && <StatusTag tone="blue">Live</StatusTag>}
                 <b className="money selling-profit">+${num(entry.estProfit).toFixed(2)}</b>
                 <Button
                   variant="danger"

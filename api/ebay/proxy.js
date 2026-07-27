@@ -20,6 +20,10 @@ const ALLOWED = [
   /^sell\/inventory\/v1\/offer(\/[^/]+)?$/,
   /^sell\/account\/v1\/[a-z_]*policy[a-z_]*$/,      // fulfillment / payment / return policies
   /^commerce\/taxonomy\/v1\/.+$/,                   // category tree + suggestions
+  // E3, inbound. Read-only by nature: getOrders reports sales, the traffic
+  // report reports views. Neither can change anything on the account.
+  /^sell\/fulfillment\/v1\/order(\/[^/]+)?$/,       // getOrders / getOrder
+  /^sell\/analytics\/v1\/traffic_report$/,          // getTrafficReport
 ];
 
 /**
@@ -31,8 +35,13 @@ const ALLOWED = [
  */
 export function isAllowedPath(target) {
   if (typeof target !== 'string' || !target) return false;
-  if (target.startsWith('/') || target.includes('..') || target.includes('://')) return false;
+  if (target.startsWith('/') || target.includes('://')) return false;
   const path = target.split('?')[0];
+  // Traversal is checked on the PATH only. eBay's own date-range filter syntax
+  // is `creationdate:[2026-04-28T00:00:00.000Z..]` — a literal `..` in the
+  // query string — so rejecting it everywhere would 403 every getOrders call
+  // while looking like an allowlist miss.
+  if (path.includes('..')) return false;
   return ALLOWED.some(rule => rule.test(path));
 }
 

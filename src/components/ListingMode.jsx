@@ -240,6 +240,9 @@ export default function ListingMode({ listingItem, listingData, onClearListing, 
         estProfit: calcProfit(parseFloat(price) || 0, listingItem?.goodwillPrice ?? 0).net,
         condition: selectedCondition,
         category: selectedCategory,
+        // The item's real shipping, so E3's Earnings is not a guess. Without it
+        // calcProfit falls back to $5.00 — the optimism V3 just removed.
+        shipping: listingItem?.shipping,
         sentAt: Date.now(),
         status: 'draft_sent',
         // The real offer, and the SKU E3 matches sold orders back by (ebay §7).

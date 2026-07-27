@@ -355,6 +355,55 @@ Result: ☐ pass ☐ fail:
 
 ---
 
+## 9. The flywheel closes (E3)
+
+**Unrun, and the longest loop in the book** — it needs a real listing to go live
+and a real purchase to complete. Nothing local can stand in for the last step,
+which is the whole point of the project: an analysis informed by what *you* sold.
+Until it is ticked, ebay §8's E3 gate stays open.
+
+**New prerequisite, and it will stop you first.** A sandbox purchase needs a
+**sandbox buyer account** — a second login, separate from the sandbox seller from
+§6. Create one in the developer dashboard's sandbox user tool before starting.
+
+**9a — Publish one.** Take a draft the app sent (§7) and publish it in sandbox
+Seller Hub. Expected: eBay asks for an item location the first time (§7d) and
+then the listing goes live.
+
+Result: ☐ pass ☐ fail:
+
+**9b — The app notices.** Open Selling and tap refresh. Expected: the row gains a
+blue **Live** tag. The app never publishes, so this is the only way it learns —
+it asked the offer and saw a `listingId` appear.
+
+Result: ☐ pass ☐ fail:
+
+**9c — Buy it.** Sign in as the **sandbox buyer** and purchase the listing.
+
+Result: ☐ pass ☐ fail:
+
+**9d — It comes back as Sold.** Back in the app, tap refresh. Expected: a **Sold**
+row with the real final price, the days it took, and a green net. Check the net
+against the eBay order: it should use eBay's own fee, not a 13.25% guess. Tap
+refresh again — the Sold row must **not** duplicate.
+
+Result: ☐ pass ☐ fail — the net it showed, and what the order says:
+
+**9e — The flywheel.** Analyze a *similar* item — same brand or same kind of
+thing. Open the Why sheet. Expected: **"Your own sales"** now reads *"You sold
+one for $X in N days"* instead of "None yet". That sentence is the entire point
+of E3, and of the comps ladder underneath it.
+
+Result: ☐ pass ☐ fail — quote the row:
+
+> **If 9e says "None yet" while 9d showed a sale, the matcher declined** — it is
+> deliberately conservative, because a false match tells you a $12 lamp is worth
+> $95 and you buy it. Check the two titles share at least two real words beyond
+> "vintage"/"used"/a size. A miss here is the designed failure; a false hit is
+> not.
+
+---
+
 ## What is already verified, so you don't re-run it
 
 Green in the V1+S1 build, headlessly: `npm test` (20 specs on `calcProfit`,

@@ -8,6 +8,7 @@ import { credentialStore } from './credentials';
 import { calcProfit } from './calculations';
 import { htmlToText } from './listingFormat';
 import * as photoStore from './photoStore';
+import { getComps, buildCompsBlock } from './compsProvider';
 
 const ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models';
 
@@ -37,12 +38,16 @@ function codeForStatus(status) {
 // anchoring test (plan §6.2) can remove it by deleting one line: if the estimate
 // moves between a $4 and a $30 stated price, the model is pricing off what the
 // user pays and every verdict is circular.
-export function buildUserMessage({ details, condition, goodwillPrice }) {
+export function buildUserMessage({ details, condition, goodwillPrice, compsBlock }) {
   return [
     `Notes: ${details || '(none)'}`,
     `Condition as I see it: ${condition || '(not stated)'}`,
     `Goodwill price: $${Number(goodwillPrice).toFixed(2)}`, // ANCHORING: delete this line if the test fails
-  ].join('\n');
+    // Tier 0 comps, injected by the client rather than asked of the model
+    // (vision §5). This is SOLD data — the thing §5 says to weight — and is not
+    // what the anchoring rule above guards against, which is the purchase price.
+    compsBlock ? `\n${compsBlock}` : null,
+  ].filter(Boolean).join('\n');
 }
 
 async function callGemini(key, body) {
@@ -79,7 +84,7 @@ function readJsonPart(data) {
 // Maps the model's schema onto the shape the verdict screen already consumes,
 // so ShoppingMode stays composition. Sold-comps fields are null/empty at V1 —
 // comps are model-only until V2's ladder.
-function adapt(parsed, { goodwillPrice, shipping }) {
+function adapt(parsed, { goodwillPrice, shipping, comps }) {
   const pricing = parsed.pricing ?? {};
   const estSellPrice = Number(pricing.estimate);
   if (!Number.isFinite(estSellPrice)) throw err('bad-response');
@@ -105,6 +110,10 @@ function adapt(parsed, { goodwillPrice, shipping }) {
     listingMercari: parsed.listing_mercari ?? null, // the Mercari register — copy-assist lane
     strategy: parsed.strategy ?? null,
     source: 'model',
+    // Only set when tier 0 actually informed the request, so the verdict can
+    // say "via your own sales" exactly when that is true (vision §4).
+    compsSource: comps ? comps.source : null,
+    comps: comps ?? null,
     // No sold data at V1 — the Why sheet says so and links out to eBay's sold filter
     soldCount: null,
     sellThroughRate: null,
@@ -119,10 +128,17 @@ export async function analyzeItem({ photoBase64s = [], mimeTypes = [], details, 
   const key = await getAiKey();
   if (!key) throw err('no-key');
 
+  // Matched on the user's OWN note, not on `identification` — the model's read
+  // does not exist until this request comes back, and a two-pass analyze to get
+  // it would double the cost of every verdict. The note is what Dad typed, and
+  // it is the best identification available at request time.
+  let comps;
+  try { comps = getComps({ name: details }); } catch { comps = null; }
+
   const parts = photoBase64s.map((data, i) => ({
     inline_data: { mime_type: mimeTypes[i] || 'image/jpeg', data },
   }));
-  parts.push({ text: buildUserMessage({ details, condition, goodwillPrice }) });
+  parts.push({ text: buildUserMessage({ details, condition, goodwillPrice, compsBlock: buildCompsBlock(comps) }) });
 
   const response = await callGemini(key, {
     systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
@@ -140,7 +156,7 @@ export async function analyzeItem({ photoBase64s = [], mimeTypes = [], details, 
   } catch {
     throw err('bad-response');
   }
-  return adapt(readJsonPart(data), { goodwillPrice, shipping });
+  return adapt(readJsonPart(data), { goodwillPrice, shipping, comps });
 }
 
 // Minimal live round-trip for the Settings paste flow. Any HTTP 200 means the

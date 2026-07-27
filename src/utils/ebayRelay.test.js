@@ -115,15 +115,22 @@ describe('proxy path allowlist', () => {
     'sell/account/v1/return_policy',
     'commerce/taxonomy/v1/get_default_category_tree_id?marketplace_id=EBAY_US',
     'commerce/taxonomy/v1/category_tree/0/get_category_suggestions?q=blanket',
+    // E3, inbound
+    'sell/fulfillment/v1/order?filter=creationdate:[2026-04-28T00:00:00.000Z..]',
+    'sell/fulfillment/v1/order/12-34567-89012',
+    'sell/analytics/v1/traffic_report?dimension=LISTING&metric=LISTING_VIEWS_TOTAL',
   ];
   for (const path of allowed) {
     it(`allows ${path.split('?')[0]}`, () => expect(isAllowedPath(path)).toBe(true));
   }
 
   const refused = [
-    ['an off-list Sell family', 'sell/fulfillment/v1/order'],
+    ['an off-list Sell family', 'sell/finances/v1/transaction'],
+    ['traversal in the path, even with a valid-looking prefix', 'sell/fulfillment/v1/../../identity/v1/oauth2/token'],
     ['publishOffer — E2 never publishes, so the relay cannot either', 'sell/inventory/v1/offer/123/publish'],
     ['withdrawOffer', 'sell/inventory/v1/offer/123/withdraw'],
+    ['order fulfillment — E3 reads sales, it does not ship', 'sell/fulfillment/v1/order/123/shipping_fulfillment'],
+    ['other analytics reports', 'sell/analytics/v1/seller_standards_profile'],
     ['account settings beyond policies', 'sell/account/v1/privilege'],
     ['traversal', 'sell/inventory/v1/../../identity/v1/oauth2/token'],
     ['an absolute URL', 'https://evil.example/steal'],
@@ -135,4 +142,12 @@ describe('proxy path allowlist', () => {
   for (const [label, path] of refused) {
     it(`refuses ${label}`, () => expect(isAllowedPath(path)).toBe(false));
   }
+
+  it('allows `..` in a query string, because eBay\'s date filter needs it', () => {
+    // Verified against the WHATWG URL parser: dots in a query never move the
+    // path — `.../order?x=../../etc` still resolves to `/sell/fulfillment/v1/order`.
+    // Rejecting them everywhere would 403 every getOrders call while looking
+    // like an allowlist miss.
+    expect(isAllowedPath('sell/fulfillment/v1/order?x=../../../etc')).toBe(true);
+  });
 });

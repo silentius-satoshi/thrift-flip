@@ -551,6 +551,9 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
     const [lo, hi] = priceRange ?? [];
     const hasRange = Number.isFinite(lo) && Number.isFinite(hi);
     const searchTitle = analysisResult.listing?.title || details || 'thrift find';
+    // The comps that actually informed THIS estimate, carried back by adapt() —
+    // not recomputed, so the sheet can never cite a sale the model never saw.
+    const ownSales = analysisResult.comps?.samples ?? [];
     return (
       <Sheet
         open={whyOpen}
@@ -569,7 +572,14 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
           <div className="buy-src-ic green"><CheckIcon /></div>
           <div>
             <b>Your own sales</b>
-            <p>None yet — fills in as you sell.</p>
+            {ownSales.length === 0 ? (
+              <p>None yet — fills in as you sell.</p>
+            ) : ownSales.slice(0, 2).map((s, i) => (
+              <p key={i}>
+                You sold one for ${s.price.toFixed(2)}
+                {s.daysToSell === null ? '' : ` in ${s.approxDays ? 'about ' : ''}${s.daysToSell} day${s.daysToSell === 1 ? '' : 's'}`}.
+              </p>
+            ))}
           </div>
         </div>
         <div className="buy-src">
