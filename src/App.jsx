@@ -198,6 +198,7 @@ function AppInner() {
           onPreview={handlePreview}
           onRemoveFromCart={() => removeItem(listingItem?.id)}
           onViewDrafts={() => setCurrentScreen('drafts')}
+          onOpenSettings={() => setCurrentScreen('settings')}
         />
       )}
       {currentScreen === 'preview' && (

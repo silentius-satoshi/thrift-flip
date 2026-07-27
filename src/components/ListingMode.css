@@ -172,3 +172,23 @@
 .distribution-copied { margin-top: 10px; }
 .distribution-hint { font-size: 12px; color: var(--fg-3); margin-top: 8px; line-height: 1.4; }
 .vendoo-body { font-size: 14px; color: var(--fg-2); line-height: 1.5; margin-bottom: 6px; }
+
+/* eBay named a field in its rejection; the note sits with that field. Layout
+   glue only — no padding or border-radius outside ui/. */
+.listing-field-error {
+  font-size: 12px;
+  color: var(--red);
+  line-height: 1.4;
+  margin-top: 6px;
+}
+.listing-send-error {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-color: var(--red-line);
+}
+.listing-send-error p {
+  font-size: 13px;
+  color: var(--fg-2);
+  line-height: 1.5;
+}

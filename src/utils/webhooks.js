@@ -11,7 +11,7 @@ async function callWebhook(path, data) {
 }
 
 // Real as of V1 — a direct client call to Gemini on the user's own key.
-// The four mocks below are still mocks (V3 / E-track).
+// Two mocks remain below, both V3's: sendChatMessage and regenerateField.
 export { analyzeItem } from './ai';
 
 // TODO: replace with real webhook when n8n is ready
@@ -69,10 +69,7 @@ export async function regenerateField({ field, currentValue, context }) {
   return { value: currentValue };
 }
 
-// TODO: replace with real webhook when n8n is ready
-export async function sendToEbay(listingData) {
-  await new Promise(r => setTimeout(r, 1400));
-  return { success: true, draftId: `DRAFT-${Date.now()}`, message: 'Sent! Check eBay Seller Hub → Drafts' };
-}
+// Real as of E2 — inventory item + unpublished offer = a draft in Seller Hub.
+export { sendToEbay } from './ebaySell';
 
 export { callWebhook };

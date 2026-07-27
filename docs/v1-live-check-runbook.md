@@ -246,6 +246,64 @@ Result: ☐ pass ☐ fail:
 
 ---
 
+## 7. The first real draft (E2)
+
+**Unrun, and it cannot be run from here** — same reason as §6, plus one new
+prerequisite. Until these are ticked, ebay §8's E2 gate stays open; **no build
+summary may record it as passed** (plan §6.1).
+
+**New prerequisite, and it will bite first.** The sandbox test user must have
+**business policies opted in** — Seller Hub → Account → Business Policies →
+opt in, then create one fulfillment, one payment and one return policy. Policy
+IDs are required fields on an offer, and by decision the app **refuses to send**
+without them rather than piling up drafts that can never be published. The
+refusal names this fix, so if you see it, this is what it means.
+
+**7a — Send one.** With the sandbox user connected (§6), open any listing in the
+editor and tap **Send to eBay drafts**. Expected: *"Draft sent — add photos in
+Seller Hub when you review"*, the listing clears, and the item appears under
+**Selling → Working**.
+
+Result: ☐ pass ☐ fail:
+
+**7b — It is really there, and really photo-less.** In **sandbox** Seller Hub →
+Listings → Drafts. Expected: the item, with title, price, condition and item
+specifics intact, and **no photos** — that is the design, not a bug. Check the
+SKU equals the app's item id.
+
+Result: ☐ pass ☐ fail — what is missing, if anything:
+
+**7c — Add a photo there.** Upload one in Seller Hub. This is the whole
+photo-less bet: if this step feels like real friction on a trip, the decision is
+worth revisiting (ebay §6 names the Trading API `UploadSiteHostedPictures` as
+the fallback).
+
+Result: ☐ friction ☐ fine — how it felt:
+
+**7d — Publishing asks for a location the first time.** Try publishing the draft
+in Seller Hub. Expected: eBay asks for an item location before it will go live.
+That is expected and is **not** something the app can pre-fill — `merchantLocationKey`
+is a publish requirement, and E2 deliberately never publishes. Seller Hub
+collects it once and remembers.
+
+Result: ☐ pass ☐ fail:
+
+**7e — Re-send the same item.** Edit the price in the app and send again.
+Expected: the **same** draft updates — not a second draft. The app looks the SKU
+up before writing precisely so a re-send after an edit lands.
+
+Result: ☐ pass ☐ fail:
+
+**7f — Force a validation error.** Easiest: paste 80 characters of nonsense into
+Item Specifics → Brand, or set the price to something eBay refuses. Expected: the
+complaint appears **against the named field**, the listing does **not** clear,
+and **Copy for eBay instead** is right there. A validation fight must never
+strand a listing.
+
+Result: ☐ pass ☐ fail — what it said and where:
+
+---
+
 ## What is already verified, so you don't re-run it
 
 Green in the V1+S1 build, headlessly: `npm test` (20 specs on `calcProfit`,

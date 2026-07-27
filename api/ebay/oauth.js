@@ -10,12 +10,17 @@
 // and stores nothing. That is the honest form of the principle — *no server
 // holds user data* — rather than "no server exists", which eBay's CORS policy
 // makes impossible for a web app.
+import { authorized, ebayApiHost } from '../_lib/relayAuth.js';
+
 const TOKEN_PATH = '/identity/v1/oauth2/token';
 
+// The scope an application token carries. Taxonomy is the only consumer at E2:
+// category suggestions are not specific to a user, so eBay wants the app token
+// rather than Dad's.
+export const APP_SCOPE = 'https://api.ebay.com/oauth/api_scope';
+
 export function tokenEndpoint(env) {
-  return env === 'production'
-    ? `https://api.ebay.com${TOKEN_PATH}`
-    : `https://api.sandbox.ebay.com${TOKEN_PATH}`;
+  return `${ebayApiHost(env)}${TOKEN_PATH}`;
 }
 
 /**
@@ -38,6 +43,11 @@ export function grantBody({ grant_type, code, refresh_token, redirect_uri, scope
     body.set('grant_type', 'refresh_token');
     body.set('refresh_token', refresh_token);
     if (scope) body.set('scope', scope);
+  } else if (grant_type === 'client_credentials') {
+    // The app-level token. Minted on demand and handed straight back — nothing
+    // is cached here, because a stateless relay is the whole design (§3).
+    body.set('grant_type', 'client_credentials');
+    body.set('scope', scope || APP_SCOPE);
   } else {
     return null;
   }
@@ -46,26 +56,6 @@ export function grantBody({ grant_type, code, refresh_token, redirect_uri, scope
 
 export function basicAuth(appId, certId) {
   return `Basic ${Buffer.from(`${appId}:${certId}`).toString('base64')}`;
-}
-
-/**
- * The bearer gate.
- *
- * Call it what it is (plan §6.1): a speed bump against a stranger who finds the
- * URL, not authentication — the secret is baked into the client bundle and
- * anyone with the bundle can read it. Its blast radius is the eBay app
- * credentials held here, which are rotatable from the developer dashboard.
- *
- * The design of record is NIP-98 (nostr §9): a signed kind-27235 event with
- * signature, URL, method, payload-hash, a 60s window and a pubkey allowlist.
- * That track is deferred, so when it lands this function is replaced WHOLESALE
- * — a straight swap of this one body, never a second layer stacked on top.
- */
-function authorized(req) {
-  const expected = process.env.RELAY_SECRET;
-  if (!expected) return false; // never ship these endpoints ungated
-  const header = req.headers.authorization ?? '';
-  return header === `Bearer ${expected}`;
 }
 
 export default async function handler(req, res) {

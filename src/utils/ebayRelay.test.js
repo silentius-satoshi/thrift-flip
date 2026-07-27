@@ -5,6 +5,7 @@ import { describe, it, expect } from 'vitest';
 import { createHash } from 'node:crypto';
 import { challengeResponse, endpointUrl } from '../../api/ebay/deletion.js';
 import { grantBody, tokenEndpoint, basicAuth } from '../../api/ebay/oauth.js';
+import { isAllowedPath } from '../../api/ebay/proxy.js';
 
 describe('deletion challenge (ebay §4)', () => {
   // ⚠ ORDER IS LOAD-BEARING: challenge_code + verification_token + endpoint_url.
@@ -88,8 +89,50 @@ describe('grant bodies', () => {
     expect(body.code).toBeUndefined();
   });
 
+  it('mints an app token for Taxonomy, defaulting the scope', () => {
+    // E2's third grant. Category suggestions are not user-specific, so eBay
+    // wants the application token rather than Dad's.
+    expect(read(grantBody({ grant_type: 'client_credentials' }))).toEqual({
+      grant_type: 'client_credentials',
+      scope: 'https://api.ebay.com/oauth/api_scope',
+    });
+  });
+
   it('refuses an unknown grant rather than forwarding it upstream', () => {
-    expect(grantBody({ grant_type: 'client_credentials' })).toBeNull();
+    expect(grantBody({ grant_type: 'password' })).toBeNull();
     expect(grantBody({})).toBeNull();
   });
+});
+
+describe('proxy path allowlist', () => {
+  const allowed = [
+    'sell/inventory/v1/inventory_item/1730000000000',
+    'sell/inventory/v1/offer',
+    'sell/inventory/v1/offer?sku=1730000000000&marketplace_id=EBAY_US',
+    'sell/inventory/v1/offer/9876543210',
+    'sell/account/v1/fulfillment_policy?marketplace_id=EBAY_US',
+    'sell/account/v1/payment_policy',
+    'sell/account/v1/return_policy',
+    'commerce/taxonomy/v1/get_default_category_tree_id?marketplace_id=EBAY_US',
+    'commerce/taxonomy/v1/category_tree/0/get_category_suggestions?q=blanket',
+  ];
+  for (const path of allowed) {
+    it(`allows ${path.split('?')[0]}`, () => expect(isAllowedPath(path)).toBe(true));
+  }
+
+  const refused = [
+    ['an off-list Sell family', 'sell/fulfillment/v1/order'],
+    ['publishOffer — E2 never publishes, so the relay cannot either', 'sell/inventory/v1/offer/123/publish'],
+    ['withdrawOffer', 'sell/inventory/v1/offer/123/withdraw'],
+    ['account settings beyond policies', 'sell/account/v1/privilege'],
+    ['traversal', 'sell/inventory/v1/../../identity/v1/oauth2/token'],
+    ['an absolute URL', 'https://evil.example/steal'],
+    ['a protocol-relative host', '//evil.example/steal'],
+    ['a leading slash', '/sell/inventory/v1/offer'],
+    ['empty', ''],
+    ['a non-string', null],
+  ];
+  for (const [label, path] of refused) {
+    it(`refuses ${label}`, () => expect(isAllowedPath(path)).toBe(false));
+  }
 });

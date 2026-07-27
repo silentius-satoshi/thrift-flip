@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { regenerateField, sendToEbay } from '../utils/webhooks';
+import { mapEbayErrors } from '../utils/ebaySell';
+import { describeEbay } from '../utils/ebayAuth';
 import { calcProfit } from '../utils/calculations';
 import { addHistoryEntry } from '../utils/historyStore';
 import { saveDraft } from '../utils/draftsStore';
@@ -7,6 +9,7 @@ import { useToast } from '../contexts/ToastContext';
 import { listingEditsService } from '../utils/storageService';
 import { useUser } from '../contexts/UserContext';
 import Button from './ui/Button';
+import Card from './ui/Card';
 import Chip from './ui/Chip';
 import { Field, Input, TextArea } from './ui/Field';
 import IconButton from './ui/IconButton';
@@ -53,6 +56,20 @@ function BookmarkIcon() {
 
 const CONDITIONS = ['New', 'Like New', 'Good', 'Acceptable', 'For Parts'];
 
+// Send failures get specific copy. eBay's own validation messages are cryptic
+// (ebay §6), so anything it names lands on the field it names — and whatever
+// happens, "Copy for eBay" stays reachable so a validation fight never strands
+// the listing.
+const SEND_COPY = {
+  'not-connected': 'Connect eBay first — opening Settings',
+  'no-policies': 'Your eBay account needs business policies — Seller Hub → Business Policies. Set them up once and this works.',
+  'no-item-id': "This listing isn't linked to an item yet — save it as a draft first",
+  offline: "No signal — eBay can't be reached right now",
+  'app-token-failed': "Couldn't reach eBay's category service — try again",
+  'ebay-rejected': 'eBay turned parts of this listing down — see the notes below',
+  default: "Couldn't send this to eBay",
+};
+
 const SHIPPING_OPTIONS = [
   { id: 'calculated', label: 'Calculated Shipping', sub: 'Buyer pays exact cost' },
   { id: 'free',       label: 'Free Shipping',       sub: 'You cover shipping costs' },
@@ -80,7 +97,13 @@ function loadEdits() {
   } catch { return null; }
 }
 
-export default function ListingMode({ listingItem, listingData, onClearListing, onPreview, onRemoveFromCart, onViewDrafts }) {
+// eBay named a field; show it against that field rather than in a wall of text.
+function FieldNote({ text }) {
+  if (!text) return null;
+  return <p className="listing-field-error">{text}</p>;
+}
+
+export default function ListingMode({ listingItem, listingData, onClearListing, onPreview, onRemoveFromCart, onViewDrafts, onOpenSettings }) {
   const { showToast } = useToast();
   const { user } = useUser(); // TODO: check user.plan listing limits before sendToEbay
 
@@ -99,6 +122,8 @@ export default function ListingMode({ listingItem, listingData, onClearListing, 
   const [selectedShipping, setSelectedShipping] = useState(() => savedEdits.current?.selectedShipping ?? 'calculated');
   const [selectedCategory, setSelectedCategory] = useState(() => savedEdits.current?.selectedCategory ?? CATEGORIES[0]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [sendErrors, setSendErrors] = useState(null); // { fieldErrors, general }
+  const [ebayConnected, setEbayConnected] = useState(undefined);
   const [regenLoading, setRegenLoading] = useState(null);
   const [showSaveDraftModal, setShowSaveDraftModal] = useState(false);
   const [showVendooSheet, setShowVendooSheet] = useState(false);
@@ -181,8 +206,24 @@ export default function ListingMode({ listingItem, listingData, onClearListing, 
     setSpecifics(prev => ({ ...prev, [key]: value }));
   }
 
+  // Metadata only (the expiry hint beside the ciphertext), so opening the
+  // editor never costs an unlock.
+  useEffect(() => {
+    let live = true;
+    describeEbay()
+      .then(d => { if (live) setEbayConnected(d.connected); })
+      .catch(() => { if (live) setEbayConnected(false); });
+    return () => { live = false; };
+  }, []);
+
   async function handleSendToEbay() {
+    if (ebayConnected === false) {
+      showToast(SEND_COPY['not-connected'], 'error');
+      onOpenSettings?.();
+      return;
+    }
     setIsSubmitting(true);
+    setSendErrors(null);
     try {
       const res = await sendToEbay({
         title, description, condition: selectedCondition,
@@ -200,14 +241,23 @@ export default function ListingMode({ listingItem, listingData, onClearListing, 
         category: selectedCategory,
         sentAt: Date.now(),
         status: 'draft_sent',
+        // The real offer, and the SKU E3 matches sold orders back by (ebay §7).
+        offerId: res.offerId,
+        sku: res.sku,
       });
-      showToast(res.message, 'success');
+      // The photo-less decision, surfaced honestly once, at the moment it
+      // matters — not buried in a settings screen he will never open.
+      showToast('Draft sent — add photos in Seller Hub when you review', 'success');
       setTimeout(() => {
         onRemoveFromCart();
         onClearListing({ skipAutoSave: true });
       }, 1600);
-    } catch {
-      showToast('Failed to send to eBay', 'error');
+    } catch (e) {
+      // The listing deliberately does NOT clear on failure: the editor and the
+      // Copy-for-eBay escape both have to survive for a retry to be possible.
+      if (e?.code === 'ebay-rejected') setSendErrors(mapEbayErrors(e.errors));
+      showToast(SEND_COPY[e?.code] ?? SEND_COPY.default, 'error');
+      if (e?.code === 'not-connected') onOpenSettings?.();
     } finally {
       setIsSubmitting(false);
     }
@@ -348,11 +398,13 @@ export default function ListingMode({ listingItem, listingData, onClearListing, 
         <div className={`char-counter ${title.length > 60 ? 'warn' : ''}`}>
           {title.length} / 80
         </div>
+        <FieldNote text={sendErrors?.fieldErrors?.title} />
       </div>
 
       {/* Condition */}
       <div className="listing-section">
         <div className="listing-section-title">Condition</div>
+        <FieldNote text={sendErrors?.fieldErrors?.condition} />
         <div className="condition-pills">
           {CONDITIONS.map(c => (
             <Chip key={c} selected={selectedCondition === c} onPress={() => setSelectedCondition(c)}>
@@ -365,6 +417,8 @@ export default function ListingMode({ listingItem, listingData, onClearListing, 
       {/* Pricing */}
       <div className="listing-section">
         <div className="listing-section-title">Pricing</div>
+        <FieldNote text={sendErrors?.fieldErrors?.price} />
+        <FieldNote text={sendErrors?.fieldErrors?.qty} />
         <div className="price-qty-row">
           <Field label="Price" className="listing-price-field">
             <Input
@@ -404,6 +458,7 @@ export default function ListingMode({ listingItem, listingData, onClearListing, 
         <label className="listing-field-label listing-desc-label">
           Description <span className="ai-label">✦ AI generated</span>
         </label>
+        <FieldNote text={sendErrors?.fieldErrors?.description} />
         <div className="desc-toolbar">
           {[
             { label: '↻ Rewrite',    key: 'rewrite'  },
@@ -428,6 +483,19 @@ export default function ListingMode({ listingItem, listingData, onClearListing, 
       </div>
 
       {/* Distribution */}
+      {sendErrors && (
+        <Card className="listing-send-error">
+          <div className="lbl">eBay turned this down</div>
+          {sendErrors.fieldErrors?.category && <p>{sendErrors.fieldErrors.category}</p>}
+          {sendErrors.general.map((text, i) => <p key={i}>{text}</p>)}
+          {!sendErrors.general.length && !sendErrors.fieldErrors?.category && (
+            <p>The notes above mark what it objected to.</p>
+          )}
+          {/* §6's escape: a validation fight must never strand the listing. */}
+          <Button variant="outline" full onClick={handleCopyForEbay}>Copy for eBay instead</Button>
+        </Card>
+      )}
+
       <div className="listing-section">
         <div className="listing-section-title">Where it goes</div>
         <div className="distribution-row">
@@ -449,7 +517,7 @@ export default function ListingMode({ listingItem, listingData, onClearListing, 
         <p className="vendoo-body">
           Vendoo is an optional fan-out, not something this app automates. The path is:
         </p>
-        <Row title="1 · Send to eBay" sub="One tap from the action bar (real API arrives at E2)" />
+        <Row title="1 · Send to eBay" sub="One tap from the action bar — creates a draft in Seller Hub" />
         <Row title="2 · Vendoo imports the eBay listing" sub="It reads the listing you already made" />
         <Row title="3 · Vendoo crosslists" sub="Mercari, Poshmark, Facebook Marketplace" />
         <p className="vendoo-body">
@@ -462,6 +530,7 @@ export default function ListingMode({ listingItem, listingData, onClearListing, 
       {/* Item specifics */}
       <div className="listing-section">
         <div className="listing-section-title">Item Specifics</div>
+        <FieldNote text={sendErrors?.fieldErrors?.specifics} />
         <div className="specifics-grid">
           {Object.keys(specifics).map(key => (
             <Field label={key} key={key}>
