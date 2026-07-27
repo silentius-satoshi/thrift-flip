@@ -45,6 +45,11 @@
   gap: 10px;
   padding: 0 var(--gutter);
 }
+.buy-money-row {
+  display: flex;
+  gap: 8px;
+}
+.buy-money-row > * { flex: 1; min-width: 0; }
 .buy-chips {
   display: flex;
   gap: 8px;
@@ -106,6 +111,22 @@
   padding-top: 11px;
   font-size: 15px;
   font-weight: 700;
+}
+.buy-keycard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.buy-keycard b { font-size: 15px; }
+.buy-keycard p {
+  font-size: 13px;
+  color: var(--fg-2);
+  margin-top: 4px;
+  line-height: 1.45;
+}
+.buy-keycard-actions {
+  display: flex;
+  gap: 8px;
 }
 .buy-reassure {
   font-size: 13px;

@@ -5,6 +5,9 @@
   padding: 12px 16px 8px;
 }
 .history-title { font-size: 18px; font-weight: 700; color: var(--text-primary); }
+/* Trailing actions stay grouped so space-between keeps Clear all on the edge */
+.history-header-actions { display: flex; align-items: center; gap: 14px; }
+.history-settings-btn { display: flex; color: var(--text-secondary); }
 .history-clear-btn {
   font-size: 13px;
   color: var(--red);

@@ -38,8 +38,10 @@ function ChartIcon() {
 }
 
 export default function Nav({ currentScreen, setCurrentScreen, cartCount, hasActiveListing }) {
-  // Conversations are about items being bought — the flip screen highlights Buy
-  const active = currentScreen === 'flip' ? 'shop' : currentScreen;
+  // Conversations are about items being bought — the flip screen highlights Buy.
+  // Settings is reached from the Selling header, so it keeps that tab lit.
+  const ACTIVE_FOR = { flip: 'shop', settings: 'history' };
+  const active = ACTIVE_FOR[currentScreen] ?? currentScreen;
   const tabs = [
     { id: 'shop',    label: 'Buy',     icon: <CameraIcon /> },
     { id: 'cart',    label: 'Cart',    icon: <CartIcon />, badge: cartCount > 0 ? (cartCount > 9 ? '9+' : cartCount) : null },

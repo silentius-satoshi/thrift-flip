@@ -13,6 +13,7 @@ import PreviewMode from './components/PreviewMode';
 import HistoryMode from './components/HistoryMode';
 import DraftsMode from './components/DraftsMode';
 import UIKitchen from './components/UIKitchen';
+import SettingsMode from './components/SettingsMode';
 import './App.css';
 
 function AppInner() {
@@ -20,7 +21,7 @@ function AppInner() {
   const [currentScreen, setCurrentScreen] = useState(() => {
     // Direct read — sync required for useState lazy init
     const saved = localStorage.getItem('thrift-flip-screen');
-    const valid = ['shop', 'flip', 'cart', 'listing', 'history', 'drafts', 'uikit'];
+    const valid = ['shop', 'flip', 'cart', 'listing', 'history', 'drafts', 'uikit', 'settings'];
     if (saved === 'preview') return 'listing';
     return valid.includes(saved) ? saved : 'shop';
   });
@@ -157,6 +158,7 @@ function AppInner() {
           onGoToFlip={(id) => { setPreviousScreen('shop'); setFlipTargetId(id); setCurrentScreen('flip'); }}
           onGoToSelling={() => setCurrentScreen('history')}
           onCamActive={setCamActive}
+          onOpenSettings={() => setCurrentScreen('settings')}
         />
       )}
       {currentScreen === 'flip' && (
@@ -196,8 +198,9 @@ function AppInner() {
           onBack={() => setCurrentScreen('listing')}
         />
       )}
-      {currentScreen === 'history' && <HistoryMode />}
+      {currentScreen === 'history' && <HistoryMode onOpenSettings={() => setCurrentScreen('settings')} />}
       {currentScreen === 'uikit' && <UIKitchen />}
+      {currentScreen === 'settings' && <SettingsMode onBack={() => setCurrentScreen('history')} />}
       {currentScreen === 'drafts' && (
         <DraftsMode
           onBack={() => setCurrentScreen('listing')}

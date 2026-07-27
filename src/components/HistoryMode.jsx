@@ -15,7 +15,16 @@ function formatSentDate(ts) {
   return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + time;
 }
 
-export default function HistoryMode() {
+function KeyIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="7.5" cy="15.5" r="4.5" />
+      <path d="M10.7 12.3L21 2m-4 4l3 3m-6-6l3 3" />
+    </svg>
+  );
+}
+
+export default function HistoryMode({ onOpenSettings }) {
   const { showToast } = useToast();
   const { user } = useUser(); // TODO: filter history by user.id when multi-user
   const [history, setHistory] = useState(() => getHistory());
@@ -56,6 +65,9 @@ export default function HistoryMode() {
       <div className="screen">
         <div className="history-header">
           <span className="history-title">History</span>
+          <div className="history-header-actions">
+            <button className="history-settings-btn" onClick={onOpenSettings} aria-label="Settings"><KeyIcon /></button>
+          </div>
         </div>
         <div className="history-empty">
           <span className="history-empty-icon">📋</span>
@@ -69,9 +81,12 @@ export default function HistoryMode() {
     <div className="screen">
       <div className="history-header">
         <span className="history-title">History</span>
-        <button className="history-clear-btn" onClick={handleClearAll}>
-          {clearAllPending ? 'Confirm?' : 'Clear all'}
-        </button>
+        <div className="history-header-actions">
+          <button className="history-settings-btn" onClick={onOpenSettings} aria-label="Settings"><KeyIcon /></button>
+          <button className="history-clear-btn" onClick={handleClearAll}>
+            {clearAllPending ? 'Confirm?' : 'Clear all'}
+          </button>
+        </div>
       </div>
 
       <div className="history-summary-grid">

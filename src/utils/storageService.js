@@ -72,3 +72,13 @@ export const screenService = {
   get: () => getItem('thrift-flip-screen'),
   set: (screen) => setItem('thrift-flip-screen', screen),
 };
+
+// AI key (BYOK). Plaintext by explicit decision — the honest threat note is in
+// Settings, and the key is revocable in one tap. Two rules hold from day one:
+// it never appears in logs or error messages, and the JSON backup excludes it.
+export const aiKeyService = {
+  get: () => getItem('thrift-flip-ai-key'),
+  // TODO(N1): migrate to vault STORE_ENC_INFO
+  set: (key) => setItem('thrift-flip-ai-key', key),
+  clear: () => removeItem('thrift-flip-ai-key'),
+};

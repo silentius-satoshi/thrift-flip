@@ -67,8 +67,8 @@ n8n on Railway (deleted before ever wired — **the vision and nostr specs were 
 | — | Full 5-tab UI, storage abstraction, drafts/history/persistence | ✅ Done (`b22906b`) |
 | ~~V0~~ | Model check in AI Studio | **Skipped — answered by real-world use** (§6.2). Default model: `gemini-3.6-flash`. Its two remaining checks (anchoring, confidence calibration) moved into V1's verification |
 | **F1** | Tokens + `ui/` component layer + layout system + UIKitchen gate | ✅ **Done** (`839fd79`) — post-commit review passed: alias coverage exact, centering pattern on all fixed elements, FlipMode sibling fixed, zero touches outside the plan's file list |
-| **F2 + A** | **One step.** Verdict rebuilt (VerdictBanner + ListingPreviewCard + earnings Panel) **and** the v3.1 four-tab camera-first shell, assembled from F1's components. The five-tab intermediate is never built | **NEXT — prompt ready** (`claude-code-prompt-F2A.md`) |
-| **V1 (+§2.5)** | Real Gemini analyze, structured output, Settings + AI-key detail screens, BYOK onboarding, pencil floor math, `calculations.js` tests + Vitest | After F2+A — scope detail in §6.1 |
+| **F2 + A** | **One step.** Verdict rebuilt **and** the v3.1 four-tab camera-first shell | ✅ **Done** (`223b8aa`) — review passed: reqSeq guards placed as planned, untouchables clean, UIKitchen amendment honored |
+| **V1 (+§2.5) + S1** | Real Gemini analyze (3.6-flash, BYOK, structured output), Settings + AI-key screens, real pencil math + Vitest, PWA manifest/icons, JSON export+import, photo-quota guard | **NEXT — prompt ready** (`claude-code-prompt-V1S1.md`) |
 | **S1** | PWA manifest + icon + `standalone` + `viewport-fit=cover`; **JSON export *and* import**, credential keys excluded; photo-quota guard | With V1 |
 | F3 | Chrome: frosted nav/bars, History→Selling rename, emoji→SVG, focus rings | After V1/S1 |
 | F4 | Migrate the remaining screens onto `ui/` — Flip, Cart, Listing, Drafts, Selling, Preview, Chat; delete legacy aliases | After F3 |
@@ -180,7 +180,7 @@ Then, ninety days later, the only accuracy test that really counts: of the items
   git push
   ```
   Applies to doc-only changes (`docs/`, specs, prompts) as well as code. The Founder runs it only after implementation + verification pass; issuing it early is a convenience, not permission to skip verification.
-- **Model/effort per task:** Fable 5 · Extra High for foundational/cross-cutting work (V1, F1, E1 OAuth); **Ultracode reserved for the vault** (N1, or N1-lite if §6.1's option 1 is taken); Sonnet 5 · High for mechanical migrations (F4) and single-file fixes.
+- **Model/effort (amended July 2026, post-F2+A):** Claude Code via VS Code = **Opus 5 · Max thinking effort for all build prompts** from V1+S1 onward (token efficiency directive). Ultracode remains reserved for the vault (N1/N1-lite). Cowork replies to the Founder: precise and concise; Claude Code prompts delivered in full, as markdown snippets.
 - **Practical:** emoji cannot be pasted into Claude Code — use HTML entities (`&#128278;`) in prompts. Prompts should cite exact file:line targets and include explicit do-not-touch lists and false-positive warnings — **and any prompt written against a specific commit must be re-verified if the repo moved underneath it** (the F1 prompt is the live example, §6.1).
 - **Every build prompt opens by reading §6.1.** The specs are internally consistent but each assumes its own track ran first; §6.1 is where the interleaving is reconciled.
 

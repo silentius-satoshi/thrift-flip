@@ -10,46 +10,9 @@ async function callWebhook(path, data) {
   return response.json();
 }
 
-function calcProfitLocal(sellPrice, goodwillPrice, shipping = 5.00) {
-  const ebayFee = parseFloat((sellPrice * 0.1325 + 0.30).toFixed(2));
-  const net = parseFloat((sellPrice - ebayFee - shipping - goodwillPrice).toFixed(2));
-  return { ebayFee, net };
-}
-
-function generateRecentSales(estSellPrice) {
-  return Array.from({ length: 5 }, (_, i) => ({
-    price: parseFloat((estSellPrice * (0.82 + Math.random() * 0.36)).toFixed(2)),
-    daysAgo: Math.floor(i * 2.5 + Math.random() * 4 + 1),
-  })).sort((a, b) => a.daysAgo - b.daysAgo);
-}
-
-// TODO: replace with real webhook when n8n is ready
-export async function analyzeItem({ photoBase64s, details, condition, goodwillPrice }) {
-  await new Promise(r => setTimeout(r, 2400));
-  const multiplier = 3.2 + Math.random() * 2.4;
-  const estSellPrice = parseFloat((goodwillPrice * multiplier).toFixed(2));
-  const { ebayFee, net } = calcProfitLocal(estSellPrice, goodwillPrice);
-  const demandScore = Math.floor(Math.random() * 45) + 45;
-  const avgDaysToSell = Math.floor(Math.random() * 12) + 2;
-  return {
-    estSellPrice,
-    fees: ebayFee,
-    shipping: 5.00,
-    netProfit: net,
-    soldCount: Math.floor(Math.random() * 70) + 20,
-    sellThroughRate: Math.floor(Math.random() * 40) + 45,
-    avgDaysToSell,
-    activeListings: Math.floor(Math.random() * 35) + 5,
-    recentSales: generateRecentSales(estSellPrice),
-    demandScore,
-    strategyNote: 'List on weekday mornings for best visibility. Clear photos with neutral backgrounds convert 23% better. Price at the lower end of the range to sell within 7 days.',
-    tipText: `Price at $${(estSellPrice * 0.92).toFixed(0)}–$${estSellPrice.toFixed(0)} for fastest sale. ${avgDaysToSell <= 5 ? 'Fast-moving category — list ASAP.' : 'Consider a 7-day auction to test demand.'}`,
-    chatHistory: [{
-      role: 'ai',
-      text: `I checked eBay sold listings for this item. At an estimated sell price of $${estSellPrice.toFixed(2)}, you'd pocket $${net.toFixed(2)} after fees and shipping — that's a ${multiplier.toFixed(1)}× flip. ${net >= 20 ? "I'd grab it." : 'Margins are thin — only worth it if you can negotiate down.'} What else do you want to know?`,
-    }],
-  };
-}
+// Real as of V1 — a direct client call to Gemini on the user's own key.
+// The four mocks below are still mocks (V3 / E-track).
+export { analyzeItem } from './ai';
 
 // TODO: replace with real webhook when n8n is ready
 export async function sendChatMessage({ message, chatHistory, itemContext }) {
