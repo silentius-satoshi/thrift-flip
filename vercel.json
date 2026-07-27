@@ -2,7 +2,6 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     {
-      "comment": "SPA fallback so eBay's OAuth redirect to /ebay/callback reaches the app. /api/* is excluded or it would swallow the relays.",
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
