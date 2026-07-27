@@ -56,19 +56,25 @@ registerHooks({
   },
 });
 
-// storageService reads localStorage, which Node only provides behind a flag that
-// writes a file to disk — disqualifying for a key that must never touch one.
-// The value is JSON-encoded because getItem JSON.parses and swallows failures
-// into a misleading 'no-key'.
+// src/ reads localStorage, which Node only provides behind a flag that writes a
+// file to disk. Nothing here may touch one, so the shim stays in memory.
 const memory = new Map();
 globalThis.localStorage = {
   getItem: (k) => (memory.has(k) ? memory.get(k) : null),
   setItem: (k, v) => memory.set(k, v),
   removeItem: (k) => memory.delete(k),
 };
-if (GEMINI_KEY) memory.set('thrift-flip-ai-key', JSON.stringify(GEMINI_KEY));
 
 const { analyzeItem } = await import(join(ROOT, 'src/utils/ai.js'));
+
+// Since N1-lite the key lives in the vault, and unwrapping it needs a ceremony
+// no headless script can perform. primeSession puts the env key straight into
+// the session cache instead: nothing is wrapped, nothing is persisted, and
+// lib/vault.js is on its in-memory backend here anyway because Node has no
+// IndexedDB. Same env-only hygiene as before — the key never reaches disk.
+const { primeSession } = await import(join(ROOT, 'src/utils/credentials.js'));
+if (GEMINI_KEY) primeSession('ai-key', GEMINI_KEY);
+
 const { GEMINI_MODEL, DEFAULT_SHIPPING } = await import(join(ROOT, 'src/config/gemini.js'));
 const { SYSTEM_PROMPT } = await import(join(ROOT, 'src/config/prompt.js'));
 const { RESPONSE_SCHEMA } = await import(join(ROOT, 'src/config/schema.js'));

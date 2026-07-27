@@ -1,10 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { useToast } from '../contexts/ToastContext';
-import { getAiKey, setAiKey, clearAiKey, verifyKey } from '../utils/ai';
+import { getAiKey, setAiKey, clearAiKey, verifyKey, describeAiKey } from '../utils/ai';
+import { credentialStore } from '../utils/credentials';
+import { biometricLabel } from '../lib/biometricLabel';
 import { downloadBackup, parseBackup, restoreBackup } from '../utils/backup';
 import Button from './ui/Button';
 import Card from './ui/Card';
 import Row from './ui/Row';
+import Sheet from './ui/Sheet';
 import StatusTag from './ui/StatusTag';
 import { Field, Input } from './ui/Field';
 import './SettingsMode.css';
@@ -20,12 +23,30 @@ const VERIFY_COPY = {
   'no-key': 'Paste the key first',
 };
 
-function loadKeyLast4() {
-  // Direct read — sync required for useState lazy init; only the last 4 are kept
-  try {
-    const raw = JSON.parse(localStorage.getItem('thrift-flip-ai-key'));
-    return raw ? String(raw).slice(-4) : null;
-  } catch { return null; }
+// Vault failures are separate from Google failures — telling someone their key
+// is bad when the real problem was a cancelled Face ID sheet sends them to
+// re-paste a key that was fine.
+const VAULT_COPY = {
+  locked: 'Cancelled — the key stays locked on this phone',
+  'vault-unavailable': "This browser won't let Thrift Flip store your key safely — try a normal tab, not Private Browsing",
+  'crypto-unavailable': 'Thrift Flip needs a secure (https) connection to lock your key',
+  'vault-rate-limited': 'Too many tries — wait a moment and try again',
+  default: "Couldn't unlock the key on this phone",
+};
+
+// No lazy-init read of the key any more: since N1-lite it is ciphertext in
+// IndexedDB, so presence arrives asynchronously. `present` therefore starts
+// `undefined` — "not known yet", distinct from `false` for "no key stored" —
+// and the row renders a neutral title until it resolves rather than flashing
+// the wrong state for a frame.
+
+function ShieldIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2.5l7.5 3v6c0 4.5-3.1 8.6-7.5 10-4.4-1.4-7.5-5.5-7.5-10v-6z" />
+      <path d="M8.6 12.1l2.3 2.3 4.5-4.5" />
+    </svg>
+  );
 }
 
 function KeyIcon() {
@@ -59,15 +80,29 @@ export default function SettingsMode({ onBack }) {
     // Direct read — sync required for useState lazy init
     return localStorage.getItem('thrift-flip-settings-view') === 'ai-key' ? 'ai-key' : 'main';
   });
-  const [last4, setLast4] = useState(loadKeyLast4);
+  // undefined = not read yet, distinct from false/null for "no key stored"
+  const [present, setPresent] = useState(undefined);
+  const [last4, setLast4] = useState(null);
+  const [scheme, setScheme] = useState(null);
   const [paste, setPaste] = useState('');
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState(null); // { ok, text }
   const [replacing, setReplacing] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
   const importRef = useRef(null);
+  const label = biometricLabel();
 
   useEffect(() => {
     localStorage.setItem('thrift-flip-settings-view', view);
+  }, [view]);
+
+  // Metadata only — never unwraps, so opening Settings costs no ceremony.
+  useEffect(() => {
+    let live = true;
+    describeAiKey()
+      .then(d => { if (live) { setPresent(d.present); setLast4(d.last4); setScheme(d.scheme); } })
+      .catch(() => { if (live) setPresent(false); });
+    return () => { live = false; };
   }, [view]);
 
   async function handleVerifyAndSave() {
@@ -81,8 +116,17 @@ export default function SettingsMode({ onBack }) {
       setStatus({ ok: false, text: VERIFY_COPY[result.code] ?? VERIFY_COPY['bad-response'] });
       return;
     }
-    await setAiKey(key);
-    setLast4(key.slice(-4));
+    // The first save on a fresh phone runs enrollment, which can be declined.
+    try {
+      await setAiKey(key);
+    } catch (e) {
+      setStatus({ ok: false, text: VAULT_COPY[e?.code] ?? VAULT_COPY.default });
+      return;
+    }
+    const described = await describeAiKey();
+    setPresent(described.present);
+    setLast4(described.last4);
+    setScheme(described.scheme);
     setPaste('');
     setReplacing(false);
     setStatus({ ok: true, text: 'Connected — verdicts are live' });
@@ -91,7 +135,14 @@ export default function SettingsMode({ onBack }) {
   async function handleTestKey() {
     setBusy(true);
     setStatus(null);
-    const key = await getAiKey();
+    let key;
+    try {
+      key = await getAiKey();
+    } catch (e) {
+      setBusy(false);
+      setStatus({ ok: false, text: VAULT_COPY[e?.code] ?? VAULT_COPY.default });
+      return;
+    }
     const result = await verifyKey(key);
     setBusy(false);
     setStatus(result.ok
@@ -100,12 +151,30 @@ export default function SettingsMode({ onBack }) {
   }
 
   async function handleRemoveKey() {
+    // Clears the credential, not the enrollment: the unlock method protects the
+    // phone, so adding a key back costs no second ceremony.
     await clearAiKey();
+    setPresent(false);
     setLast4(null);
     setPaste('');
     setReplacing(false);
     setStatus(null);
     showToast('Key removed from this phone');
+  }
+
+  // The only way out of a forgotten PIN or a deleted passkey. There is no
+  // recovery by design — a second, weaker wrap would become the effective
+  // security floor — and a Gemini key costs nothing to replace.
+  async function handleReset() {
+    await credentialStore.reset();
+    setResetOpen(false);
+    setPresent(false);
+    setLast4(null);
+    setScheme(null);
+    setPaste('');
+    setReplacing(false);
+    setStatus(null);
+    showToast('Starting over — paste a new key');
   }
 
   function handleExport() {
@@ -129,7 +198,10 @@ export default function SettingsMode({ onBack }) {
   }
 
   if (view === 'ai-key') {
-    const showPaste = !last4 || replacing;
+    // `undefined` is "still reading the vault" — showing the paste form during
+    // that beat would flash "add a key" at someone who already has one.
+    const loading = present === undefined;
+    const showPaste = !loading && (!present || replacing);
     return (
       <div className="screen settings">
         <div className="settings-header">
@@ -138,7 +210,7 @@ export default function SettingsMode({ onBack }) {
           <span className="settings-header-spacer" />
         </div>
 
-        {last4 && !replacing && (
+        {present && !replacing && (
           <Card className="settings-keycard">
             <div className="settings-keyline">
               <b className="money">Gemini · ••••{last4}</b>
@@ -186,25 +258,57 @@ export default function SettingsMode({ onBack }) {
           <StatusTag tone={status.ok ? 'green' : 'red'} className="settings-status">{status.text}</StatusTag>
         )}
 
-        {last4 && !replacing && (
+        {present && !replacing && (
           <div className="settings-keyactions">
             <Button variant="outline" disabled={busy} onClick={handleTestKey}>{busy ? 'Testing…' : 'Test key'}</Button>
             <Button variant="outline" onClick={() => { setReplacing(true); setStatus(null); }}>Replace key</Button>
             <Button variant="danger" onClick={handleRemoveKey}>Remove key</Button>
           </div>
         )}
-        {replacing && last4 && (
+        {replacing && present && (
           <Button variant="outline" full onClick={() => { setReplacing(false); setPaste(''); setStatus(null); }}>Cancel</Button>
+        )}
+
+        {/* The interim plaintext risk note lived here and said it would be
+            deleted when the key moved into a vault. N1-lite is that commit. */}
+        {present && (
+          <Card className="settings-protection">
+            <Row
+              thumb={<span className="settings-ic"><ShieldIcon /></span>}
+              title={`Protected by ${scheme === 'pin' ? 'a PIN' : label}`}
+              sub={scheme === 'pin'
+                ? 'Encrypted on this phone. Your PIN is what opens it.'
+                : `Encrypted on this phone. Without ${label} it can’t be read at all.`}
+            />
+          </Card>
         )}
 
         <div className="settings-note">
           <div className="lbl">Revoke help</div>
-          {/* Interim note — deleted in the same commit that moves the key into a vault (N1) */}
-          <p>Stored on this phone. Anyone who can unlock your phone can read it — revoke it in seconds at the link below if that ever happens.</p>
+          <p>Revoke this key in seconds at the link below if you ever need to.</p>
           <button className="settings-link" onClick={() => window.open(KEY_PAGE, '_blank', 'noopener')}>
             aistudio.google.com/apikey
           </button>
+          {present && (
+            <button className="settings-link" onClick={() => setResetOpen(true)}>
+              Can’t unlock?
+            </button>
+          )}
         </div>
+
+        <Sheet open={resetOpen} onClose={() => setResetOpen(false)} title="Can’t unlock?">
+          <p className="settings-lead">
+            Your AI key is locked on this phone and can’t be opened without{' '}
+            {scheme === 'pin' ? 'your PIN' : label}. There is no way around that — that is the point of the lock.
+          </p>
+          <p className="settings-lead">
+            You can start over. This removes the saved key from this phone; paste
+            a new one from Google and you’re back in a few seconds. It costs
+            nothing.
+          </p>
+          <Button variant="danger" full onClick={handleReset}>Start over</Button>
+          <Button variant="outline" full onClick={() => setResetOpen(false)}>Cancel</Button>
+        </Sheet>
       </div>
     );
   }
@@ -221,9 +325,11 @@ export default function SettingsMode({ onBack }) {
       <Card>
         <Row
           thumb={<span className="settings-ic"><KeyIcon /></span>}
-          title={last4 ? `Gemini · ••••${last4}` : 'Add your AI key'}
-          sub={last4 ? 'runs on your key' : 'Verdicts run on your key, no middleman'}
-          trailing={last4 ? <StatusTag tone="green">ON</StatusTag> : <StatusTag tone="blue">SET UP</StatusTag>}
+          title={present === undefined ? 'Your AI key'
+            : present ? `Gemini · ••••${last4 ?? ''}` : 'Add your AI key'}
+          sub={present ? 'runs on your key' : 'Verdicts run on your key, no middleman'}
+          trailing={present === undefined ? null
+            : present ? <StatusTag tone="green">ON</StatusTag> : <StatusTag tone="blue">SET UP</StatusTag>}
           onPress={() => { setStatus(null); setView('ai-key'); }}
         />
       </Card>

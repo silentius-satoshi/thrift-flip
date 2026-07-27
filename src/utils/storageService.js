@@ -73,12 +73,6 @@ export const screenService = {
   set: (screen) => setItem('thrift-flip-screen', screen),
 };
 
-// AI key (BYOK). Plaintext by explicit decision — the honest threat note is in
-// Settings, and the key is revocable in one tap. Two rules hold from day one:
-// it never appears in logs or error messages, and the JSON backup excludes it.
-export const aiKeyService = {
-  get: () => getItem('thrift-flip-ai-key'),
-  // TODO(N1): migrate to vault STORE_ENC_INFO
-  set: (key) => setItem('thrift-flip-ai-key', key),
-  clear: () => removeItem('thrift-flip-ai-key'),
-};
+// No credentials live here. The AI key moved into the vault at N1-lite
+// (utils/credentials.js → lib/keyVault.js), and the eBay tokens land there at
+// E1. Nothing in this file should ever hold a secret again.

@@ -1,0 +1,25 @@
+/* Layout glue only. Every interactive surface here is a ui/ component, so no
+   border-radius or padding appears in this file — the §4 rule holds. */
+.vault-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.vault-lead {
+  font-size: 13px;
+  color: var(--fg-2);
+  line-height: 1.5;
+}
+.vault-alt {
+  color: var(--blue-lt);
+  font-size: 13px;
+  font-weight: 600;
+  align-self: center;
+}
+.vault-note {
+  align-self: flex-start;
+  max-width: 100%;
+  text-align: left;
+  line-height: 1.4;
+  white-space: normal;
+}

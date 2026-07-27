@@ -4,14 +4,20 @@
 import { GEMINI_MODEL } from '../config/gemini';
 import { SYSTEM_PROMPT } from '../config/prompt';
 import { RESPONSE_SCHEMA } from '../config/schema';
-import { aiKeyService } from './storageService';
+import { credentialStore } from './credentials';
 import { calcProfit } from './calculations';
 
 const ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models';
 
-export const getAiKey = () => aiKeyService.get();
-export const setAiKey = (key) => aiKeyService.set(key);
-export const clearAiKey = () => aiKeyService.clear();
+// AES-GCM ciphertext in the vault since N1-lite, not plaintext in localStorage.
+// The first of these to run in a session triggers one unlock ceremony; a
+// profile with no key stored returns null without prompting at all. All three
+// were already async, so no call site changed shape.
+const AI_KEY = 'ai-key';
+export const getAiKey = () => credentialStore.get(AI_KEY);
+export const setAiKey = (key) => credentialStore.set(AI_KEY, key);
+export const clearAiKey = () => credentialStore.clear(AI_KEY);
+export const describeAiKey = () => credentialStore.describe(AI_KEY);
 
 function err(code) {
   const e = new Error(code);

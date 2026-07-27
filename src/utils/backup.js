@@ -4,9 +4,12 @@
 const PREFIX = 'thrift-flip-';
 export const BACKUP_VERSION = 1;
 
-// Never leaves the device in a file. A naive dump would write the key in the
-// clear into the Files app, which is worse than where it already is.
-// TODO(E1): add the eBay refresh token key here when it lands
+// Defense in depth. Since N1-lite the AI key lives as ciphertext in IndexedDB,
+// which this file never scans — so the export excludes it by construction and
+// there is no deny-list to forget to update. This entry stays anyway: a backup
+// written before the vault, or hand-edited afterwards, can still carry the
+// plaintext field, and restoring it would resurrect exactly what N1-lite
+// deleted.
 const CREDENTIAL_KEYS = ['thrift-flip-ai-key'];
 
 function appKeys() {

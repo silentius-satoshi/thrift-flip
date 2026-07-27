@@ -122,6 +122,65 @@ Result: ☐ pass ☐ fail — what appeared instead:
 
 ---
 
+## 5. The vault, on the phone (N1-lite)
+
+**This is the half of nostr §13's gate 2 that no machine here can run.** WebAuthn
+does not exist in a headless browser, so the PRF path — the one Dad will
+actually use — is verified only by doing it. Everything below the PRF assertion
+is shared with the PIN path and is covered by `npm test`; these five checks are
+what the tests cannot reach. Until they are ticked, **the PRF half of gate 2 is
+unrun, and no build summary may record it as passed** (plan §6.1).
+
+Needs a real iPhone, Safari, and the app served over https. Ten minutes.
+
+**5a — Enrollment.** Fresh profile, no key. Settings → Add your AI key → paste a
+Gemini key → Connect. Expected: the "Lock your AI key" sheet appears and asks for
+Face ID **twice** in a row — registration returns no PRF output, so an assertion
+follows immediately (§5.2). Then "Connected — verdicts are live" and a
+*"Protected by Face ID"* row.
+
+Result: ☐ pass ☐ fail — how many Face ID prompts, and what appeared:
+
+**5b — It survives a relaunch, and the unlock is real.** Force-quit Safari
+entirely. Reopen the app → Buy → capture → price → Get verdict. Expected: one
+"Unlock with Face ID" sheet, one scan, then the verdict runs on the same key. Not
+a new key, not a re-paste.
+
+Result: ☐ pass ☐ fail:
+
+**5c — Cancel fails clean.** Same flow, but dismiss the Face ID sheet. Expected:
+*"Unlock cancelled — verdicts need your key"* as both a toast and the pencil
+banner, the pencil floor still on screen, Skip and Add to cart still working, and
+**no retry loop** — it does not ask again on its own.
+
+Result: ☐ pass ☐ fail:
+
+**5d — Ciphertext only.** Safari → Develop → Storage. Expected: **no**
+`thrift-flip-ai-key` in Local Storage at all, and in IndexedDB under
+`thrift-flip-vault` → `blobs`, an `ai-key` record whose `ciphertext` is bytes and
+whose `meta` reads `payloadKind: "credential-blob"`, `scheme: "prf"`. Search the
+whole storage pane for the last four characters of the real key: they should
+appear only in `meta.hint.last4`, which is deliberate and is what Settings
+displays.
+
+Result: ☐ pass ☐ fail — anything found in the clear:
+
+**5e — The PIN fallback, on something that isn't the iPhone.** §13's QA note is
+explicit that testing only the happy path is not testing. On a desktop browser
+with no platform authenticator (or an iPhone below iOS 18.4): the enrollment
+sheet should either lead with the PIN or fall back to it by itself after Face ID
+fails, and the copy should say "passkey", never "Face ID". Then: three wrong PINs
+→ *"Too many tries — wait 15 seconds."* → wait → correct PIN opens it.
+
+Result: ☐ pass ☐ fail:
+
+> **If 5b fails after an iOS restore or a deleted passkey, that is the designed
+> outcome, not a bug.** The ciphertext is unopenable without the enrolled
+> credential — that is the property the whole step buys. Settings → the key
+> screen → **Can't unlock?** → Start over, then paste a fresh key.
+
+---
+
 ## What is already verified, so you don't re-run it
 
 Green in the V1+S1 build, headlessly: `npm test` (20 specs on `calcProfit`,
@@ -131,3 +190,10 @@ working; Settings and the key sub-view surviving refresh; the key masked to
 last-4 and never rendered, logged, or exported; backup excluding
 `thrift-flip-ai-key` and import restoring a cart; PWA manifest/icons/metas; a
 27MB photo storing at 204KB after downscale.
+
+Green in the N1-lite build: the whole wrap/unwrap contract on the PIN path
+(round-trip, wrong PIN, the `payloadKind` refusals, the HKDF label); the
+migration sweep off plaintext; PIN rate limiting and its escalation; §5.7's
+single-flight guard, PIN-aware; a key-less profile prompting for nothing; and
+headlessly, the enrolled key absent from both localStorage and IndexedDB in the
+clear. **Only §5 above is left, and only because WebAuthn cannot run headless.**

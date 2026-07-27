@@ -33,6 +33,11 @@ const ERROR_COPY = {
   quota: 'Key works but Google says it’s out of free calls today',
   offline: 'No signal · the verdict catches up on its own',
   'bad-response': 'Odd reply from the model — try again',
+  // N1-lite: the key is in the vault, so a declined unlock is its own failure
+  // and must not be diagnosed as a bad key.
+  locked: 'Unlock cancelled — verdicts need your key',
+  'vault-unavailable': "Private Browsing won't let Thrift Flip open your key",
+  'crypto-unavailable': 'Verdicts need a secure (https) connection',
 };
 
 function loadForm() {
@@ -245,7 +250,11 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
     } catch (e) {
       // Log the code only — an error carrying the request URL would carry the key
       console.error('runAnalyze failed:', e?.code ?? 'unknown');
-      if (reqSeq.current === myReq) setErrorCode(e?.code ?? 'bad-response');
+      if (reqSeq.current !== myReq) return;
+      setErrorCode(e?.code ?? 'bad-response');
+      // A cancelled unlock deserves an immediate answer rather than only the
+      // banner; the pencil floor stays on screen and nothing retries.
+      if (e?.code === 'locked') showToast(ERROR_COPY.locked, 'error');
     }
   }
 

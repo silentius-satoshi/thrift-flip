@@ -14,6 +14,7 @@ import SellingMode from './components/SellingMode';
 import DraftsMode from './components/DraftsMode';
 import UIKitchen from './components/UIKitchen';
 import SettingsMode from './components/SettingsMode';
+import VaultGate from './components/VaultGate';
 import './App.css';
 
 function AppInner() {
@@ -210,6 +211,8 @@ function AppInner() {
           onRestoreDraft={handleRestoreDraft}
         />
       )}
+      {/* Renders nothing until a credential read needs a ceremony (N1-lite). */}
+      <VaultGate />
       {currentScreen !== 'preview' && !(currentScreen === 'shop' && camActive) && (
         <Nav
           currentScreen={currentScreen}
