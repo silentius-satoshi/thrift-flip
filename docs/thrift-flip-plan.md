@@ -74,7 +74,8 @@ n8n on Railway (deleted before ever wired — **the vision and nostr specs were 
 | F3 | Chrome: frosted nav/bars, History→Selling rename, emoji→SVG, focus rings | After V1/S1 |
 | F4 | Migrate the remaining screens onto `ui/` — Flip, Cart, Listing, Drafts, Selling, Preview, Chat; delete legacy aliases | After F3 |
 | V1.5 / E0 | Mercari variant + Copy-for-eBay/Mercari + Vendoo lane documented | ✅ **Done** (`e00fe16`) — cart-boundary fix landed, mock now fallback-only |
-| **N1-lite** | Credential vault only: WebAuthn PRF/PIN → AES-GCM under `STORE_ENC_INFO`; AI key migrates in, eBay tokens land here at E1. No Nostr identity/words/ceremony | **NEXT — prompt ready** (`claude-code-prompt-N1lite.md`). The security-critical build; strictest review of the project |
+| N1-lite → E1 → E2 → V3 → E3 → E4+V4 | Vault, sandbox OAuth, real drafts, real chat + photo store, inbound flywheel + comps tier 0, lifecycle + decommission | ✅ **All done** — final commit `006fc7e`. **THE BUILD IS COMPLETE**: zero mocks, seven standing gates green, every step plan-reviewed and post-commit-reviewed |
+| **LIVE PHASE** | Runbook §10's nine founder-run checks + the H1 harness run + Dad's first trips (§6.3) | **NEXT — deliberately no Claude Code prompt.** V2 is the only unwritten code and it waits on H1's data by decision |
 | E1–E2 | eBay OAuth connect (sandbox→prod), deletion endpoint, outbound drafts. **Credential-at-rest decision required first** (§6.1) | Config unblocked now; code after V1.5/E0 |
 | V2–V4 | Comps provider on `/api/serpapi/comps.js` + Browse fallback + source chip; chat & listing-gen on the direct call; ImgBB decommission | After E1–E2 |
 | E3–E4 | Inbound sold/traffic → Selling + comps flywheel (fills tier 0); token lifecycle | After V2–V4 |

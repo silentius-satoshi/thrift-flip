@@ -14,10 +14,25 @@ export default defineConfig([
     languageOptions: { globals: globals.node },
   },
   {
+    // The mobile harness is a node script whose page.evaluate bodies are
+    // browser code — it needs both sets, and saying so here beats contorting
+    // the callbacks to avoid naming `document`.
+    files: ['scripts/mobile-check.mjs'],
+    languageOptions: { globals: { ...globals.node, ...globals.browser } },
+  },
+  {
     // Vitest runs specs in the node environment (vite.config.js), so node
     // globals are simply true there. Merged on top of the browser block below.
     files: ['**/*.test.js'],
     languageOptions: { globals: globals.node },
+  },
+  {
+    // The service worker runs in its own global scope, and the two placeholders
+    // vite.config.js substitutes at build time are undefined until it does.
+    files: ['src/sw.js'],
+    languageOptions: {
+      globals: { ...globals.serviceworker, __PRECACHE__: 'readonly' },
+    },
   },
   {
     files: ['**/*.{js,jsx}'],

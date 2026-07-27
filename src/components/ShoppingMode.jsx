@@ -651,7 +651,7 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
           <Card className="buy-advisor">
             <div className="buy-advisor-av">F</div>
             <p className="buy-advisor-teaser">{analysisResult.chatHistory?.[0]?.text ?? ''}</p>
-            <button type="button" className="buy-advisor-chat" onClick={() => onGoToFlip?.(itemId)} aria-label="Ask Flip">
+            <button type="button" className="buy-advisor-chat tap44" onClick={() => onGoToFlip?.(itemId)} aria-label="Ask Flip">
               <ChatIcon />
             </button>
           </Card>

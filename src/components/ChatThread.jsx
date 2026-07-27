@@ -127,7 +127,7 @@ export default function ChatThread({ chatHistory, onUpdateHistory, itemContext, 
         {failed && !isTyping && (
           <div className="chat-failed">
             <span>{CHAT_ERROR_COPY[failed.code] ?? CHAT_ERROR_COPY.default}</span>
-            <button type="button" onClick={() => ask(failed.text, { alreadyInThread: true })}>
+            <button type="button" className="tap44" onClick={() => ask(failed.text, { alreadyInThread: true })}>
               Retry
             </button>
           </div>

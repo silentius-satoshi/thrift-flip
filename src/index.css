@@ -73,6 +73,20 @@ html, body {
 /* No border-radius here — the outline already follows the element's own radius,
    and setting it would square off pill buttons the moment they take focus. */
 :focus-visible { outline: 2px solid var(--blue-lt); outline-offset: 2px; }
+/* A 44px hit area without a 44px box. The halo is transparent and out of flow,
+   so nothing moves and nothing changes colour — it only widens what a thumb can
+   land on. For controls whose drawn size is deliberately smaller than a thumb:
+   back arrows, header icons, the send button. */
+.tap44 { position: relative; }
+.tap44::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+}
 .money { font-variant-numeric: tabular-nums; }
 .lbl { font-size: var(--t-label); letter-spacing: .05em; text-transform: uppercase; color: var(--fg-3); font-weight: 700; }
 input, textarea, select { font-size: var(--t-body); } /* Safari zooms the page below 16px */

@@ -406,9 +406,10 @@ Result: ☐ pass ☐ fail — quote the row:
 
 ## 10. The index — what "done" means from here
 
-**The build is finished. This table is what is left.** Every row needs a person
+**The build is finished. This table is what is left.** All ten rows need a person
 with a phone, a real key, or a sandbox account; none of them can be closed by a
-commit, and none of them has been run.
+commit, and none of them has been run. (§11 is numbered after this index because
+it arrived after it — the index is §10 and stays there.)
 
 The second column matters as much as the third. Each step shipped with real
 headless verification, so "unrun" describes the *live* half specifically — not
@@ -425,16 +426,110 @@ the whole check, and not the code beneath it.
 | 7 | The first real draft (E2) | 27 assertions: SKU, no `imageUrls`, re-send updates, field-mapped rejection | **UNRUN** — needs business policies opted in |
 | 8 | The chat can see (V3) | photos on every request, retry state, no base64 in localStorage | **UNRUN** — only a real model can be photo-grounded |
 | 9 | The flywheel closes (E3) | 18 assertions: real fee, dedupe, throttle, comps injected + cited | **UNRUN** — needs a sandbox **buyer** account too |
+| 11 | Installed on the phone (M1) | 60 assertions: offline boot + the pencil flow with the network off, cache discipline, the deploy purge, and a 390×844 sweep of every screen | **UNRUN** — an emulator cannot install to a home screen |
 
 **Deferred by design, not pending:** multi-device token sync and the
 ciphertext-sync gate (Nostr N2/N3), and comps tiers A and B (V2). Those are not
 rows in this table because nothing was built for them to verify.
 
 **Suggested order.** §2 first — it is two minutes and it outranks everything,
-because a circular estimate makes every other check meaningless. Then §5 (the
-vault, on the actual phone), then §§6→7→9 as one sandbox sitting, since each
-depends on the last. §§1, 3, 4 and 8 need only a key and can be done on any
-quiet evening.
+because a circular estimate makes every other check meaningless. **Then §11a,
+before anything else touches the phone** — installing after the key is added
+strands the key in the wrong storage container, and §5 is one of the steps that
+would strand it. Then §5 (the vault, on the actual phone), then §§6→7→9 as one
+sandbox sitting, since each depends on the last. §§1, 3, 4 and 8 need only a key
+and can be done on any quiet evening.
+
+---
+
+## 11. Installed on the phone (M1)
+
+Everything here needs the app **installed to the home screen** on a real iPhone.
+The harness covers the parts a viewport can prove — offline boot, the caching
+rules, the deploy purge, and a 390×844 sweep of all thirteen screen states —
+but an emulator has no home screen, no Face ID, no real safe-area inset and no
+software keyboard, so none of the below has been run.
+
+Re-run the machine half any time with:
+
+```bash
+npm i --no-save playwright-core
+node scripts/mobile-check.mjs
+```
+
+**11a — Install FIRST, before the key or any data. Read this before you tap
+anything.** Safari → the app's URL → Share → **Add to Home Screen**. Do this
+**before** you add the AI key, connect eBay, or capture a single item.
+
+> iOS gives a home-screen app **its own storage container**, separate from
+> Safari's. Nothing you did in Safari follows it in — not the encrypted key, not
+> the cart, not the drafts. Enrol the key in Safari first and the installed app
+> will act like a fresh install while Safari still holds everything, which reads
+> as data loss and is not.
+>
+> **If it already happened:** open the app in *Safari*, Settings →
+> `Download everything`, then open the *installed* app and import that file. The
+> AI key is deliberately excluded from the backup (V1), so re-paste it after.
+
+Result: ☐ pass ☐ fail — installed before any data was added:
+
+**11b — It looks installed.** Expected: the four-dot icon on the home screen, a
+dark status bar, **no Safari address bar or toolbar**, and the bottom nav
+sitting clear of the home indicator rather than under it. That last one is the
+only real test of the `env(safe-area-inset-bottom)` chain — every emulator
+resolves it to 0, so the harness can prove the chain collapses cleanly and
+nothing more.
+
+Result: ☐ pass ☐ fail — how much clearance under the nav:
+
+**11c — Offline boot.** Airplane mode **on**. Launch from the home screen.
+Expected: the app opens (this is the whole of M1), then the pencil flow runs
+end-to-end — capture a photo, enter a Goodwill price, Get the verdict, and land
+on the floor with *"No signal · the verdict catches up on its own"* above it.
+Add to cart works. Drafts open. Nothing white-screens.
+
+Result: ☐ pass ☐ fail — what the banner said:
+
+**11d — The shutter is the camera.** Still installed, network back on. Buy → the
+shutter. Expected: the **native camera opens directly**, not a photo picker with
+a camera option. `capture="environment"` is what asks for this and standalone
+mode is where it behaves differently from a tab.
+
+Result: ☐ pass ☐ fail:
+
+**11e — Face ID works in the installed app.** This is §5 again, in the container
+that matters: WebAuthn and its PRF extension behave differently in a home-screen
+app than in a Safari tab, and Dad only ever uses one of them. Enrol the key,
+force-quit, relaunch, run a verdict. Expected: one Face ID prompt, the same key.
+
+Result: ☐ pass ☐ fail — and whether §5's results still hold here:
+
+**11f — The eBay round trip returns.** Settings → eBay → Connect. Expected: the
+consent page opens, and after you approve, **you come back inside the installed
+app** with "Connected". A full-page OAuth redirect out of a standalone app is
+the step most likely to drop you into Safari and leave the app blank behind it.
+
+Result: ☐ pass ☐ fail — where you landed:
+
+**11g — Copy-assist survives the trip.** On the List screen: *Copy for eBay*,
+then *Copy for Mercari*. Expected: the clipboard actually takes it from a tap
+(iOS refuses clipboard writes that are not user-gestured), the marketplace page
+opens, and coming back leaves the editor exactly as you left it — same title,
+same price, nothing regenerated.
+
+Result: ☐ pass ☐ fail:
+
+**11h — The keyboard.** Tap into the title field, then the price field.
+Expected: **no zoom** on focus (every input is ≥16px for exactly this reason),
+and the action bar is either pushed above the keyboard or scrolled away — never
+stranded floating in the middle of the screen over the content.
+
+Result: ☐ pass ☐ fail — what the action bar did:
+
+> **11a is the only one that costs something to learn the hard way.** The rest
+> fail visibly and recover by themselves. Installing in the wrong order looks
+> exactly like losing your data, at the moment you are least inclined to believe
+> it is recoverable.
 
 ---
 
@@ -447,6 +542,15 @@ working; Settings and the key sub-view surviving refresh; the key masked to
 last-4 and never rendered, logged, or exported; backup excluding
 `thrift-flip-ai-key` and import restoring a cart; PWA manifest/icons/metas; a
 27MB photo storing at 204KB after downscale.
+
+Green in the M1 build, headlessly, at 390×844 with touch: the app booting with
+the network off and the pencil flow running through it to a floor and a cart;
+nothing under `/api/` and nothing cross-origin ever entering the cache; a
+deploy installing, waiting, then purging its predecessor on the next launch;
+zero horizontal overflow and zero sub-44px tap targets across thirteen screen
+states; the nav and action bar seated correctly and their `calc()` chains
+collapsing cleanly at inset 0; the sheet dismissing by both swipe and Escape;
+and landscape not breaking. **§11 is what none of that reaches.**
 
 Green in the N1-lite build: the whole wrap/unwrap contract on the PIN path
 (round-trip, wrong PIN, the `payloadKind` refusals, the HKDF label); the

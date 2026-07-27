@@ -307,7 +307,7 @@ export default function SettingsMode({ onBack }) {
     return (
       <div className="screen settings">
         <div className="settings-header">
-          <button className="settings-back" onClick={() => { setView('main'); setEbayStatus(null); }} aria-label="Back to settings">←</button>
+          <button className="settings-back tap44" onClick={() => { setView('main'); setEbayStatus(null); }} aria-label="Back to settings">←</button>
           <span className="settings-title">eBay</span>
           <span className="settings-header-spacer" />
         </div>
@@ -395,7 +395,7 @@ export default function SettingsMode({ onBack }) {
     return (
       <div className="screen settings">
         <div className="settings-header">
-          <button className="settings-back" onClick={() => { setView('main'); setStatus(null); }} aria-label="Back to settings">←</button>
+          <button className="settings-back tap44" onClick={() => { setView('main'); setStatus(null); }} aria-label="Back to settings">←</button>
           <span className="settings-title">Verdicts</span>
           <span className="settings-header-spacer" />
         </div>
@@ -506,7 +506,7 @@ export default function SettingsMode({ onBack }) {
   return (
     <div className="screen settings">
       <div className="settings-header">
-        <button className="settings-back" onClick={onBack} aria-label="Back">←</button>
+        <button className="settings-back tap44" onClick={onBack} aria-label="Back">←</button>
         <span className="settings-title">Settings</span>
         <span className="settings-header-spacer" />
       </div>
