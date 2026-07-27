@@ -2,6 +2,12 @@
 
 <!-- Status: UNRUN as of the V1+S1 commit. Nothing below has been executed. -->
 
+> **§1–§3 are now automated.** `scripts/live-check.mjs` scores identification
+> against labeled fixtures, runs the anchoring test, and fills the calibration
+> table — plus a grounded-vs-ungrounded arm that H1 added to decide comps tier A.
+> `GEMINI_KEY=... node scripts/live-check.mjs --anchor=mug` → `docs/live-check-results.md`.
+> §4 (kill the key) stays manual, as does filling sold medians without a `SERPAPI_KEY`.
+
 V1's mechanical verification is done and green (tests, build, no-key path, error
 taxonomy, Settings persistence, backup exclusion, PWA, photo downscale). The
 checks in this file need a **real Gemini key and real thrift items**, so they

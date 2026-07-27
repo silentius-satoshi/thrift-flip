@@ -68,7 +68,8 @@ n8n on Railway (deleted before ever wired — **the vision and nostr specs were 
 | ~~V0~~ | Model check in AI Studio | **Skipped — answered by real-world use** (§6.2). Default model: `gemini-3.6-flash`. Its two remaining checks (anchoring, confidence calibration) moved into V1's verification |
 | **F1** | Tokens + `ui/` component layer + layout system + UIKitchen gate | ✅ **Done** (`839fd79`) — post-commit review passed: alias coverage exact, centering pattern on all fixed elements, FlipMode sibling fixed, zero touches outside the plan's file list |
 | **F2 + A** | **One step.** Verdict rebuilt **and** the v3.1 four-tab camera-first shell | ✅ **Done** (`223b8aa`) — review passed: reqSeq guards placed as planned, untouchables clean, UIKitchen amendment honored |
-| **V1 (+§2.5) + S1** | Real Gemini analyze (3.6-flash, BYOK, structured output), Settings + AI-key screens, real pencil math + Vitest, PWA manifest/icons, JSON export+import, photo-quota guard | **NEXT — prompt ready** (`claude-code-prompt-V1S1.md`) |
+| **V1 (+§2.5) + S1** | Real Gemini analyze (3.6-flash, BYOK, structured output), Settings + AI-key screens, real pencil math + Vitest, PWA manifest/icons, JSON export+import, photo-quota guard | ✅ **Done** (`cbebe5e`) — review passed. **Live gates unrun**: `docs/v1-live-check-runbook.md` (5 core items, anchoring, calibration) |
+| **H1** | **Live-check harness** (`scripts/live-check.mjs`): automated ID scoring on labeled fixtures, anchoring test, calibration table, SerpApi sold-median ground truth, **grounded-vs-ungrounded pricing experiment** — the data that decides whether Google Search grounding replaces SerpApi as comps tier A | **NEXT — prompt ready** (`claude-code-prompt-H1.md`) |
 | **S1** | PWA manifest + icon + `standalone` + `viewport-fit=cover`; **JSON export *and* import**, credential keys excluded; photo-quota guard | With V1 |
 | F3 | Chrome: frosted nav/bars, History→Selling rename, emoji→SVG, focus rings | After V1/S1 |
 | F4 | Migrate the remaining screens onto `ui/` — Flip, Cart, Listing, Drafts, Selling, Preview, Chat; delete legacy aliases | After F3 |
@@ -81,7 +82,7 @@ n8n on Railway (deleted before ever wired — **the vision and nostr specs were 
 | ~~F5~~ | PWA | Absorbed into S1 |
 | ~~A-track~~ | Camera-first Buy, 4-tab consolidation | Merged into **F2+A**; no longer a separate gated step |
 
-Recommended sequence: **F1 → F2+A → V1+S1 → F3 → F4 → V1.5/E0 → E1–E2 → V2–V4 → E3–E4 → calibrate on real trips → N-track when the business case arrives.**
+Recommended sequence (amended after the grounding insight — Dad's Gemini-app workflow is search-grounded, so the app's benchmark is *his current tool*, not "no tool"): **F1 → F2+A → V1+S1 → H1 → grounding decision → F3 → F4 → V1.5/E0 → V3 (real chat — pulled ahead of the E-track: his workflow is conversational, and mock chat sends him back to the Gemini app mid-aisle) → E1–E2 → V2 (shrunk to tier-0 + Browse if grounding wins; SerpApi cancelled) → V4 → E3–E4 → calibrate on real trips → N-track when the business case arrives.**
 
 Off the critical path, do any time: create the sandbox test user, configure the RuName redirect, and stand up the account-deletion endpoint (ebay-connect §2 steps 3, 5–6 and §4). About an hour, blocks nothing, and E1 starts cold without it.
 
@@ -167,7 +168,7 @@ Watch for the four failure modes the specs already half-predict: identification 
 
 Then, ninety days later, the only accuracy test that really counts: of the items he bought on the app's say-so, how many sold, at what price, and how long they took. That data feeds comps tier 0 anyway, so capturing it is not overhead.
 
-**"It worked" means:** he reaches for it unprompted on the next trip. Nothing else is evidence.
+**The comparison bar (amended after the grounding insight):** Dad already has a working tool — the Gemini app, search-grounded. On the first trip, run a few items through *both* the app and his usual Gemini chat. **"It worked" means: faster than his current flow with prices that agree or better, and he reaches for it unprompted on the next trip.** Beating nothing is not the test; beating his habit is.
 
 ## 7. Working Conventions (how this project is actually run)
 
@@ -183,6 +184,7 @@ Then, ninety days later, the only accuracy test that really counts: of the items
 - **Model/effort (amended July 2026, post-F2+A):** Claude Code via VS Code = **Opus 5 · Max thinking effort for all build prompts** from V1+S1 onward (token efficiency directive). Ultracode remains reserved for the vault (N1/N1-lite). Cowork replies to the Founder: precise and concise; Claude Code prompts delivered in full, as markdown snippets.
 - **Practical:** emoji cannot be pasted into Claude Code — use HTML entities (`&#128278;`) in prompts. Prompts should cite exact file:line targets and include explicit do-not-touch lists and false-positive warnings — **and any prompt written against a specific commit must be re-verified if the repo moved underneath it** (the F1 prompt is the live example, §6.1).
 - **Every build prompt opens by reading §6.1.** The specs are internally consistent but each assumes its own track ran first; §6.1 is where the interleaving is reconciled.
+- **Standing directive (Founder, July 2026): Cowork always states its lean.** On every new feature, decision point, or vision question, the Cowork session gives its recommendation and the reasoning — flagged as a lean, distinguishing decisions that are data-gated (wait for the experiment) from decisions that are safe to take now.
 
 ## 8. Hard-Won Repo Gotchas (do not relearn these)
 
