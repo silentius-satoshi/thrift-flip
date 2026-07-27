@@ -40,6 +40,11 @@ const VAULT_COPY = {
 
 const EBAY_REVOKE_PAGE = 'https://accounts.ebay.com/acctsec/security-center';
 
+// eBay's refresh token lasts about eighteen months (ebay §5). Sixty days is
+// enough warning to reconnect on a quiet evening rather than mid-trip with a
+// cart full of items and a dead connection.
+const RECONNECT_WARN_DAYS = 60;
+
 // eBay-side failures, kept separate from vault failures and from Google's.
 const EBAY_COPY = {
   declined: 'You tapped Cancel at eBay — nothing was connected',
@@ -62,6 +67,13 @@ const EBAY_COPY = {
 
 // The refresh token's own expiry, read from the unencrypted hint. A month is
 // all the row needs and all it should carry.
+// Read off the unencrypted expiry hint, so warning him costs no ceremony —
+// the same reason Settings can show the expiry at all without an unlock.
+function expiringSoon(through) {
+  if (!through) return false;
+  return Number(through) - Date.now() < RECONNECT_WARN_DAYS * 24 * 60 * 60 * 1000;
+}
+
 function monthYear(ms) {
   if (!ms) return null;
   return new Date(ms).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
@@ -291,6 +303,7 @@ export default function SettingsMode({ onBack }) {
     const loading = ebay === undefined;
     const connected = Boolean(ebay?.connected);
     const through = monthYear(ebay?.through);
+    const expiring = connected && expiringSoon(ebay?.through);
     return (
       <div className="screen settings">
         <div className="settings-header">
@@ -303,9 +316,22 @@ export default function SettingsMode({ onBack }) {
           <Card className="settings-keycard">
             <div className="settings-keyline">
               <b className="money">{through ? `Connected · through ${through}` : 'Connected'}</b>
-              <StatusTag tone="green">CONNECTED</StatusTag>
+              <StatusTag tone={expiring ? 'yellow' : 'green'}>
+                {expiring ? 'EXPIRING' : 'CONNECTED'}
+              </StatusTag>
             </div>
-            <p>Drafts go straight to your eBay account. You review and publish them in Seller Hub.</p>
+            {expiring ? (
+              <p>
+                eBay ends this connection {through ? `in ${through}` : 'soon'}. Reconnect
+                whenever it suits you — you sign in at eBay again and nothing else changes.
+                Drafts stop sending once it lapses.
+              </p>
+            ) : (
+              <p>Drafts go straight to your eBay account. You review and publish them in Seller Hub.</p>
+            )}
+            {expiring && (
+              <Button full onClick={startConnect}>Reconnect eBay</Button>
+            )}
           </Card>
         )}
 
@@ -508,7 +534,11 @@ export default function SettingsMode({ onBack }) {
                 : 'One-tap drafts, straight from a listing')
             : 'Not set up on this build'}
           trailing={!ebayConfigured || ebay === undefined ? null
-            : ebay.connected ? <StatusTag tone="green">ON</StatusTag> : <StatusTag tone="blue">SET UP</StatusTag>}
+            : ebay.connected
+              ? (expiringSoon(ebay.through)
+                ? <StatusTag tone="yellow">Reconnect eBay soon</StatusTag>
+                : <StatusTag tone="green">ON</StatusTag>)
+              : <StatusTag tone="blue">SET UP</StatusTag>}
           // No onPress when unconfigured: Row renders a plain div, so the
           // dead state is genuinely inert rather than a button that lies.
           onPress={ebayConfigured ? () => { setEbayStatus(null); setView('ebay'); } : undefined}

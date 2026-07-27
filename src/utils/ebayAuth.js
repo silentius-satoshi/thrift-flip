@@ -43,6 +43,14 @@ export const isEbayCallback = () => CALLBACK_SEARCH !== null;
 
 let callbackConsumed = false;
 
+// Bumped whenever the stored connection is deliberately replaced or removed.
+// A refresh that started before the change must not write its result
+// afterwards — `disconnectEbay` is a clear, `storeTokens` ends in a set, and a
+// disconnect landing between a refresh's read and its write would silently
+// resurrect the tokens. Same shape as ShoppingMode's reqSeq guard (F2+A):
+// the later intent wins and the in-flight result is discarded.
+let connectionGeneration = 0;
+
 /** One-shot: a second caller (or React's double-invoked dev effect) gets null. */
 export function takePendingCallback() {
   if (callbackConsumed || CALLBACK_SEARCH === null) return null;
@@ -83,6 +91,10 @@ export function buildAuthUrl() {
 }
 
 export function startConnect() {
+  // A new grant replaces the record wholesale, including on the month-17
+  // reconnect — so any refresh still in flight from the old connection is
+  // invalidated here too.
+  connectionGeneration += 1;
   window.location.assign(buildAuthUrl());
 }
 
@@ -123,7 +135,7 @@ async function exchange(payload) {
  * record — overwriting from the response would null the refresh token and kill
  * the connection on the very first refresh.
  */
-async function storeTokens(raw, existing = null) {
+async function storeTokens(raw, existing = null, generation = connectionGeneration) {
   const obtainedAt = Date.now();
   const refreshExpiresIn = Number(raw.refresh_token_expires_in) || existing?.refreshExpiresIn || 0;
   const record = {
@@ -137,6 +149,11 @@ async function storeTokens(raw, existing = null) {
     // forward every refresh and quietly hide a connection about to lapse.
     refreshExpiresAt: existing?.refreshExpiresAt ?? obtainedAt + refreshExpiresIn * 1000,
   };
+  // The disconnect guard. `generation` is captured by the CALLER, before its
+  // network round trip — capturing it here would read a value the disconnect
+  // had already bumped, and the guard would never fire.
+  if (generation !== connectionGeneration) throw err('disconnected');
+
   await credentialStore.set(CREDENTIAL, record, {
     // Display only, readable without an unlock — so opening Settings costs no
     // ceremony. A month is all the row shows; nothing token-shaped goes here.
@@ -150,6 +167,7 @@ async function storeTokens(raw, existing = null) {
  * the URL, then exchanges. Throws with a { code } the caller maps to copy.
  */
 export async function handleCallback(search = window.location.search) {
+  const generation = connectionGeneration;
   const params = new URLSearchParams(search);
   const code = params.get('code');
   const returned = params.get('state');
@@ -172,7 +190,7 @@ export async function handleCallback(search = window.location.search) {
     code,
     redirect_uri: cfg().VITE_EBAY_RU_NAME,
   });
-  return storeTokens(raw);
+  return storeTokens(raw, null, generation);
 }
 
 function cleanUrl() {
@@ -188,6 +206,9 @@ function cleanUrl() {
  * access token is repaired by the same button that reports on it.
  */
 export async function refreshAccessToken() {
+  // Captured before anything awaits, so a disconnect landing at any point
+  // between here and the write is caught.
+  const generation = connectionGeneration;
   const existing = await credentialStore.get(CREDENTIAL);
   if (!existing?.refreshToken) throw err('not-connected');
   const raw = await exchange({
@@ -195,7 +216,7 @@ export async function refreshAccessToken() {
     refresh_token: existing.refreshToken,
     scope: SCOPES,
   });
-  return storeTokens(raw, existing);
+  return storeTokens(raw, existing, generation);
 }
 
 /** Requires an unlock — it returns the tokens themselves. */
@@ -211,4 +232,9 @@ export async function describeEbay() {
  * Local disconnect. eBay keeps its own grant record, which is why the UI tells
  * him to revoke there too — this cannot reach eBay's servers.
  */
-export const disconnectEbay = () => credentialStore.clear(CREDENTIAL);
+export async function disconnectEbay() {
+  // Bump first: an in-flight refresh must find the generation already moved on
+  // by the time it reaches its write, whichever order the two finish in.
+  connectionGeneration += 1;
+  await credentialStore.clear(CREDENTIAL);
+}

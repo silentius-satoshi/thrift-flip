@@ -4,6 +4,7 @@ import { sendToEbay } from '../utils/ebaySell';
 import { mapEbayErrors } from '../utils/ebaySell';
 import { describeEbay } from '../utils/ebayAuth';
 import { calcProfit, checkRules } from '../utils/calculations';
+import { DEFAULT_SHIPPING } from '../config/gemini';
 import { addHistoryEntry } from '../utils/historyStore';
 import { saveDraft } from '../utils/draftsStore';
 import { useToast } from '../contexts/ToastContext';
@@ -237,7 +238,7 @@ export default function ListingMode({ listingItem, listingData, onClearListing, 
         title,
         price: parseFloat(price) || 0,
         goodwillPrice: listingItem?.goodwillPrice ?? 0,
-        estProfit: calcProfit(parseFloat(price) || 0, listingItem?.goodwillPrice ?? 0).net,
+        estProfit: calcProfit(parseFloat(price) || 0, listingItem?.goodwillPrice ?? 0, listingItem?.shipping ?? DEFAULT_SHIPPING).net,
         condition: selectedCondition,
         category: selectedCategory,
         // The item's real shipping, so E3's Earnings is not a guess. Without it
@@ -279,7 +280,7 @@ export default function ListingMode({ listingItem, listingData, onClearListing, 
       category: selectedCategory,
       photos: photos.map(p => ({ dataUrl: p.dataUrl, mimeType: 'image/jpeg' })),
       goodwillPrice: listingItem?.goodwillPrice ?? 0,
-      estProfit: calcProfit(parseFloat(price) || 0, listingItem?.goodwillPrice ?? 0).net,
+      estProfit: calcProfit(parseFloat(price) || 0, listingItem?.goodwillPrice ?? 0, listingItem?.shipping ?? DEFAULT_SHIPPING).net,
       source: 'manual',
     });
     showToast('Draft saved', 'success');

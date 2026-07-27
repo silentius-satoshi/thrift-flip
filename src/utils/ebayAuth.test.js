@@ -301,3 +301,73 @@ describe('custody', () => {
     expect(await credentialStore.hasVault()).toBe(true);
   });
 });
+
+describe('E4 — token lifecycle', () => {
+  beforeEach(configure);
+
+  async function connect() {
+    const state = new URL(buildAuthUrl()).searchParams.get('state');
+    relay(CODE_GRANT);
+    return handleCallback(`?code=THE-CODE&state=${state}`);
+  }
+
+  it('self-heals a broken access token on the next call', async () => {
+    // ebay §8's E4 gate, the half that needs no sandbox: "delete the access
+    // token manually → the next call self-heals".
+    const before = await connect();
+    await credentialStore.set('ebay-tokens',
+      { ...before, accessToken: 'CORRUPTED-OR-EXPIRED' },
+      { hint: { through: before.refreshExpiresAt } });
+
+    const { authedFetch } = await import('./ebaySell');
+    let attempts = 0;
+    // The corrupted token 401s once, the refresh lands, the retry succeeds.
+    globalThis.fetch = async (url) => {
+      if (url === '/api/ebay/oauth') {
+        return { ok: true, status: 200, json: async () => REFRESH_GRANT };
+      }
+      attempts++;
+      return attempts === 1
+        ? { ok: false, status: 401, json: async () => ({}), text: async () => '{}' }
+        : { ok: true, status: 200, json: async () => ({ healed: true }), text: async () => '{}' };
+    };
+
+    const response = await authedFetch('sell/account/v1/payment_policy');
+    expect(response.status).toBe(200);
+    expect(attempts).toBe(2);
+
+    const after = await credentialStore.get('ebay-tokens');
+    expect(after.accessToken).toBe(REFRESH_GRANT.access_token);
+    // The 18-month credential must survive the heal, or the connection dies on
+    // the very repair that was meant to save it.
+    expect(after.refreshToken).toBe(CODE_GRANT.refresh_token);
+  });
+
+  it('a disconnect mid-refresh wins — the in-flight write is dropped', async () => {
+    await connect();
+
+    let releaseExchange;
+    const gate = new Promise((resolve) => { releaseExchange = resolve; });
+    globalThis.fetch = async () => {
+      await gate;
+      return { ok: true, status: 200, json: async () => REFRESH_GRANT };
+    };
+
+    const inFlight = refreshAccessToken().then(() => 'wrote', e => e.code);
+    await disconnectEbay();          // lands between the read and the write
+    releaseExchange();
+
+    expect(await inFlight).toBe('disconnected');
+    // The whole point: tokens do not come back from the dead.
+    expect(await getBlob('ebay-tokens')).toBeNull();
+    expect(await describeEbay()).toMatchObject({ connected: false });
+  });
+
+  it('a reconnect gets a fresh expiry rather than inheriting the old one', async () => {
+    const first = await connect();
+    // Month 17: the whole reason to reconnect is a NEW 18-month window.
+    await new Promise(r => setTimeout(r, 5));
+    const second = await connect();
+    expect(second.refreshExpiresAt).toBeGreaterThan(first.refreshExpiresAt);
+  });
+});

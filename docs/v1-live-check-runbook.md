@@ -404,6 +404,40 @@ Result: ☐ pass ☐ fail — quote the row:
 
 ---
 
+## 10. The index — what "done" means from here
+
+**The build is finished. This table is what is left.** Every row needs a person
+with a phone, a real key, or a sandbox account; none of them can be closed by a
+commit, and none of them has been run.
+
+The second column matters as much as the third. Each step shipped with real
+headless verification, so "unrun" describes the *live* half specifically — not
+the whole check, and not the code beneath it.
+
+| § | Check | Machine-verified | Live |
+|---|---|---|---|
+| 1 | Five core items — identification accuracy | harness wired (`scripts/live-check.mjs`), scoring built | **UNRUN** — needs a key + fixture photos |
+| 2 | Anchoring — does a stated price move the estimate? | the one-line fix site is marked in `ai.js` | **UNRUN** — outranks everything else here |
+| 3 | First confidence-calibration pass | — | **UNRUN** |
+| 4 | Kill the key — revoked-key behaviour | 403 path tested against a stub | **UNRUN** — confirms Google's real response |
+| 5 | The vault on the phone (N1-lite) | whole PIN path, migration, rate limit, ciphertext-only storage | **UNRUN** — WebAuthn/PRF cannot run headless |
+| 6 | eBay sandbox connect (E1) | 33 assertions: state, custody, mid-callback kill, refresh preservation | **UNRUN** — needs dashboard config + sandbox user |
+| 7 | The first real draft (E2) | 27 assertions: SKU, no `imageUrls`, re-send updates, field-mapped rejection | **UNRUN** — needs business policies opted in |
+| 8 | The chat can see (V3) | photos on every request, retry state, no base64 in localStorage | **UNRUN** — only a real model can be photo-grounded |
+| 9 | The flywheel closes (E3) | 18 assertions: real fee, dedupe, throttle, comps injected + cited | **UNRUN** — needs a sandbox **buyer** account too |
+
+**Deferred by design, not pending:** multi-device token sync and the
+ciphertext-sync gate (Nostr N2/N3), and comps tiers A and B (V2). Those are not
+rows in this table because nothing was built for them to verify.
+
+**Suggested order.** §2 first — it is two minutes and it outranks everything,
+because a circular estimate makes every other check meaningless. Then §5 (the
+vault, on the actual phone), then §§6→7→9 as one sandbox sitting, since each
+depends on the last. §§1, 3, 4 and 8 need only a key and can be done on any
+quiet evening.
+
+---
+
 ## What is already verified, so you don't re-run it
 
 Green in the V1+S1 build, headlessly: `npm test` (20 specs on `calcProfit`,

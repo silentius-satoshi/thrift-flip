@@ -3,6 +3,7 @@ import { ToastProvider, useToast } from './contexts/ToastContext';
 import { UserProvider } from './contexts/UserContext';
 import { useCart } from './hooks/useCart';
 import { calcProfit } from './utils/calculations';
+import { DEFAULT_SHIPPING } from './config/gemini';
 import { saveDraft } from './utils/draftsStore';
 import { isEbayCallback } from './utils/ebayAuth';
 import Nav from './components/Nav';
@@ -97,7 +98,7 @@ function AppInner() {
           ...edits,
           photos: (edits.photos ?? []).map(d => ({ dataUrl: d, mimeType: 'image/jpeg' })),
           goodwillPrice: listingItem?.goodwillPrice ?? 0,
-          estProfit: calcProfit(parseFloat(edits.price) || 0, listingItem?.goodwillPrice ?? 0).net,
+          estProfit: calcProfit(parseFloat(edits.price) || 0, listingItem?.goodwillPrice ?? 0, listingItem?.shipping ?? DEFAULT_SHIPPING).net,
           listingMercari: listingItem?.listingMercari ?? null,
           source: 'auto-saved',
         });
@@ -144,7 +145,7 @@ function AppInner() {
         ...edits,
         photos: (edits.photos ?? []).map(d => ({ dataUrl: d, mimeType: 'image/jpeg' })),
         goodwillPrice: listingItem?.goodwillPrice ?? 0,
-        estProfit: calcProfit(parseFloat(edits.price) || 0, listingItem?.goodwillPrice ?? 0).net,
+        estProfit: calcProfit(parseFloat(edits.price) || 0, listingItem?.goodwillPrice ?? 0, listingItem?.shipping ?? DEFAULT_SHIPPING).net,
         listingMercari: listingItem?.listingMercari ?? null,
         source: 'manual',
       });
