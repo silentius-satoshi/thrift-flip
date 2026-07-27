@@ -2,10 +2,12 @@
 // Errors thrown from here carry a { code } and nothing else: never the key, never
 // the request URL, never the raw response body.
 import { GEMINI_MODEL } from '../config/gemini';
-import { SYSTEM_PROMPT } from '../config/prompt';
+import { SYSTEM_PROMPT, CHAT_PROMPT } from '../config/prompt';
 import { RESPONSE_SCHEMA } from '../config/schema';
 import { credentialStore } from './credentials';
 import { calcProfit } from './calculations';
+import { htmlToText } from './listingFormat';
+import * as photoStore from './photoStore';
 
 const ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models';
 
@@ -161,3 +163,157 @@ export async function verifyKey(key) {
     return { ok: false, code: 'offline' };
   }
 }
+
+// ── Chat (V3) ───────────────────────────────────────────────────────────────
+
+const PHOTO_PART = (p) => ({ inline_data: { mime_type: p.mimeType || 'image/jpeg', data: p.base64 } });
+
+function contextLine({ details, condition, goodwillPrice } = {}) {
+  return [
+    'Here is the item we are talking about.',
+    details ? `My notes: ${details}` : null,
+    condition ? `Condition as I called it: ${condition}` : null,
+    Number.isFinite(Number(goodwillPrice)) && Number(goodwillPrice) > 0
+      ? `I can buy it for $${Number(goodwillPrice).toFixed(2)}.` : null,
+  ].filter(Boolean).join('\n');
+}
+
+/**
+ * Gemini has no server-side session, so "keeps the images in context across the
+ * conversation" (vision §2) means re-sending them. They ride the FIRST turn,
+ * which by construction is a synthetic user turn carrying the item context —
+ * the stored history opens with the model's teaser, and `contents` may not
+ * start with a model turn.
+ *
+ * Exported so a test can pin the ordering without a network.
+ */
+export function buildChatContents({ photos = [], chatHistory = [], message, itemContext }) {
+  const opening = [...photos.map(PHOTO_PART), { text: contextLine(itemContext) }];
+
+  // With no history there is nothing to interleave, so the question joins the
+  // opening turn rather than making two user turns in a row.
+  if (!chatHistory.length) {
+    return [{ role: 'user', parts: [...opening, { text: message }] }];
+  }
+
+  return [
+    { role: 'user', parts: opening },
+    ...chatHistory
+      .filter(m => m?.text)
+      .map(m => ({ role: m.role === 'ai' ? 'model' : 'user', parts: [{ text: m.text }] })),
+    { role: 'user', parts: [{ text: message }] },
+  ];
+}
+
+async function callText(key, { contents, system, maxOutputTokens, temperature }) {
+  const response = await callGemini(key, {
+    systemInstruction: { parts: [{ text: system }] },
+    contents,
+    generationConfig: { temperature, maxOutputTokens },
+  });
+  let data;
+  try { data = await response.json(); } catch { throw err('bad-response'); }
+  if (data?.promptFeedback?.blockReason) throw err('bad-response');
+  const candidate = data?.candidates?.[0];
+  if (!candidate) throw err('bad-response');
+  const text = candidate.content?.parts?.map(p => p.text).filter(Boolean).join('') ?? '';
+  if (!text.trim()) throw err('bad-response');
+  return text.trim();
+}
+
+/**
+ * The advisor turn. Photos come from the item's own store; a conversation from
+ * before V3 has none, and degrades to text-only rather than failing — it is
+ * still a better answer than the mock's random paragraph.
+ */
+export async function sendChatMessage({ itemId, message, chatHistory = [], itemContext }) {
+  const key = await getAiKey();
+  if (!key) throw err('no-key');
+
+  let photos;
+  try { photos = await photoStore.get(itemId); } catch { photos = []; }
+
+  const text = await callText(key, {
+    contents: buildChatContents({ photos, chatHistory, message, itemContext }),
+    system: CHAT_PROMPT,
+    temperature: 0.4,
+    maxOutputTokens: 500,
+  });
+  return { text };
+}
+
+// ── Listing generation for a pencil item (V3) ───────────────────────────────
+
+/**
+ * A pencil item was never analyzed — it has a floor, not a price. This runs the
+ * real analysis and seeds the editor from it.
+ *
+ * The price is the MODEL's estimate, not `item.estSellPrice`, which for a
+ * pencil item is the floor: the minimum clearing 3× and $20, never a market
+ * value. The floor governed the buy; the market governs the listing. It rides
+ * back as `pencilFloor` so the editor can show it, and is deliberately NOT a
+ * clamp — an estimate below the floor means the buy did not work out, and the
+ * editor's rule checks are where that shows.
+ */
+export async function generateListing(item) {
+  let stored;
+  try { stored = await photoStore.get(item?.id); } catch { stored = []; }
+
+  const result = await analyzeItem({
+    photoBase64s: stored.map(p => p.base64),
+    mimeTypes: stored.map(p => p.mimeType),
+    details: item?.name ?? '',
+    condition: item?.condition ?? '',
+    goodwillPrice: item?.goodwillPrice ?? 0,
+    shipping: item?.shipping,
+  });
+
+  const listing = result.listing ?? {};
+  return {
+    title: listing.title || item?.name || '',
+    description: htmlToText(listing.description_html || ''),
+    condition: item?.condition || 'Good',
+    price: result.estSellPrice,
+    specifics: listing.item_specifics ?? {},
+    conditionDescription: listing.condition_description || '',
+    // What Dad reasoned to at the shelf, for the editor's sub-line.
+    pencilFloor: item?.estSellPrice ?? null,
+    listingMercari: result.listingMercari ?? null,
+  };
+}
+
+// ── Field regeneration (V3) ─────────────────────────────────────────────────
+
+const REGEN_OPS = {
+  'title': 'Rewrite the eBay title. 80 characters or fewer, brand first, keyword-dense, no filler like "Rare" or "L@@K". Reply with the title alone — no quotes, no explanation.',
+  'description-rewrite': 'Rewrite this eBay description. Keep every fact, change the wording. Plain text, no HTML. Reply with the description alone.',
+  'description-shorter': 'Shorten this eBay description. Keep every fact that affects what a buyer receives; cut the padding. Plain text. Reply with the description alone.',
+  'description-longer': 'Expand this eBay description with detail a buyer would actually want — measurements, materials, condition specifics — but invent nothing that is not in the photos or the text. Plain text. Reply with the description alone.',
+};
+
+export async function regenerateField({ field, currentValue, context }) {
+  const instruction = REGEN_OPS[field];
+  if (!instruction) throw err('bad-request');
+
+  const key = await getAiKey();
+  if (!key) throw err('no-key');
+
+  const text = await callText(key, {
+    contents: [{
+      role: 'user',
+      parts: [{
+        text: [
+          instruction,
+          context ? `\nThe item: ${context}` : '',
+          `\nCurrent text:\n${currentValue || '(empty)'}`,
+        ].join('\n'),
+      }],
+    }],
+    system: CHAT_PROMPT,
+    temperature: 0.7,
+    maxOutputTokens: 300,
+  });
+  return { value: text };
+}
+
+export const __regenOps = REGEN_OPS;

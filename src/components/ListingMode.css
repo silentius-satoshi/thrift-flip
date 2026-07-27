@@ -192,3 +192,23 @@
   color: var(--fg-2);
   line-height: 1.5;
 }
+
+/* The two house rules, mirroring the verdict screen's .buy-checks so the same
+   fact reads the same way in both places. */
+.listing-checks {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  flex-wrap: wrap;
+}
+.listing-checks .y { color: var(--green); }
+.listing-checks .n { color: var(--red); }
+
+/* The pencil floor a listing came from — context, not an instruction. */
+.listing-shelf-floor {
+  font-size: 12px;
+  color: var(--fg-3);
+  margin-top: 6px;
+}

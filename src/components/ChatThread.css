@@ -90,3 +90,20 @@
 }
 /* composer input + send are ui/ components; only the row is glue here */
 .chat-input-row > .ui-input { flex: 1; }
+
+/* A failed turn: the question stays in the thread, the missing answer says so.
+   Layout glue only — the Retry is a bare control, no padding or radius here. */
+.chat-failed {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--fg-2);
+  margin-top: 4px;
+}
+.chat-failed button {
+  color: var(--blue-lt);
+  font-weight: 600;
+  flex-shrink: 0;
+}

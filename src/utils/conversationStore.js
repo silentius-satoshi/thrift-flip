@@ -1,4 +1,5 @@
 import { setItem, removeItem } from './storageService';
+import * as photoStore from './photoStore';
 
 const INDEX_KEY = 'thrift-flip-conversation-index';
 const convKey = id => `thrift-flip-conversation-${id}`;
@@ -45,6 +46,9 @@ export function getConversation(id) {
 export function deleteConversation(id) {
   removeItem(convKey(id));
   saveIndex(getIndex().filter(e => e.id !== id));
+  // The conversation owns the item's photos (V3): the chat is the only thing
+  // that reads them, so it is the thing whose deletion should free them.
+  photoStore.remove(id).catch(() => { /* nothing the user can act on */ });
 }
 
 export function archiveConversation(id) {

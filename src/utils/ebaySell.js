@@ -338,7 +338,7 @@ async function findOfferId(sku) {
   return data?.offers?.[0]?.offerId ?? null;
 }
 
-/** The shape webhooks.js re-exports, so ListingMode's call site keeps working. */
+/** ListingMode's call site: the editor's current values, plus the item id. */
 export async function sendToEbay(values) {
   const result = await sendToEbayDraft(values, values.cartItemId);
   return { success: true, ...result };

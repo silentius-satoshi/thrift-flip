@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, Fragment } from 'react';
-import { sendChatMessage } from '../utils/webhooks';
+import { sendChatMessage } from '../utils/ai';
 import { TextArea } from './ui/Field';
 import IconButton from './ui/IconButton';
 import './ChatThread.css';
@@ -11,6 +11,17 @@ function ChatIcon() {
     </svg>
   );
 }
+
+// Same taxonomy as the analyze path — a chat failure is not a mystery either.
+const CHAT_ERROR_COPY = {
+  'no-key': 'Add your AI key in Settings and Flip can answer',
+  'bad-key': "That key didn't work — check it in Settings",
+  quota: 'Google says the key is out of free calls today',
+  offline: 'No signal — the question is still here',
+  locked: 'Unlock cancelled — Flip needs your key',
+  'bad-response': 'Odd reply from the model',
+  default: "Couldn't get an answer",
+};
 
 function isSameGroupPrev(messages, i) {
   return i > 0 && messages[i].role === messages[i - 1].role;
@@ -29,9 +40,14 @@ function formatGroupTs(ts) {
   return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + time;
 }
 
-export default function ChatThread({ chatHistory, onUpdateHistory, itemContext }) {
+export default function ChatThread({ chatHistory, onUpdateHistory, itemContext, itemId }) {
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  // A failed turn is NOT written into the thread. The mock used to append an
+  // apology as if the model had said it, which persisted a sentence the model
+  // never produced into a record Dad keeps. It lives here instead, beside a
+  // Retry, and disappears when the retry lands.
+  const [failed, setFailed] = useState(null); // { text, code }
   const messagesContainerRef = useRef(null);
 
   useEffect(() => {
@@ -40,20 +56,27 @@ export default function ChatThread({ chatHistory, onUpdateHistory, itemContext }
     }
   }, [chatHistory, isTyping]);
 
-  async function handleSend() {
-    const text = inputValue.trim();
-    if (!text || isTyping) return;
-    setInputValue('');
-    onUpdateHistory(prev => [...prev, { role: 'user', text, ts: Date.now() }]);
+  async function ask(text, { alreadyInThread = false } = {}) {
+    if (!alreadyInThread) onUpdateHistory(prev => [...prev, { role: 'user', text, ts: Date.now() }]);
+    setFailed(null);
     setIsTyping(true);
     try {
-      const res = await sendChatMessage({ message: text, chatHistory, itemContext });
+      const res = await sendChatMessage({ itemId, message: text, chatHistory, itemContext });
       onUpdateHistory(prev => [...prev, { role: 'ai', text: res.text, ts: Date.now() }]);
-    } catch {
-      onUpdateHistory(prev => [...prev, { role: 'ai', text: 'Sorry, I had trouble responding. Please try again.', ts: Date.now() }]);
+    } catch (e) {
+      // The question stays in the thread — it was really asked. Only the
+      // answer is missing, and it says so.
+      setFailed({ text, code: e?.code ?? 'bad-response' });
     } finally {
       setIsTyping(false);
     }
+  }
+
+  function handleSend() {
+    const text = inputValue.trim();
+    if (!text || isTyping) return;
+    setInputValue('');
+    ask(text);
   }
 
   function handleKeyDown(e) {
@@ -99,6 +122,14 @@ export default function ChatThread({ chatHistory, onUpdateHistory, itemContext }
           <div className="chat-bubble-wrap ai">
             <div className="chat-avatar">F</div>
             <div className="chat-typing"><span /><span /><span /></div>
+          </div>
+        )}
+        {failed && !isTyping && (
+          <div className="chat-failed">
+            <span>{CHAT_ERROR_COPY[failed.code] ?? CHAT_ERROR_COPY.default}</span>
+            <button type="button" onClick={() => ask(failed.text, { alreadyInThread: true })}>
+              Retry
+            </button>
           </div>
         )}
       </div>

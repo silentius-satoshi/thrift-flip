@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useLayoutEffect } from 'react';
-import { analyzeItem } from '../utils/webhooks';
+import { analyzeItem } from '../utils/ai';
+import * as photoStore from '../utils/photoStore';
 import { saveConversation, markStatus, getConversation } from '../utils/conversationStore';
 import { useToast } from '../contexts/ToastContext';
 import { shoppingService } from '../utils/storageService';
@@ -133,22 +134,12 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
     if (savedVerdict.current?.phase === 'pencil' && savedVerdict.current?.itemId) return 'pencil';
     return 'capture';
   });
-  const [photos, setPhotos] = useState(() => {
-    const savedPhotos = savedForm.current?.photoBase64s ?? [];
-    return savedPhotos.map(item => {
-      const b64  = typeof item === 'string' ? item : item.b64;
-      const mime = typeof item === 'string' ? 'image/jpeg' : (item.mime || 'image/jpeg');
-      if (!b64) return null;
-      return {
-        file: null,
-        base64: b64,
-        mimeType: mime,
-        previewUrl: URL.createObjectURL(
-          new Blob([Uint8Array.from(atob(b64), c => c.charCodeAt(0))], { type: mime })
-        ),
-      };
-    }).filter(Boolean);
-  });
+  // Photos live in IndexedDB since V3, so they cannot be read synchronously in
+  // a lazy initializer the way the rest of the form is. They arrive in the
+  // rehydration effect below; `photoCount` is what the form now carries, purely
+  // so the capture strip knows how many are coming.
+  const [photos, setPhotos] = useState([]);
+  const [photosHydrated, setPhotosHydrated] = useState(false);
   const [details,        setDetails]       = useState(() => savedForm.current?.details       ?? '');
   const [condition,      setCondition]     = useState(() => savedForm.current?.condition     ?? '');
   const [goodwillPrice,  setGoodwillPrice] = useState(() => savedForm.current?.goodwillPrice ?? '');
@@ -169,6 +160,49 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
   const reqSeq       = useRef(0);
   const quotaWarned  = useRef(false);
 
+  // A blob URL from stored bytes, so a restored photo renders like a fresh one.
+  const toPreview = ({ base64, mimeType }) => ({
+    file: null,
+    base64,
+    mimeType: mimeType || 'image/jpeg',
+    previewUrl: URL.createObjectURL(
+      new Blob([Uint8Array.from(atob(base64), c => c.charCodeAt(0))], { type: mimeType || 'image/jpeg' })
+    ),
+  });
+
+  // Rehydrate the capture strip, and migrate any pre-V3 photos out of the form
+  // on the way. `savedForm` is a ref captured before any effect ran, so the
+  // legacy bytes are still readable here even though the persistence effect
+  // below has already rewritten the slimmed form.
+  useEffect(() => {
+    let live = true;
+    const restoreKey = savedVerdict.current?.itemId ?? photoStore.IN_FLIGHT;
+    (async () => {
+      const legacy = savedForm.current?.photoBase64s ?? [];
+      if (legacy.length) {
+        const migrated = legacy
+          .map(item => (typeof item === 'string'
+            ? { base64: item, mimeType: 'image/jpeg' }
+            : { base64: item.b64, mimeType: item.mime || 'image/jpeg' }))
+          .filter(p => p.base64);
+        if (migrated.length) await photoStore.put(restoreKey, migrated);
+      }
+      const stored = await photoStore.get(restoreKey);
+      if (live) setPhotos(stored.map(toPreview));
+    })()
+      .catch(() => { /* a broken store must not take the capture screen down */ })
+      .finally(() => { if (live) setPhotosHydrated(true); });
+    return () => { live = false; };
+  }, []);
+
+  // Capture writes straight through to the store, under the item's id once it
+  // has one and the reserved in-flight key before that.
+  useEffect(() => {
+    if (!photosHydrated) return;
+    const payload = photos.map(p => ({ base64: p.base64, mimeType: p.mimeType })).filter(p => p.base64);
+    photoStore.put(itemId ?? photoStore.IN_FLIGHT, payload).catch(() => { /* surfaced on read */ });
+  }, [photos, itemId, photosHydrated]);
+
   // Keep photosRef in sync for unmount cleanup
   useEffect(() => { photosRef.current = photos; }, [photos]);
 
@@ -180,8 +214,10 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
   }, []);
 
   useEffect(() => {
-    const photoBase64s = photos.map(p => ({ b64: p.base64, mime: p.mimeType })).filter(p => p.b64);
-    shoppingService.setForm({ details, condition, goodwillPrice, shipping, photoBase64s }).then(written => {
+    // No photo bytes here any more — they are in photoStore. This form was the
+    // single biggest thing in localStorage and the first thing a real trip
+    // would have broken (plan §6.1).
+    shoppingService.setForm({ details, condition, goodwillPrice, shipping, photoCount: photos.length }).then(written => {
       // A full quota is a silent write failure otherwise — and the thing lost is
       // the capture in progress. Latched so it warns once, not once per keystroke.
       if (written === false && !quotaWarned.current) {
@@ -280,6 +316,8 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
       return;
     }
     const newId = Date.now();
+    // The photos were captured before this item had an id; hand them over.
+    photoStore.promote(photoStore.IN_FLIGHT, newId).catch(() => { /* surfaced on read */ });
     setItemId(newId);
     setErrorCode(null);
     setPhase('pencil');

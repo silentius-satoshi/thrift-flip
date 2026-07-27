@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { regenerateField, sendToEbay } from '../utils/webhooks';
+import { regenerateField } from '../utils/ai';
+import { sendToEbay } from '../utils/ebaySell';
 import { mapEbayErrors } from '../utils/ebaySell';
 import { describeEbay } from '../utils/ebayAuth';
-import { calcProfit } from '../utils/calculations';
+import { calcProfit, checkRules } from '../utils/calculations';
 import { addHistoryEntry } from '../utils/historyStore';
 import { saveDraft } from '../utils/draftsStore';
 import { useToast } from '../contexts/ToastContext';
@@ -284,7 +285,17 @@ export default function ListingMode({ listingItem, listingData, onClearListing, 
   const mercari = listingItem?.listingMercari ?? null;
   const sellPrice = parseFloat(price) || 0;
   const goodwillPrice = listingItem?.goodwillPrice || 0;
-  const { net: liveProfit } = calcProfit(sellPrice, goodwillPrice);
+  // The item's OWN shipping, not calcProfit's $5.00 default. Omitting it made
+  // this number disagree with the verdict screen's for the same item, by about
+  // $7 in the optimistic direction — the editor is the last place a profit
+  // figure should flatter itself.
+  const itemShipping = listingItem?.shipping;
+  const { net: liveProfit } = calcProfit(sellPrice, goodwillPrice, itemShipping);
+  const { rule1: keeps3x, rule2: keeps20 } = checkRules(sellPrice, goodwillPrice, liveProfit);
+  const rulesMissed = sellPrice > 0 && (!keeps3x || !keeps20);
+  // What Dad reasoned to at the shelf, when this listing came from a pencil
+  // item. The market governs the listing, but the floor stays visible.
+  const shelfFloor = listingData?.pencilFloor ?? null;
 
   // The clipboard write has to resolve inside the user gesture, before the
   // window.open — Safari drops the permission otherwise.
@@ -441,14 +452,23 @@ export default function ListingMode({ listingItem, listingData, onClearListing, 
             />
           </Field>
         </div>
+        {shelfFloor > 0 && (
+          <p className="listing-shelf-floor">Your floor at the shelf: ${Number(shelfFloor).toFixed(2)}</p>
+        )}
         {sellPrice > 0 && (
           <Panel className="listing-keep">
             <PanelTotal
               solo
               label="You'd keep"
               value={`$${liveProfit.toFixed(2)}`}
-              tone={liveProfit < 0 ? 'red' : liveProfit < 20 ? 'yellow' : 'green'}
+              tone={rulesMissed ? 'red' : 'green'}
             />
+            {/* The same two rules the verdict screen shows. Without them a
+                below-floor price reads as a merely smaller number. */}
+            <div className="listing-checks">
+              <span className={keeps3x ? 'y' : 'n'}>{keeps3x ? '✓' : '✗'} 3× rule</span>
+              <span className={keeps20 ? 'y' : 'n'}>{keeps20 ? '✓' : '✗'} $20 minimum</span>
+            </div>
           </Panel>
         )}
       </div>

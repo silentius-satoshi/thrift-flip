@@ -304,6 +304,57 @@ Result: ☐ pass ☐ fail — what it said and where:
 
 ---
 
+## 8. The chat can see (V3)
+
+**Unrun. No stub can stand in for this one** — the whole question is whether a
+real model, given real photographs, says something true about the item in front
+of you. Vision §7's V3 gate is exactly this, and until it is ticked the gate is
+open. Needs a real AI key and one real item; five minutes.
+
+**8a — Ask about something visible.** Analyze an item that has a *visible flaw* —
+a scuff, a stain, a frayed cuff, a chip. Open Flip and ask about it without
+describing it: *"how bad is that mark on the front?"* Expected: an answer that
+refers to the actual mark — where it is, how big, whether it matters to a buyer.
+
+Result: ☐ pass ☐ fail — what it said:
+
+> **The failure mode to watch for is a confident non-answer.** "Minor wear like
+> that usually knocks 10–15% off" is a sentence about resale in general, not
+> about your item. If you get that, the photos are not reaching the model and
+> §8b will show it.
+
+**8b — Ask on turn three.** Keep the conversation going — two more questions —
+then ask about a *different* detail in the photos. Expected: still answered from
+the image. This is the check that the photos ride **every** request, not just
+the first: Gemini keeps no session, so the app re-uploads them each turn.
+
+Result: ☐ pass ☐ fail:
+
+**8c — Ask for comps and watch it refuse.** Ask *"what have these sold for
+recently?"* Expected: an estimate labelled as an estimate plus the eBay search
+to run — **never** a specific figure like "these sell for $60, about 40 a month".
+Invented sold data is the single most damaging thing this app could say, because
+it sounds exactly like the thing you need.
+
+Result: ☐ pass ☐ fail — quote it:
+
+**8d — List a pencil item.** Take an item to the cart *without* a verdict, then
+List it. Expected: a real listing with real item specifics — no "See
+description", no "Does Not Apply" — and a price from the model with **"Your
+floor at the shelf: $X"** beneath it. If the model's price lands under your
+floor, the ✗ marks and the red total are the point, not a bug.
+
+Result: ☐ pass ☐ fail:
+
+**8e — Photos survive the trip.** Capture, then force-quit and reopen. Expected:
+the capture strip still shows them. Then Safari → Develop → Storage → Local
+Storage: `thrift-flip-shopping-form` holds a `photoCount` and **no image data at
+all**. The photos are in IndexedDB under `thrift-flip-photos`.
+
+Result: ☐ pass ☐ fail:
+
+---
+
 ## What is already verified, so you don't re-run it
 
 Green in the V1+S1 build, headlessly: `npm test` (20 specs on `calcProfit`,

@@ -301,6 +301,8 @@ export default function FlipMode({ cart, listingItem, onNavigateToCart, onNaviga
           chatHistory={chatHistory}
           onUpdateHistory={handleUpdateHistory}
           itemContext={activeConv?.itemContext ?? null}
+          // photos are keyed by item id — the same id the conversation is
+          itemId={activeConv?.itemId ?? null}
         />
       </div>
       </div>

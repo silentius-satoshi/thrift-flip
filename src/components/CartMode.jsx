@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { generateListing } from '../utils/webhooks';
+import { generateListing } from '../utils/ai';
 import { markStatus } from '../utils/conversationStore';
 import { useToast } from '../contexts/ToastContext';
 import { htmlToText } from '../utils/listingFormat';
@@ -10,6 +10,17 @@ import { Panel, PanelRow, PanelTotal } from './ui/Panel';
 import Sheet from './ui/Sheet';
 import StatusTag from './ui/StatusTag';
 import './CartMode.css';
+
+// Same taxonomy as the analyze path — a listing failure is not a mystery either.
+const GENERATE_COPY = {
+  'no-key': 'Add your AI key in Settings, or fill the listing in by hand',
+  'bad-key': "That key didn't work — check it in Settings",
+  quota: 'Google says the key is out of free calls today',
+  offline: 'No signal — try again, or fill the listing in by hand',
+  locked: 'Unlock cancelled — the listing needs your key',
+  'bad-response': 'Odd reply from the model — try again',
+  default: "Couldn't write the listing — you can still fill it in by hand",
+};
 
 function CartIcon() {
   return (
@@ -46,15 +57,19 @@ export default function CartMode({ cart, onRemoveItem, onReadyToList, listingIte
       return;
     }
 
-    // Pencil items were never analyzed — fall back to the mock generator.
+    // Pencil items were never analyzed. This runs the real analysis now — a
+    // network call, hence the loading state — and seeds the editor from it.
     setLoadingId(item.id);
     try {
       const listingData = await generateListing(item);
       markStatus(item.id, 'listed');
       onReadyToList(item, listingData);
-      showToast('Listing generated!', 'success');
-    } catch {
-      showToast('Failed to generate listing', 'error');
+      showToast('Listing ready — check the price before you send it', 'success');
+    } catch (e) {
+      // Specific copy, then the editor is still hand-usable: every field is
+      // editable and Copy-for-eBay is reachable. The mock's fabricated
+      // "See description" content was never a feature worth falling back to.
+      showToast(GENERATE_COPY[e?.code] ?? GENERATE_COPY.default, 'error');
     } finally {
       setLoadingId(null);
     }
