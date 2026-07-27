@@ -4,6 +4,7 @@ import { UserProvider } from './contexts/UserContext';
 import { useCart } from './hooks/useCart';
 import { calcProfit } from './utils/calculations';
 import { saveDraft } from './utils/draftsStore';
+import { isEbayCallback } from './utils/ebayAuth';
 import Nav from './components/Nav';
 import ShoppingMode from './components/ShoppingMode';
 import FlipMode from './components/FlipMode';
@@ -20,6 +21,10 @@ import './App.css';
 function AppInner() {
   const { showToast } = useToast();
   const [currentScreen, setCurrentScreen] = useState(() => {
+    // eBay's OAuth redirect lands on /ebay/callback. SettingsMode runs the code
+    // exchange and reports the outcome, so routing there is all this does —
+    // no screen id changes, and the path never becomes one.
+    if (isEbayCallback()) return 'settings';
     // Direct read — sync required for useState lazy init
     const saved = localStorage.getItem('thrift-flip-screen');
     const valid = ['shop', 'flip', 'cart', 'listing', 'history', 'drafts', 'uikit', 'settings'];

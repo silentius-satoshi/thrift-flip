@@ -7,7 +7,21 @@ import { defineConfig, globalIgnores } from 'eslint/config'
 export default defineConfig([
   globalIgnores(['dist']),
   {
+    // The edge relays (E1) are the repo's only server code — Node globals, no
+    // React, no DOM. Everything under src/ stays browser-only.
+    files: ['api/**/*.js', 'scripts/**/*.mjs'],
+    extends: [js.configs.recommended],
+    languageOptions: { globals: globals.node },
+  },
+  {
+    // Vitest runs specs in the node environment (vite.config.js), so node
+    // globals are simply true there. Merged on top of the browser block below.
+    files: ['**/*.test.js'],
+    languageOptions: { globals: globals.node },
+  },
+  {
     files: ['**/*.{js,jsx}'],
+    ignores: ['api/**/*.js'],
     extends: [
       js.configs.recommended,
       reactHooks.configs.flat.recommended,

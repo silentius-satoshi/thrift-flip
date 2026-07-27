@@ -121,8 +121,12 @@ export default function VaultGate() {
     ? pin.length >= PIN_MIN_LENGTH && pin === confirm
     : pin.length >= PIN_MIN_LENGTH && !locked;
 
+  // Copy speaks of "your keys", not any one credential: the vault holds the AI
+  // key and the eBay connection, one ceremony covers both, and whichever is
+  // added first triggers enrollment. Naming a single credential here would be
+  // wrong roughly half the time.
   const title = enrolling
-    ? 'Lock your AI key'
+    ? 'Lock your keys'
     : pinScheme ? 'Enter your PIN' : `Unlock with ${label}`;
 
   return (
@@ -130,8 +134,8 @@ export default function VaultGate() {
       {enrolling && mode === 'choose' && (
         <>
           <p className="vault-lead">
-            Only your face opens it. Thrift Flip now locks your AI key on this
-            phone — without you, it can’t be read at all.
+            Only your face opens them. Thrift Flip locks the keys saved on this
+            phone — without you they can’t be read at all.
           </p>
           <Button full disabled={busy} onClick={enrollWithBiometric}>
             {busy ? 'Waiting…' : `Use ${label}`}
@@ -150,7 +154,7 @@ export default function VaultGate() {
         <>
           <p className="vault-lead">
             Pick a PIN of at least {PIN_MIN_LENGTH} digits. There is no way to
-            reset it — if you forget it you’ll paste a fresh key from Google.
+            reset it — if you forget it you’ll add your keys again from scratch.
           </p>
           <Field label="PIN">
             <Input
@@ -177,7 +181,7 @@ export default function VaultGate() {
 
       {!enrolling && !pinScheme && (
         <>
-          <p className="vault-lead">Your AI key is locked on this phone. Unlock it to run the verdict.</p>
+          <p className="vault-lead">Your keys are locked on this phone. Unlock to continue.</p>
           <Button full disabled={busy} onClick={unlockWithBiometric}>
             {busy ? 'Waiting…' : `Unlock with ${label}`}
           </Button>

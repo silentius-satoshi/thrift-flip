@@ -2,6 +2,10 @@ import { useState, useRef, useEffect } from 'react';
 import { useToast } from '../contexts/ToastContext';
 import { getAiKey, setAiKey, clearAiKey, verifyKey, describeAiKey } from '../utils/ai';
 import { credentialStore } from '../utils/credentials';
+import {
+  isEbayConfigured, isEbayCallback, takePendingCallback, startConnect,
+  handleCallback, refreshAccessToken, describeEbay, disconnectEbay,
+} from '../utils/ebayAuth';
 import { biometricLabel } from '../lib/biometricLabel';
 import { downloadBackup, parseBackup, restoreBackup } from '../utils/backup';
 import Button from './ui/Button';
@@ -34,17 +38,49 @@ const VAULT_COPY = {
   default: "Couldn't unlock the key on this phone",
 };
 
+const EBAY_REVOKE_PAGE = 'https://accounts.ebay.com/acctsec/security-center';
+
+// eBay-side failures, kept separate from vault failures and from Google's.
+const EBAY_COPY = {
+  declined: 'You tapped Cancel at eBay — nothing was connected',
+  'state-mismatch': "That sign-in didn't come back the way it left. Nothing was saved — try again",
+  'no-code': 'eBay sent us back without a code — try again',
+  'relay-unauthorized': "This build can't talk to the connector. Check RELAY_SECRET",
+  'not-configured': 'eBay is not set up on this build',
+  'not-connected': 'Connect eBay first',
+  offline: "No signal — eBay can't be reached right now",
+  invalid_grant: 'That sign-in expired before it landed — connect again',
+  'bad-response': 'Odd reply from eBay — try again',
+  default: "Couldn't finish connecting to eBay",
+};
+
 // No lazy-init read of the key any more: since N1-lite it is ciphertext in
 // IndexedDB, so presence arrives asynchronously. `present` therefore starts
 // `undefined` — "not known yet", distinct from `false` for "no key stored" —
 // and the row renders a neutral title until it resolves rather than flashing
 // the wrong state for a frame.
 
+// The refresh token's own expiry, read from the unencrypted hint. A month is
+// all the row needs and all it should carry.
+function monthYear(ms) {
+  if (!ms) return null;
+  return new Date(ms).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+}
+
 function ShieldIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 2.5l7.5 3v6c0 4.5-3.1 8.6-7.5 10-4.4-1.4-7.5-5.5-7.5-10v-6z" />
       <path d="M8.6 12.1l2.3 2.3 4.5-4.5" />
+    </svg>
+  );
+}
+
+function EbayIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 8.5h18M6 8.5V6.2a2 2 0 012-2h8a2 2 0 012 2v2.3" />
+      <rect x="3" y="8.5" width="18" height="11.3" rx="2" />
     </svg>
   );
 }
@@ -77,8 +113,12 @@ function UploadIcon() {
 export default function SettingsMode({ onBack }) {
   const { showToast } = useToast();
   const [view, setView] = useState(() => {
+    // Returning from eBay's redirect goes straight to the eBay screen, where
+    // the exchange runs and reports.
+    if (isEbayCallback()) return 'ebay';
     // Direct read — sync required for useState lazy init
-    return localStorage.getItem('thrift-flip-settings-view') === 'ai-key' ? 'ai-key' : 'main';
+    const saved = localStorage.getItem('thrift-flip-settings-view');
+    return saved === 'ai-key' || saved === 'ebay' ? saved : 'main';
   });
   // undefined = not read yet, distinct from false/null for "no key stored"
   const [present, setPresent] = useState(undefined);
@@ -89,8 +129,17 @@ export default function SettingsMode({ onBack }) {
   const [status, setStatus] = useState(null); // { ok, text }
   const [replacing, setReplacing] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
+  const [ebay, setEbay] = useState(undefined);      // undefined = not read yet
+  const [ebayStatus, setEbayStatus] = useState(null);
+  const [ebayBusy, setEbayBusy] = useState(false);
+  // Lazily initialised rather than set inside the effect below: a synchronous
+  // setState in an effect body is the cascading-render smell the lint rule
+  // catches, and the answer is known at first render anyway.
+  const [connecting, setConnecting] = useState(() => isEbayCallback());
+  const [ebayNonce, setEbayNonce] = useState(0);
   const importRef = useRef(null);
   const label = biometricLabel();
+  const ebayConfigured = isEbayConfigured();
 
   useEffect(() => {
     localStorage.setItem('thrift-flip-settings-view', view);
@@ -104,6 +153,27 @@ export default function SettingsMode({ onBack }) {
       .catch(() => { if (live) setPresent(false); });
     return () => { live = false; };
   }, [view]);
+
+  // Same again for eBay: presence and the expiry month come from the hint
+  // stored beside the ciphertext, so this never triggers an unlock.
+  useEffect(() => {
+    let live = true;
+    describeEbay()
+      .then(d => { if (live) setEbay(d); })
+      .catch(() => { if (live) setEbay({ connected: false, through: null, scheme: null }); });
+    return () => { live = false; };
+  }, [view, ebayNonce]);
+
+  // The other half of the OAuth round trip. One-shot by construction, so
+  // React's double-invoked dev effect cannot exchange the code twice.
+  useEffect(() => {
+    const search = takePendingCallback();
+    if (search === null) return;
+    handleCallback(search)
+      .then(() => { setEbayStatus({ ok: true, text: 'Connected to eBay' }); showToast('eBay connected'); })
+      .catch(e => setEbayStatus({ ok: false, text: EBAY_COPY[e?.code] ?? VAULT_COPY[e?.code] ?? EBAY_COPY.default }))
+      .finally(() => { setConnecting(false); setEbayNonce(n => n + 1); });
+  }, [showToast]);
 
   async function handleVerifyAndSave() {
     const key = paste.trim();
@@ -177,6 +247,26 @@ export default function SettingsMode({ onBack }) {
     showToast('Starting over — paste a new key');
   }
 
+  async function handleTestEbay() {
+    setEbayBusy(true);
+    setEbayStatus(null);
+    try {
+      await refreshAccessToken();
+      setEbayStatus({ ok: true, text: 'Still connected — eBay answered' });
+    } catch (e) {
+      setEbayStatus({ ok: false, text: EBAY_COPY[e?.code] ?? VAULT_COPY[e?.code] ?? EBAY_COPY.default });
+    }
+    setEbayBusy(false);
+    setEbayNonce(n => n + 1);
+  }
+
+  async function handleDisconnectEbay() {
+    await disconnectEbay();
+    setEbayStatus(null);
+    setEbayNonce(n => n + 1);
+    showToast('Disconnected from eBay');
+  }
+
   function handleExport() {
     downloadBackup();
     showToast('Backup downloaded');
@@ -195,6 +285,80 @@ export default function SettingsMode({ onBack }) {
     if (!ok) return;
     restoreBackup(result.data);
     window.location.reload();
+  }
+
+  if (view === 'ebay') {
+    const loading = ebay === undefined;
+    const connected = Boolean(ebay?.connected);
+    const through = monthYear(ebay?.through);
+    return (
+      <div className="screen settings">
+        <div className="settings-header">
+          <button className="settings-back" onClick={() => { setView('main'); setEbayStatus(null); }} aria-label="Back to settings">←</button>
+          <span className="settings-title">eBay</span>
+          <span className="settings-header-spacer" />
+        </div>
+
+        {connected && (
+          <Card className="settings-keycard">
+            <div className="settings-keyline">
+              <b className="money">{through ? `Connected · through ${through}` : 'Connected'}</b>
+              <StatusTag tone="green">CONNECTED</StatusTag>
+            </div>
+            <p>Drafts go straight to your eBay account. You review and publish them in Seller Hub.</p>
+          </Card>
+        )}
+
+        {!loading && !connected && (
+          <>
+            <p className="settings-lead">
+              You sign in on eBay's own page and tap Agree. Thrift Flip never sees
+              your eBay password — only a connection eBay can revoke.
+            </p>
+            <Button full disabled={connecting} onClick={startConnect}>
+              {connecting ? 'Connecting…' : 'Connect eBay'}
+            </Button>
+          </>
+        )}
+
+        {ebayStatus && (
+          <StatusTag tone={ebayStatus.ok ? 'green' : 'red'} className="settings-status">{ebayStatus.text}</StatusTag>
+        )}
+
+        {connected && (
+          <div className="settings-keyactions">
+            <Button variant="outline" disabled={ebayBusy} onClick={handleTestEbay}>
+              {ebayBusy ? 'Testing…' : 'Test'}
+            </Button>
+            <Button variant="danger" onClick={handleDisconnectEbay}>Disconnect</Button>
+          </div>
+        )}
+
+        {connected && (
+          <Card className="settings-protection">
+            <Row
+              thumb={<span className="settings-ic"><ShieldIcon /></span>}
+              title={`Protected by ${ebay.scheme === 'pin' ? 'a PIN' : label}`}
+              sub={ebay.scheme === 'pin'
+                ? 'Encrypted on this phone. Your PIN is what opens it.'
+                : `Encrypted on this phone. Without ${label} it can’t be read at all.`}
+            />
+          </Card>
+        )}
+
+        <div className="settings-note">
+          <div className="lbl">Revoke help</div>
+          <p>
+            Disconnecting here removes the connection from this phone. eBay keeps
+            its own record — remove Thrift Flip in your eBay account settings to
+            revoke it there too.
+          </p>
+          <button className="settings-link" onClick={() => window.open(EBAY_REVOKE_PAGE, '_blank', 'noopener')}>
+            eBay account security
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (view === 'ai-key') {
@@ -331,6 +495,24 @@ export default function SettingsMode({ onBack }) {
           trailing={present === undefined ? null
             : present ? <StatusTag tone="green">ON</StatusTag> : <StatusTag tone="blue">SET UP</StatusTag>}
           onPress={() => { setStatus(null); setView('ai-key'); }}
+        />
+        <Row
+          thumb={<span className="settings-ic"><EbayIcon /></span>}
+          title={ebayConfigured
+            ? (ebay?.connected ? 'eBay' : 'Connect eBay')
+            : 'eBay'}
+          sub={ebayConfigured
+            ? (ebay === undefined ? undefined
+              : ebay.connected
+                ? (monthYear(ebay.through) ? `through ${monthYear(ebay.through)}` : 'connected')
+                : 'One-tap drafts, straight from a listing')
+            : 'Not set up on this build'}
+          trailing={!ebayConfigured || ebay === undefined ? null
+            : ebay.connected ? <StatusTag tone="green">ON</StatusTag> : <StatusTag tone="blue">SET UP</StatusTag>}
+          // No onPress when unconfigured: Row renders a plain div, so the
+          // dead state is genuinely inert rather than a button that lies.
+          onPress={ebayConfigured ? () => { setEbayStatus(null); setView('ebay'); } : undefined}
+          className={ebayConfigured ? undefined : 'settings-row-off'}
         />
       </Card>
 

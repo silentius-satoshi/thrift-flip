@@ -4,13 +4,15 @@
 const PREFIX = 'thrift-flip-';
 export const BACKUP_VERSION = 1;
 
-// Defense in depth. Since N1-lite the AI key lives as ciphertext in IndexedDB,
-// which this file never scans — so the export excludes it by construction and
-// there is no deny-list to forget to update. This entry stays anyway: a backup
-// written before the vault, or hand-edited afterwards, can still carry the
-// plaintext field, and restoring it would resurrect exactly what N1-lite
-// deleted.
-const CREDENTIAL_KEYS = ['thrift-flip-ai-key'];
+// Defense in depth. Since N1-lite both credentials live as ciphertext in
+// IndexedDB, which this file never scans — so the export excludes them by
+// construction and there is no deny-list to forget to update. These entries
+// stay anyway: a backup written before the vault, or hand-edited afterwards,
+// can still carry a plaintext field, and restoring it would resurrect exactly
+// what the vault removed. The eBay key has never existed in localStorage at
+// all — its tokens went straight into the vault at E1 — so it is pure belt and
+// braces against a hand-edited file.
+const CREDENTIAL_KEYS = ['thrift-flip-ai-key', 'thrift-flip-ebay-tokens'];
 
 function appKeys() {
   // Prefix scan rather than a fixed list: conversations are one key per item

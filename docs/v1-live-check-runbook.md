@@ -181,6 +181,71 @@ Result: ☐ pass ☐ fail:
 
 ---
 
+## 6. eBay sandbox connect (E1)
+
+**Unrun, and it cannot be run from here.** Every prerequisite is Founder-side:
+Vercel env vars, the eBay dashboard registration, and a sandbox test user. Until
+these are ticked, ebay §8's E1 gate stays open — **no build summary may record
+it as passed** (plan §6.1).
+
+**Prerequisites.** Copy `.env.example` to `.env.local`, fill it, and set the same
+values in the Vercel project. Note `EBAY_DELETION_ENDPOINT_URL` — it is **not** in
+E1's original prerequisite list and was added during the build: it is the third
+input to the deletion challenge hash and must byte-match what is registered with
+eBay, or the endpoint is rejected with no diagnostic. In the eBay dashboard:
+register the deletion endpoint + verification token, map the RuName to
+`https://<domain>/ebay/callback`, and create a sandbox test user.
+
+**6a — The deletion endpoint validates.** In the eBay dashboard's alert settings,
+save the endpoint URL and token. Expected: eBay marks it validated on the spot.
+If it rejects, the usual cause is `EBAY_DELETION_ENDPOINT_URL` disagreeing with
+the registered URL by a character.
+
+Result: ☐ pass ☐ fail:
+
+**6b — The relay is gated.** From a terminal:
+
+```
+curl -i -X POST https://<domain>/api/ebay/oauth              # → 401
+curl -i -X POST https://<domain>/api/ebay/oauth \
+  -H "Authorization: Bearer wrong"                           # → 401
+```
+
+Result: ☐ pass ☐ fail:
+
+**6c — Connect round-trips.** On the phone: Settings → eBay → Connect eBay. Sign
+in as the **sandbox** test user and tap Agree. Expected: you land back in the app,
+the unlock sheet appears once, and the row reads *"Connected · through \<month
+year\>"* roughly eighteen months out. The address bar shows no `code=`.
+
+Result: ☐ pass ☐ fail — what the row says:
+
+**6d — Test repairs as well as reports.** Tap **Test**. Expected: *"Still
+connected — eBay answered"*. This runs a real refresh grant, so it also proves
+the refresh token survived storage.
+
+Result: ☐ pass ☐ fail:
+
+**6e — Kill the network mid-callback.** Disconnect first. Start Connect again,
+and turn on airplane mode while eBay is redirecting back. Expected: a specific
+failure, the row still reading **Connect eBay**, and no half-written connection.
+Turn the network back on and connect again — it works.
+
+Result: ☐ pass ☐ fail:
+
+**6f — Ciphertext only.** Safari → Develop → Storage. Expected: no eBay token
+anywhere in Local Storage, and in IndexedDB under `thrift-flip-vault` → `blobs`
+an `ebay-tokens` record whose `ciphertext` is bytes and whose `meta.hint` holds
+only `through`. Search the pane for the first ten characters of the refresh
+token: no match.
+
+Result: ☐ pass ☐ fail:
+
+> Once 6a–6f are ticked, ebay §8's E1 gate is closed **except** its multi-device
+> half, which needs Nostr N2/N3 and is unscheduled.
+
+---
+
 ## What is already verified, so you don't re-run it
 
 Green in the V1+S1 build, headlessly: `npm test` (20 specs on `calcProfit`,

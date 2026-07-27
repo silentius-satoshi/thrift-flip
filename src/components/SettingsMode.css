@@ -62,6 +62,12 @@
   gap: 10px;
 }
 .settings-keyline b { font-size: 16px; }
+/* An eBay row on a build with no eBay env vars. Dimmed, and inert by virtue of
+   carrying no onPress — the honest form of "not set up" rather than a control
+   that looks live and does nothing. */
+.settings-row-off {
+  opacity: 0.45;
+}
 .settings-keyactions {
   display: flex;
   gap: 8px;

@@ -284,7 +284,15 @@ export const credentialStore = {
     return value;
   },
 
-  async set(name, value) {
+  /**
+   * @param {object} [options]
+   * @param {object} [options.hint] Non-secret metadata to store readable beside
+   *   the ciphertext. Strings get `{ last4 }` derived automatically; object
+   *   credentials (the eBay token set) must pass their own, because there is no
+   *   sensible default and Settings needs *something* to display.
+   *   ANYTHING PUT HERE IS READABLE WITHOUT AN UNLOCK — it is for display only.
+   */
+  async set(name, value, { hint } = {}) {
     let ikm;
     try {
       ikm = await unlock();
@@ -300,8 +308,8 @@ export const credentialStore = {
     // of a Gemini key are not a credential — they are already what Settings
     // displays — and keeping them readable means opening Settings never costs a
     // Face ID prompt.
-    const hint = typeof value === 'string' ? { last4: value.slice(-4) } : null;
-    await putBlob(name, ciphertext, { ...meta, ...(hint ? { hint } : {}) });
+    const stored = hint ?? (typeof value === 'string' ? { last4: value.slice(-4) } : null);
+    await putBlob(name, ciphertext, { ...meta, ...(stored ? { hint: stored } : {}) });
     dropLegacyPlaintext(name);
     sessionCache.set(name, value);
   },
@@ -318,11 +326,15 @@ export const credentialStore = {
   async describe(name) {
     const blob = await getBlob(name);
     if (blob) {
-      return { present: true, last4: blob.meta?.hint?.last4 ?? null, scheme: blob.meta?.scheme ?? null };
+      const hint = blob.meta?.hint ?? null;
+      // `last4` stays a top-level field so the AI key's call sites are unchanged.
+      return { present: true, last4: hint?.last4 ?? null, hint, scheme: blob.meta?.scheme ?? null };
     }
     const legacy = readLegacyPlaintext(name);
-    if (typeof legacy === 'string') return { present: true, last4: legacy.slice(-4), scheme: null };
-    return { present: false, last4: null, scheme: null };
+    if (typeof legacy === 'string') {
+      return { present: true, last4: legacy.slice(-4), hint: { last4: legacy.slice(-4) }, scheme: null };
+    }
+    return { present: false, last4: null, hint: null, scheme: null };
   },
 
   async hasVault() {
