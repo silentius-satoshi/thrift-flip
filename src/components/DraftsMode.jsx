@@ -3,6 +3,15 @@ import { getDrafts, deleteDraft, clearDrafts } from '../utils/draftsStore';
 import { useToast } from '../contexts/ToastContext';
 import './DraftsMode.css';
 
+function NoteIcon() {
+  return (
+    <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4z" />
+    </svg>
+  );
+}
+
 function formatSavedDate(ts) {
   const d = new Date(ts);
   const now = new Date();
@@ -60,8 +69,8 @@ export default function DraftsMode({ onBack, onRestoreDraft }) {
 
       {drafts.length === 0 ? (
         <div className="drafts-empty">
-          <span className="drafts-empty-icon">📝</span>
-          <p>No saved drafts — tap 🔖 in Listing Mode to save your work</p>
+          <span className="drafts-empty-icon"><NoteIcon /></span>
+          <p>No saved drafts — tap Save draft in Listing Mode to save your work</p>
         </div>
       ) : (
         <div className="drafts-list">

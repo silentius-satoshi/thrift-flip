@@ -241,3 +241,5 @@
   top: 3px;
   right: 3px;
 }
+/* the thumb clips to its rounded corner — keep the ring inside the dot */
+.buy-sheet-thumb .ui-photo-remove:focus-visible { outline-offset: -2px; }

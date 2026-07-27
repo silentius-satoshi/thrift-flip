@@ -10,7 +10,7 @@ import FlipMode from './components/FlipMode';
 import CartMode from './components/CartMode';
 import ListingMode from './components/ListingMode';
 import PreviewMode from './components/PreviewMode';
-import HistoryMode from './components/HistoryMode';
+import SellingMode from './components/SellingMode';
 import DraftsMode from './components/DraftsMode';
 import UIKitchen from './components/UIKitchen';
 import SettingsMode from './components/SettingsMode';
@@ -140,7 +140,7 @@ function AppInner() {
         estProfit: calcProfit(parseFloat(edits.price) || 0, listingItem?.goodwillPrice ?? 0).net,
         source: 'manual',
       });
-      showToast('Current listing saved as draft 🔖');
+      showToast('Current listing saved as draft');
     }
   }
 
@@ -198,7 +198,8 @@ function AppInner() {
           onBack={() => setCurrentScreen('listing')}
         />
       )}
-      {currentScreen === 'history' && <HistoryMode onOpenSettings={() => setCurrentScreen('settings')} />}
+      {/* screen id stays 'history' — it is persisted under thrift-flip-screen */}
+      {currentScreen === 'history' && <SellingMode onOpenSettings={() => setCurrentScreen('settings')} />}
       {currentScreen === 'uikit' && <UIKitchen />}
       {currentScreen === 'settings' && <SettingsMode onBack={() => setCurrentScreen('history')} />}
       {currentScreen === 'drafts' && (

@@ -62,9 +62,11 @@
   padding: 5px 10px;
   cursor: pointer;
 }
+/* box-shadow, not outline — an outline here would outrank the focus ring
+   exactly when the button is in its destructive-confirm state */
 .remove-btn.pending {
   opacity: 0.7;
-  outline: 1px solid var(--red);
+  box-shadow: 0 0 0 1px var(--red);
 }
 
 .draft-card-meta-row {
@@ -108,5 +110,5 @@
   padding: 80px 32px;
   text-align: center;
 }
-.drafts-empty-icon { font-size: 48px; }
+.drafts-empty-icon { display: flex; color: var(--text-muted); }
 .drafts-empty p { color: var(--text-secondary); font-size: 15px; line-height: 1.5; }

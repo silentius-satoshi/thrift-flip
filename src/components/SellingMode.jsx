@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { getHistory, deleteHistoryEntry, clearHistory } from '../utils/historyStore';
 import { useToast } from '../contexts/ToastContext';
 import { useUser } from '../contexts/UserContext';
-import './HistoryMode.css';
+import FourDotMark from './ui/FourDotMark';
+import './SellingMode.css';
 
 function formatSentDate(ts) {
   const d = new Date(ts);
@@ -24,7 +25,17 @@ function KeyIcon() {
   );
 }
 
-export default function HistoryMode({ onOpenSettings }) {
+function ClipboardIcon() {
+  return (
+    <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2" />
+      <rect x="8" y="2" width="8" height="4" rx="1" />
+      <path d="M8 12h8M8 16h5" />
+    </svg>
+  );
+}
+
+export default function SellingMode({ onOpenSettings }) {
   const { showToast } = useToast();
   const { user } = useUser(); // TODO: filter history by user.id when multi-user
   const [history, setHistory] = useState(() => getHistory());
@@ -50,7 +61,7 @@ export default function HistoryMode({ onOpenSettings }) {
       setClearAllPending(false);
     } else {
       setClearAllPending(true);
-      showToast('Tap again to clear all history');
+      showToast('Tap again to clear everything');
       setTimeout(() => setClearAllPending(false), 3000);
     }
   }
@@ -60,17 +71,29 @@ export default function HistoryMode({ onOpenSettings }) {
   const avgProfit = totalItems > 0 ? totalProfit / totalItems : 0;
   const bestFlip = history.reduce((best, e) => (!best || e.estProfit > best.estProfit) ? e : best, null);
 
+  const header = (withClear) => (
+    <div className="selling-header">
+      <div className="selling-title-group">
+        <FourDotMark />
+        <span className="selling-title">Selling</span>
+      </div>
+      <div className="selling-header-actions">
+        <button className="selling-settings-btn" onClick={onOpenSettings} aria-label="Settings"><KeyIcon /></button>
+        {withClear && (
+          <button className="selling-clear-btn" onClick={handleClearAll}>
+            {clearAllPending ? 'Confirm?' : 'Clear all'}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
   if (history.length === 0) {
     return (
       <div className="screen">
-        <div className="history-header">
-          <span className="history-title">History</span>
-          <div className="history-header-actions">
-            <button className="history-settings-btn" onClick={onOpenSettings} aria-label="Settings"><KeyIcon /></button>
-          </div>
-        </div>
-        <div className="history-empty">
-          <span className="history-empty-icon">📋</span>
+        {header(false)}
+        <div className="selling-empty">
+          <span className="selling-empty-icon"><ClipboardIcon /></span>
           <p>No listings yet — send your first draft from Listing Mode</p>
         </div>
       </div>
@@ -79,30 +102,22 @@ export default function HistoryMode({ onOpenSettings }) {
 
   return (
     <div className="screen">
-      <div className="history-header">
-        <span className="history-title">History</span>
-        <div className="history-header-actions">
-          <button className="history-settings-btn" onClick={onOpenSettings} aria-label="Settings"><KeyIcon /></button>
-          <button className="history-clear-btn" onClick={handleClearAll}>
-            {clearAllPending ? 'Confirm?' : 'Clear all'}
-          </button>
-        </div>
-      </div>
+      {header(true)}
 
-      <div className="history-summary-grid">
-        <div className="history-summary-card">
+      <div className="selling-summary-grid">
+        <div className="selling-summary-card">
           <div className="summary-value">{totalItems}</div>
           <div className="summary-label">Items sent</div>
         </div>
-        <div className="history-summary-card">
+        <div className="selling-summary-card">
           <div className="summary-value green">${totalProfit.toFixed(2)}</div>
           <div className="summary-label">Total est. profit</div>
         </div>
-        <div className="history-summary-card">
+        <div className="selling-summary-card">
           <div className="summary-value">${avgProfit.toFixed(2)}</div>
           <div className="summary-label">Avg per item</div>
         </div>
-        <div className="history-summary-card">
+        <div className="selling-summary-card">
           <div className="summary-value green">${(bestFlip?.estProfit ?? 0).toFixed(2)}</div>
           <div className="summary-label">
             Best flip{bestFlip ? `: ${bestFlip.title.slice(0, 18)}…` : ''}
@@ -110,25 +125,25 @@ export default function HistoryMode({ onOpenSettings }) {
         </div>
       </div>
 
-      <div className="history-list">
+      <div className="selling-list">
         {history.map(entry => (
-          <div key={entry.id} className="history-card">
-            <div className="history-card-top">
-              <span className="history-card-title">{entry.title}</span>
+          <div key={entry.id} className="selling-card">
+            <div className="selling-card-top">
+              <span className="selling-card-title">{entry.title}</span>
               <button
                 className={`remove-btn${pendingDelete === entry.id ? ' pending' : ''}`}
                 onClick={() => handleDelete(entry.id)}
               >Remove</button>
             </div>
-            <div className="history-card-date">{formatSentDate(entry.sentAt)}</div>
-            <div className="history-card-price-row">
+            <div className="selling-card-date">{formatSentDate(entry.sentAt)}</div>
+            <div className="selling-card-price-row">
               Listed at ${entry.price.toFixed(2)} · Paid ${entry.goodwillPrice.toFixed(2)} ·{' '}
-              <span className="history-profit">Profit ${entry.estProfit.toFixed(2)}</span>
+              <span className="selling-profit">Profit ${entry.estProfit.toFixed(2)}</span>
             </div>
-            <div className="history-card-pills">
-              <span className="history-pill">{entry.condition}</span>
-              <span className="history-pill">{entry.category}</span>
-              <span className="history-status-pill">Draft sent</span>
+            <div className="selling-card-pills">
+              <span className="selling-pill">{entry.condition}</span>
+              <span className="selling-pill">{entry.category}</span>
+              <span className="selling-status-pill">Draft sent</span>
             </div>
           </div>
         ))}

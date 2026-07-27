@@ -3,6 +3,47 @@ import { getIndex, saveConversation, updateChatHistory, getConversation, deleteC
 import ChatThread from './ChatThread';
 import './FlipMode.css';
 
+function PinIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 17v5" />
+      <path d="M9 10.8V4h6v6.8l2.6 3.2a1 1 0 01-.78 1.6H7.18a1 1 0 01-.78-1.6z" />
+    </svg>
+  );
+}
+function CartIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" />
+      <path d="M1 1h4l2.68 13.39a2 2 0 001.99 1.61h9.72a2 2 0 001.98-1.7l1.62-10.3H6" />
+    </svg>
+  );
+}
+function TagIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z" />
+      <line x1="7" y1="7" x2="7.01" y2="7" />
+    </svg>
+  );
+}
+function ArchiveIcon({ size = 20 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="5" rx="1" />
+      <path d="M5 8v11a2 2 0 002 2h10a2 2 0 002-2V8" />
+      <path d="M10 12h4" />
+    </svg>
+  );
+}
+function ChatIcon({ size = 20 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+    </svg>
+  );
+}
+
 function formatAge(ts) {
   const diff = Date.now() - ts;
   const mins = Math.floor(diff / 60000);
@@ -203,7 +244,8 @@ export default function FlipMode({ cart, listingItem, onNavigateToCart, onNaviga
       <div key={c.id} className="conv-row-wrap">
         <div className="swipe-bg-left">Archive</div>
         <div className="swipe-bg-right">Delete</div>
-        <div
+        <button
+          type="button"
           className="conv-row-inner"
           ref={el => { rowRefs.current[c.id] = el; }}
           onClick={() => openChat(c.id)}
@@ -224,9 +266,9 @@ export default function FlipMode({ cart, listingItem, onNavigateToCart, onNaviga
           </div>
           <div className="conv-right">
             <span className="conv-time">{formatAge(c.createdAt)}</span>
-            {c.pinned && <span className="conv-pin">📌</span>}
+            {c.pinned && <span className="conv-pin" aria-label="Pinned"><PinIcon /></span>}
           </div>
-        </div>
+        </button>
       </div>
     );
   }
@@ -239,14 +281,14 @@ export default function FlipMode({ cart, listingItem, onNavigateToCart, onNaviga
           <span className="flip-chat-title">{activeConv?.itemName ?? 'Chat'}</span>
         </div>
         {inCart && (
-          <div className="flip-banner" role="button" onClick={onNavigateToCart}>
-            🛒 This item is in your cart — tap to view
-          </div>
+          <button type="button" className="flip-banner" onClick={onNavigateToCart}>
+            <CartIcon /> This item is in your cart — tap to view
+          </button>
         )}
         {!inCart && inListing && (
-          <div className="flip-banner" role="button" onClick={onNavigateToListing}>
-            🏷️ Currently in Listing Mode — tap to view
-          </div>
+          <button type="button" className="flip-banner" onClick={onNavigateToListing}>
+            <TagIcon /> Currently in Listing Mode — tap to view
+          </button>
         )}
         <div className="flip-chat-body">
         <ChatThread
@@ -271,7 +313,7 @@ export default function FlipMode({ cart, listingItem, onNavigateToCart, onNaviga
         <div className="flip-conv-list">
           {archivedConvs.length === 0 ? (
             <div className="flip-empty">
-              <span className="empty-icon">🗄️</span>
+              <span className="empty-icon"><ArchiveIcon size={44} /></span>
               <p>No archived conversations</p>
             </div>
           ) : (
@@ -293,7 +335,7 @@ export default function FlipMode({ cart, listingItem, onNavigateToCart, onNaviga
       <div className="flip-conv-list">
         {visible.length === 0 ? (
           <div className="flip-empty">
-            <span className="empty-icon">💬</span>
+            <span className="empty-icon"><ChatIcon size={44} /></span>
             <p>No conversations yet — analyze an item in Shopping or tap + New</p>
           </div>
         ) : (
@@ -312,11 +354,11 @@ export default function FlipMode({ cart, listingItem, onNavigateToCart, onNaviga
             )}
           </>
         )}
-        <div className="conv-archived-row" onClick={() => setView('archived')}>
-          <div className="conv-archived-icon">🗄️</div>
+        <button type="button" className="conv-archived-row" onClick={() => setView('archived')}>
+          <div className="conv-archived-icon"><ArchiveIcon /></div>
           <span className="conv-archived-label">Archived</span>
           <span className="conv-archived-count">{conversations.filter(c => c.archived).length}</span>
-        </div>
+        </button>
       </div>
 
       {renderContextMenu()}

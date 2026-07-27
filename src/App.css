@@ -63,7 +63,6 @@
   color: var(--text-primary);
   padding: 10px 12px;
   font-size: 15px;
-  outline: none;
   transition: border-color 0.15s;
   width: 100%;
 }

@@ -70,7 +70,9 @@ html, body {
 
 /* ── Globals ── */
 * { -webkit-tap-highlight-color: transparent; }
-:focus-visible { outline: 2px solid var(--blue-lt); outline-offset: 2px; border-radius: 4px; }
+/* No border-radius here — the outline already follows the element's own radius,
+   and setting it would square off pill buttons the moment they take focus. */
+:focus-visible { outline: 2px solid var(--blue-lt); outline-offset: 2px; }
 .money { font-variant-numeric: tabular-nums; }
 .lbl { font-size: var(--t-label); letter-spacing: .05em; text-transform: uppercase; color: var(--fg-3); font-weight: 700; }
 input, textarea, select { font-size: var(--t-body); } /* Safari zooms the page below 16px */

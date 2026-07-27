@@ -2,7 +2,18 @@ import { useState } from 'react';
 import { generateListing } from '../utils/webhooks';
 import { markStatus } from '../utils/conversationStore';
 import { useToast } from '../contexts/ToastContext';
+import FourDotMark from './ui/FourDotMark';
 import './CartMode.css';
+
+function CartIcon() {
+  return (
+    <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="9" cy="21" r="1" />
+      <circle cx="20" cy="21" r="1" />
+      <path d="M1 1h4l2.68 13.39a2 2 0 001.99 1.61h9.72a2 2 0 001.98-1.7l1.62-10.3H6" />
+    </svg>
+  );
+}
 
 export default function CartMode({ cart, onRemoveItem, onReadyToList, listingItem, onSaveCurrentAsDraft }) {
   const { showToast } = useToast();
@@ -38,8 +49,11 @@ export default function CartMode({ cart, onRemoveItem, onReadyToList, listingIte
   if (cart.length === 0) {
     return (
       <div className="screen">
+        <div className="cart-header">
+          <h2><FourDotMark />Cart</h2>
+        </div>
         <div className="cart-empty">
-          <span className="empty-icon">🛒</span>
+          <span className="empty-icon"><CartIcon /></span>
           <p>No items yet. Go shopping and tap Add to cart.</p>
         </div>
       </div>
@@ -77,7 +91,7 @@ export default function CartMode({ cart, onRemoveItem, onReadyToList, listingIte
         </div>
       )}
       <div className="cart-header">
-        <h2>{cart.length} {cart.length === 1 ? 'item' : 'items'}</h2>
+        <h2><FourDotMark />{cart.length} {cart.length === 1 ? 'item' : 'items'}</h2>
         <span className="cart-meta">Est. profit: ${totalProfit.toFixed(2)}</span>
       </div>
 

@@ -2,6 +2,14 @@ import { useState, useRef, useEffect, Fragment } from 'react';
 import { sendChatMessage } from '../utils/webhooks';
 import './ChatThread.css';
 
+function ChatIcon() {
+  return (
+    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+    </svg>
+  );
+}
+
 function isSameGroupPrev(messages, i) {
   return i > 0 && messages[i].role === messages[i - 1].role;
 }
@@ -58,7 +66,7 @@ export default function ChatThread({ chatHistory, onUpdateHistory, itemContext }
       <div className="chat-messages" ref={messagesContainerRef}>
         {chatHistory.length === 0 && !isTyping && (
           <div className="chat-empty">
-            <span className="chat-empty-icon">💬</span>
+            <span className="chat-empty-icon"><ChatIcon /></span>
             <span className="chat-empty-text">Ask Flip anything about this item</span>
           </div>
         )}

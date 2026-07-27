@@ -22,8 +22,10 @@
   min-height: 46px;
   width: 100%;
 }
+/* border-color is the resting-focus affordance; the global :focus-visible ring
+   sits on top of it for keyboard users — suppressing the outline here would
+   outrank that ring on specificity and kill it on every input in the app. */
 .ui-input:focus {
-  outline: none;
   border-color: var(--blue);
 }
 .ui-textarea {

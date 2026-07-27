@@ -71,6 +71,8 @@
 
 /* ── Row inner (slides on swipe) ── */
 .conv-row-inner {
+  width: 100%;
+  text-align: left;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -83,6 +85,8 @@
   -webkit-tap-highlight-color: transparent;
 }
 .conv-row-inner:active { background: var(--bg-card); }
+/* .conv-row-wrap clips the swipe backgrounds, which would eat an outset ring */
+.conv-row-inner:focus-visible { outline-offset: -2px; }
 
 /* ── Avatar ── */
 .conv-avatar {
@@ -149,7 +153,7 @@
   flex-shrink: 0;
 }
 .conv-time { font-size: 11px; color: var(--text-muted); }
-.conv-pin  { font-size: 12px; }
+.conv-pin  { display: inline-flex; color: var(--amber); }
 
 /* ── Chat view header ── */
 .flip-chat-header {
@@ -183,6 +187,10 @@
 
 /* ── Banners ── */
 .flip-banner {
+  display: block;
+  width: calc(100% - 32px);
+  box-sizing: border-box;
+  text-align: left;
   background: var(--amber-bg);
   border: 1px solid var(--amber-border);
   border-radius: var(--radius-input);
@@ -219,12 +227,16 @@
   border-bottom: 1px solid var(--border);
   cursor: pointer;
 }
+/* the menu clips to its radius, so the ring has to sit inside the button */
+.flip-context-menu button:focus-visible { outline-offset: -2px; }
 .flip-context-menu button:last-child { border-bottom: none; }
 .flip-context-menu button:active { background: var(--bg-input); }
 .flip-menu-delete { color: #ef4444 !important; }
 
 /* ── Archived row ── */
 .conv-archived-row {
+  width: 100%;
+  text-align: left;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -234,7 +246,7 @@
   -webkit-tap-highlight-color: transparent;
 }
 .conv-archived-row:active { background: var(--bg-card); }
-.conv-archived-icon { font-size: 20px; width: 44px; text-align: center; flex-shrink: 0; }
+.conv-archived-icon { display: flex; align-items: center; justify-content: center; width: 44px; flex-shrink: 0; }
 .conv-archived-label { flex: 1; font-size: 15px; color: var(--text-secondary); }
 .conv-archived-count { font-size: 14px; color: var(--text-muted); }
 
@@ -257,5 +269,5 @@
   padding: 80px 32px;
   text-align: center;
 }
-.flip-empty .empty-icon { font-size: 48px; }
+.flip-empty .empty-icon { display: flex; color: var(--text-muted); }
 .flip-empty p { color: var(--text-secondary); font-size: 15px; line-height: 1.5; }

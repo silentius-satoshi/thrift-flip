@@ -4,7 +4,9 @@
   align-items: baseline;
   margin-bottom: 16px;
 }
-.cart-header h2       { font-size: 18px; font-weight: 600; }
+/* The mark lives inside the h2 (prototype .hd h2) so the header's own
+   align-items: baseline can't knock it out of line with the title. */
+.cart-header h2       { font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 9px; }
 .cart-header .cart-meta { font-size: 13px; color: var(--text-muted); }
 
 .cart-empty {
@@ -15,7 +17,7 @@
   padding: 80px 32px;
   text-align: center;
 }
-.cart-empty .empty-icon { font-size: 48px; }
+.cart-empty .empty-icon { display: flex; color: var(--text-muted); }
 .cart-empty p           { color: var(--text-secondary); font-size: 15px; line-height: 1.5; }
 
 .cart-item-header {

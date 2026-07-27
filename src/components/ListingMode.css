@@ -36,6 +36,7 @@
 .photo-strip::-webkit-scrollbar { display: none; }
 
 .photo-thumb {
+  padding: 0;
   flex-shrink: 0;
   width: 72px;
   height: 72px;
@@ -161,6 +162,8 @@
 /* ── Shipping ── */
 .shipping-options { display: flex; flex-direction: column; gap: 8px; }
 .shipping-option {
+  width: 100%;
+  text-align: left;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -206,7 +209,6 @@
   padding: 10px 12px;
   font-size: 15px;
   width: 100%;
-  outline: none;
   transition: border-color 0.15s;
   appearance: none;
 }
@@ -349,5 +351,5 @@
   padding: 80px 32px;
   text-align: center;
 }
-.listing-empty .empty-icon { font-size: 48px; }
+.listing-empty .empty-icon { display: flex; color: var(--text-muted); }
 .listing-empty p            { color: var(--text-secondary); font-size: 15px; line-height: 1.5; }
