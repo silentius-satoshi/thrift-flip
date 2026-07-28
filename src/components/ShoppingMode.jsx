@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { analyzeItem } from '../utils/ai';
+import { openCamera, stopStream, captureFrame, downscaleFile } from '../utils/camera';
 import * as photoStore from '../utils/photoStore';
 import { saveConversation, markStatus, getConversation } from '../utils/conversationStore';
 import { useToast } from '../contexts/ToastContext';
@@ -21,11 +22,7 @@ import { Shutter, CamSide, PhotoRemoveDot } from './ui/CameraControls';
 import './ShoppingMode.css';
 
 const CONDITIONS = ['Like New', 'Excellent', 'Good', 'Fair'];
-
-// Photos are the one thing that can fill localStorage mid-trip, so they are
-// downscaled at capture — this is also what goes to the model.
-const MAX_PHOTO_EDGE = 1280;
-const PHOTO_QUALITY = 0.8;
+const MAX_PHOTOS = 3;
 
 // Analyze failures get specific copy — never "something went wrong". A wrong
 // diagnosis here sends someone to re-paste a key that was fine all along.
@@ -59,27 +56,6 @@ async function fileToBase64(photo) {
     reader.onload  = e  => resolve(e.target.result.split(',')[1]);
     reader.onerror = reject;
     reader.readAsDataURL(blob);
-  });
-}
-
-// Downscale at capture: a phone photo is ~4MB and localStorage caps near 5MB,
-// so full-size base64 fills it inside a dozen items. Shrinking here shrinks both
-// the stored payload and the request — the persisted base64 is what gets sent.
-function downscaleToBase64(file) {
-  return new Promise((resolve) => {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      const scale = Math.min(1, MAX_PHOTO_EDGE / Math.max(img.width, img.height));
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.round(img.width * scale);
-      canvas.height = Math.round(img.height * scale);
-      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-      URL.revokeObjectURL(url);
-      resolve(canvas.toDataURL('image/jpeg', PHOTO_QUALITY).split(',')[1]);
-    };
-    img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
-    img.src = url;
   });
 }
 
@@ -126,12 +102,15 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
   const { showToast } = useToast();
   const { user } = useUser(); // TODO: check user.plan analysis limits before analyze
 
-  const savedForm    = useRef(loadForm());
-  const savedVerdict = useRef(loadVerdict());
+  // Read once at mount and never written again. Held in state rather than a ref
+  // so the lazy initializers below may legally read it during render — the same
+  // correction VaultGate took at N1-lite, for the same rule.
+  const [savedForm]    = useState(loadForm);
+  const [savedVerdict] = useState(loadVerdict);
 
   const [phase, setPhase] = useState(() => {
-    if (savedVerdict.current?.phase === 'verdict' && savedVerdict.current?.analysisResult) return 'verdict';
-    if (savedVerdict.current?.phase === 'pencil' && savedVerdict.current?.itemId) return 'pencil';
+    if (savedVerdict?.phase === 'verdict' && savedVerdict?.analysisResult) return 'verdict';
+    if (savedVerdict?.phase === 'pencil' && savedVerdict?.itemId) return 'pencil';
     return 'capture';
   });
   // Photos live in IndexedDB since V3, so they cannot be read synchronously in
@@ -140,14 +119,13 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
   // so the capture strip knows how many are coming.
   const [photos, setPhotos] = useState([]);
   const [photosHydrated, setPhotosHydrated] = useState(false);
-  const [details,        setDetails]       = useState(() => savedForm.current?.details       ?? '');
-  const [condition,      setCondition]     = useState(() => savedForm.current?.condition     ?? '');
-  const [goodwillPrice,  setGoodwillPrice] = useState(() => savedForm.current?.goodwillPrice ?? '');
-  const [shipping,       setShipping]      = useState(() => savedForm.current?.shipping ?? String(DEFAULT_SHIPPING));
-  const [analysisResult, setAnalysisResult]= useState(() => savedVerdict.current?.analysisResult ?? null);
-  const [itemId,         setItemId]        = useState(() => savedVerdict.current?.itemId     ?? null);
+  const [details,        setDetails]       = useState(() => savedForm?.details       ?? '');
+  const [condition,      setCondition]     = useState(() => savedForm?.condition     ?? '');
+  const [goodwillPrice,  setGoodwillPrice] = useState(() => savedForm?.goodwillPrice ?? '');
+  const [analysisResult, setAnalysisResult]= useState(() => savedVerdict?.analysisResult ?? null);
+  const [itemId,         setItemId]        = useState(() => savedVerdict?.itemId     ?? null);
   const [chatHistory,    setChatHistory]   = useState(() => {
-    const id = savedVerdict.current?.itemId;
+    const id = savedVerdict?.itemId;
     return id ? (getConversation(id)?.chatHistory ?? []) : [];
   });
   const [errorCode,      setErrorCode]     = useState(null);
@@ -155,10 +133,21 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
   const [whyOpen,        setWhyOpen]       = useState(false);
   const [photoSheetOpen, setPhotoSheetOpen] = useState(false);
 
+  // The live viewfinder. `stream` drives the render; `streamRef` is the
+  // synchronous truth the acquire/release pair needs, since both can run
+  // between two renders.
+  const [stream, setStreamState] = useState(null);
+  const [camFailed, setCamFailed] = useState(false);
+  const camMode = stream ? 'live' : camFailed ? 'fallback' : 'idle';
+
   const fileInputRef = useRef(null);
+  const videoRef     = useRef(null);
+  const streamRef    = useRef(null);
   const photosRef    = useRef([]);
   const reqSeq       = useRef(0);
   const quotaWarned  = useRef(false);
+
+  const setStream = (next) => { streamRef.current = next; setStreamState(next); };
 
   // A blob URL from stored bytes, so a restored photo renders like a fresh one.
   const toPreview = ({ base64, mimeType }) => ({
@@ -171,14 +160,14 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
   });
 
   // Rehydrate the capture strip, and migrate any pre-V3 photos out of the form
-  // on the way. `savedForm` is a ref captured before any effect ran, so the
+  // on the way. `savedForm` was read before any effect ran, so the
   // legacy bytes are still readable here even though the persistence effect
   // below has already rewritten the slimmed form.
   useEffect(() => {
     let live = true;
-    const restoreKey = savedVerdict.current?.itemId ?? photoStore.IN_FLIGHT;
+    const restoreKey = savedVerdict?.itemId ?? photoStore.IN_FLIGHT;
     (async () => {
-      const legacy = savedForm.current?.photoBase64s ?? [];
+      const legacy = savedForm?.photoBase64s ?? [];
       if (legacy.length) {
         const migrated = legacy
           .map(item => (typeof item === 'string'
@@ -193,7 +182,9 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
       .catch(() => { /* a broken store must not take the capture screen down */ })
       .finally(() => { if (live) setPhotosHydrated(true); });
     return () => { live = false; };
-  }, []);
+    // Both are set once and never written again, so listing them keeps this a
+    // mount-only effect while satisfying the rule honestly.
+  }, [savedForm, savedVerdict]);
 
   // Capture writes straight through to the store, under the item's id once it
   // has one and the reserved in-flight key before that.
@@ -217,7 +208,9 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
     // No photo bytes here any more — they are in photoStore. This form was the
     // single biggest thing in localStorage and the first thing a real trip
     // would have broken (plan §6.1).
-    shoppingService.setForm({ details, condition, goodwillPrice, shipping, photoCount: photos.length }).then(written => {
+    // `shipping` left this blob at M2 — the key is unchanged, the field simply
+    // stops being written, and a stale one in an old blob stops being read.
+    shoppingService.setForm({ details, condition, goodwillPrice, photoCount: photos.length }).then(written => {
       // A full quota is a silent write failure otherwise — and the thing lost is
       // the capture in progress. Latched so it warns once, not once per keystroke.
       if (written === false && !quotaWarned.current) {
@@ -227,7 +220,7 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
         quotaWarned.current = false;
       }
     });
-  }, [details, condition, goodwillPrice, shipping, photos, showToast]);
+  }, [details, condition, goodwillPrice, photos, showToast]);
 
   useEffect(() => {
     if (phase === 'pencil' && itemId) {
@@ -241,21 +234,106 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
   // Layout effect so in-session phase transitions repaint App before the frame (no nav pop).
   useLayoutEffect(() => { onCamActive?.(phase === 'capture'); }, [phase, onCamActive]);
 
+  // The camera runs only while the capture screen is up, and only while the app
+  // is in front. iOS reclaims the stream on backgrounding, so re-acquiring on
+  // return is the ordinary path rather than error handling — but a *failed*
+  // acquisition is terminal for this visit. It means no camera or a declined
+  // permission, and asking again would be a nag; the file input is the flow
+  // that worked before any of this existed.
+  useEffect(() => {
+    if (phase !== 'capture') return undefined;
+    let cancelled = false;
+
+    function release() {
+      stopStream(streamRef.current);
+      setStream(null);
+    }
+
+    async function acquire() {
+      if (cancelled || streamRef.current || document.visibilityState === 'hidden') return;
+      const result = await openCamera();
+      // The permission sheet can outlive the screen that asked for it.
+      if (cancelled || document.visibilityState === 'hidden') return stopStream(result.stream);
+      if (!result.ok) return setCamFailed(true);
+      for (const track of result.stream.getTracks()) track.addEventListener('ended', onTrackEnded);
+      setCamFailed(false);
+      setStream(result.stream);
+    }
+
+    function onTrackEnded() {
+      if (cancelled) return;
+      release();
+      acquire();
+    }
+
+    function onVisibility() {
+      if (document.visibilityState === 'hidden') release();
+      else acquire();
+    }
+
+    acquire();
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      cancelled = true;
+      document.removeEventListener('visibilitychange', onVisibility);
+      release();
+    };
+  }, [phase]);
+
+  // srcObject has no React prop, and the element only exists once the stream
+  // has caused a render — so the assignment belongs in an effect, not in acquire.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.srcObject = stream;
+    // Muted + playsInline, so a refusal here means no preview rather than a
+    // policy violation; either way it must not take the screen down.
+    if (stream) video.play?.().catch(() => {});
+  }, [stream]);
+
+  // The one place the cap lives, so it cannot drift between the two ways a
+  // photo now arrives. `offered` is how many were handed over before the caller
+  // trimmed them, which is what decides whether to say anything.
+  function addPhotos(incoming, offered = incoming.length) {
+    if (offered > MAX_PHOTOS - photos.length) showToast(`Maximum ${MAX_PHOTOS} photos allowed`, 'error');
+    if (!incoming.length) return;
+    // Clamped inside the updater too: two shutter taps in the same frame would
+    // otherwise both read the same stale length.
+    setPhotos(prev => [...prev, ...incoming].slice(0, MAX_PHOTOS));
+  }
+
   async function handlePhotoChange(e) {
     const files = Array.from(e.target.files);
-    const remaining = 3 - photos.length;
-    if (files.length > remaining) showToast('Maximum 3 photos allowed', 'error');
-    const taken = files.slice(0, remaining);
-    const newPhotos = await Promise.all(taken.map(async f => {
+    const room = Math.max(0, MAX_PHOTOS - photos.length);
+    const newPhotos = await Promise.all(files.slice(0, room).map(async f => {
       const previewUrl = URL.createObjectURL(f);
-      const downscaled = await downscaleToBase64(f);
+      const downscaled = await downscaleFile(f);
       // Canvas re-encodes to JPEG; fall back to the original bytes if it fails
       return downscaled
         ? { file: f, previewUrl, base64: downscaled, mimeType: 'image/jpeg' }
         : { file: f, previewUrl, base64: await fileToBase64({ previewUrl }), mimeType: f.type || 'image/jpeg' };
     }));
-    setPhotos(prev => [...prev, ...newPhotos]);
+    addPhotos(newPhotos, files.length);
     e.target.value = '';
+  }
+
+  // One tap. Live: grab the frame that is already on screen. Anything else:
+  // the native camera, exactly as before this existed.
+  async function handleShutter() {
+    if (camMode !== 'live') return fileInputRef.current?.click();
+    const frame = await captureFrame(videoRef.current);
+    if (!frame) return; // no frame yet — a tap that would save black does nothing
+    const file = frame.blob
+      ? new File([frame.blob], `capture-${Date.now()}.jpg`, { type: frame.mimeType })
+      : null;
+    addPhotos([{
+      file,
+      // A data URL when there is no blob to point at; revoking one is a no-op,
+      // which is why the cleanup's `file !== null` test stays correct.
+      previewUrl: file ? URL.createObjectURL(file) : `data:${frame.mimeType};base64,${frame.base64}`,
+      base64: frame.base64,
+      mimeType: frame.mimeType,
+    }]);
   }
 
   function handleRemovePhoto(index) {
@@ -275,7 +353,7 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
       const price = parseFloat(goodwillPrice);
       const result = await analyzeItem({
         photoBase64s, mimeTypes, details, condition,
-        goodwillPrice: price, shipping: shippingCost(),
+        goodwillPrice: price,
       });
       if (reqSeq.current !== myReq) return; // stale — skipped, carted, or reset mid-flight
       saveConversation(id, details.slice(0, 60) || 'Item', result.chatHistory || [], { details, condition, goodwillPrice: price });
@@ -332,11 +410,13 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
   function handleAddToCart() {
     reqSeq.current++; // invalidate any in-flight verdict — no stamped flash during the toast window
     const gp = parseFloat(goodwillPrice);
-    const ship = shippingCost();
     let payload;
     if (phase === 'verdict' && analysisResult) {
       const { estSellPrice, fees, netProfit, soldCount, sellThroughRate, avgDaysToSell, activeListings,
               listing, listingMercari } = analysisResult;
+      // The model's clamped estimate, already spent in `fees` and `netProfit`
+      // by adapt() — recomputing it here would let the two disagree.
+      const ship = analysisResult.shipping ?? DEFAULT_SHIPPING;
       payload = {
         id: itemId,
         name: details.slice(0, 60) || 'Unnamed Item',
@@ -359,7 +439,10 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
         chatHistory,
       };
     } else {
-      // Pencil-phase add: local figures only; the verdict reconciliation flags this item later
+      // Pencil-phase add: local figures only; the verdict reconciliation flags
+      // this item later. No analysis means no shipping estimate, so the house
+      // default stands in — as it did for every pencil item before M2.
+      const ship = DEFAULT_SHIPPING;
       const floor = pencilFloor(gp, ship);
       const { ebayFee, net } = calcProfit(floor, gp, ship);
       payload = {
@@ -400,7 +483,6 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
     setDetails('');
     setCondition('');
     setGoodwillPrice('');
-    setShipping(String(DEFAULT_SHIPPING));
     setAnalysisResult(null);
     setChatHistory([]);
     setItemId(null);
@@ -408,12 +490,6 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
     setWhyOpen(false);
     setPhotoSheetOpen(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
-  }
-
-  // A cleared field means "unset", not "free" — calculations.js applies the default
-  function shippingCost() {
-    const n = parseFloat(shipping);
-    return Number.isFinite(n) ? n : DEFAULT_SHIPPING;
   }
 
   const lastPhoto = photos[photos.length - 1];
@@ -431,9 +507,18 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
           onChange={handlePhotoChange}
         />
         <div className="buy-vf">
-          {lastPhoto && <img className="buy-vf-backdrop" src={lastPhoto.previewUrl} alt="" />}
-          <i className="buy-bk buy-bk1" /><i className="buy-bk buy-bk2" />
-          <i className="buy-bk buy-bk3" /><i className="buy-bk buy-bk4" />
+          {camMode !== 'fallback' && (
+            <video ref={videoRef} className="buy-vf-video" autoPlay playsInline muted />
+          )}
+          {/* Only the fallback needs framing help — with a live preview the
+              brackets would sit over the thing they were standing in for. */}
+          {camMode === 'fallback' && (
+            <>
+              {lastPhoto && <img className="buy-vf-backdrop" src={lastPhoto.previewUrl} alt="" />}
+              <i className="buy-bk buy-bk1" /><i className="buy-bk buy-bk2" />
+              <i className="buy-bk buy-bk3" /><i className="buy-bk buy-bk4" />
+            </>
+          )}
         </div>
         <div className="buy-details">
           <Input
@@ -446,6 +531,9 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
               <Chip key={c} selected={condition === c} onPress={() => setCondition(c)}>{c}</Chip>
             ))}
           </div>
+          {/* Shipping used to sit beside this. Nobody can weigh a lamp in an
+              aisle, so the model estimates it now and the verdict shows what it
+              assumed. The sticker price is the one number Dad can actually read. */}
           <div className="buy-money-row">
             <Input
               type="number"
@@ -455,16 +543,6 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
               placeholder="Goodwill price $0.00"
               value={goodwillPrice}
               onChange={e => setGoodwillPrice(e.target.value)}
-            />
-            <Input
-              type="number"
-              inputMode="decimal"
-              min="0"
-              step="0.01"
-              aria-label="Shipping cost"
-              placeholder={`Ship $${DEFAULT_SHIPPING}`}
-              value={shipping}
-              onChange={e => setShipping(e.target.value)}
             />
           </div>
           {photos.length > 0 && (
@@ -479,10 +557,10 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
           ) : (
             <span className="buy-cam-spacer" />
           )}
-          <Shutter onClick={() => fileInputRef.current?.click()} aria-label="Take photo" />
+          <Shutter onClick={handleShutter} aria-label="Take photo" />
           <CamSide onClick={onGoToSelling} aria-label="Selling"><ChartIcon /></CamSide>
         </div>
-        <Sheet open={photoSheetOpen} onClose={() => setPhotoSheetOpen(false)} title={`Photos · ${photos.length} / 3`}>
+        <Sheet open={photoSheetOpen} onClose={() => setPhotoSheetOpen(false)} title={`Photos · ${photos.length} / ${MAX_PHOTOS}`}>
           <div className="buy-sheet-strip">
             {photos.map((p, i) => (
               <div key={i} className="buy-sheet-thumb">
@@ -491,7 +569,7 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
               </div>
             ))}
           </div>
-          {photos.length < 3 && (
+          {photos.length < MAX_PHOTOS && (
             <Button variant="outline" full onClick={() => fileInputRef.current?.click()}>Add another photo</Button>
           )}
         </Sheet>
@@ -501,7 +579,9 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
 
   function renderPencil() {
     const gp = parseFloat(goodwillPrice) || 0;
-    const ship = shippingCost();
+    // No analysis has come back, so there is no estimate to use — this is the
+    // house figure, and the panel says so rather than implying it was measured.
+    const ship = DEFAULT_SHIPPING;
     const floor = pencilFloor(gp, ship);
     const feesAtFloor = calcProfit(floor, gp, ship).ebayFee;
     const noKey = errorCode === 'no-key';
@@ -518,7 +598,7 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
             ${floor.toFixed(2)}<span className="buy-floor-suffix"> or more</span>
           </div>
           <PanelRow label="Paid at Goodwill" value={`−$${gp.toFixed(2)}`} />
-          <PanelRow label="Fees + shipping at that price" value={`−$${(feesAtFloor + ship).toFixed(2)}`} />
+          <PanelRow label={`Fees + shipping (est. $${ship})`} value={`−$${(feesAtFloor + ship).toFixed(2)}`} />
           <PanelRow label="Your rules — 3× and $20 net" value={`$${floor.toFixed(2)} floor`} />
           <div className="buy-floor-q">Would a buyer pay ${Math.ceil(floor)}?</div>
         </Panel>
@@ -608,8 +688,11 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
 
   function renderVerdict() {
     const gp = parseFloat(goodwillPrice) || 0;
-    const ship = shippingCost();
     const { estSellPrice, fees, netProfit, confidence } = analysisResult;
+    // What adapt() actually spent, and whose number it was. Items analyzed
+    // before M2 carry neither, and fall back to the house figure unlabelled.
+    const ship = analysisResult.shipping ?? DEFAULT_SHIPPING;
+    const shipFromModel = analysisResult.shippingFromModel === true;
     const { rule1, rule2, verdict } = checkRules(estSellPrice, gp, netProfit);
     const go = verdict === 'buy';
     const goDetail = confidence && confidence !== 'high'
@@ -637,7 +720,7 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
         <Panel title="Your earnings">
           <PanelRow label="Item price" value={`$${estSellPrice.toFixed(2)}`} onValueTap={go ? () => setWhyOpen(true) : undefined} />
           <PanelRow label="Selling costs · 13.25% + $0.30" value={`−$${fees.toFixed(2)}`} />
-          <PanelRow label="Shipping label" value={`−$${ship.toFixed(2)}`} />
+          <PanelRow label={shipFromModel ? 'Shipping label · AI estimate' : 'Shipping label'} value={`−$${ship.toFixed(2)}`} />
           <PanelRow label="Paid at Goodwill" value={`−$${gp.toFixed(2)}`} />
           <PanelTotal label="You'd keep" value={`$${netProfit.toFixed(2)}`} tone={go ? 'green' : 'red'} />
           <div className="buy-checks">

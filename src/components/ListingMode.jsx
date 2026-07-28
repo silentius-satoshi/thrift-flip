@@ -109,20 +109,28 @@ export default function ListingMode({ listingItem, listingData, onClearListing, 
   const { showToast } = useToast();
   const { user } = useUser(); // TODO: check user.plan listing limits before sendToEbay
 
-  // Captured once per mount — shared across all lazy initializers below
-  const savedEdits = useRef(loadEdits());
+  // Captured once per mount and never written again — shared across all the
+  // lazy initializers below. Held in state rather than a ref so reading it
+  // during render is legal, the same correction ShoppingMode took at M2.
+  const [savedEdits] = useState(loadEdits);
 
   const [photos, setPhotos] = useState(() =>
-    (savedEdits.current?.photos ?? []).map(dataUrl => ({ dataUrl }))
+    (savedEdits?.photos ?? []).map(dataUrl => ({ dataUrl }))
   );
-  const [title, setTitle] = useState(() => savedEdits.current?.title ?? '');
-  const [selectedCondition, setSelectedCondition] = useState(() => savedEdits.current?.selectedCondition ?? 'Good');
-  const [price, setPrice] = useState(() => savedEdits.current?.price ?? '');
-  const [qty, setQty] = useState(() => savedEdits.current?.qty ?? '1');
-  const [description, setDescription] = useState(() => savedEdits.current?.description ?? '');
-  const [specifics, setSpecifics] = useState(() => savedEdits.current?.specifics ?? { Brand: '', Model: '', Size: '', Color: '', Material: '', MPN: '' });
-  const [selectedShipping, setSelectedShipping] = useState(() => savedEdits.current?.selectedShipping ?? 'calculated');
-  const [selectedCategory, setSelectedCategory] = useState(() => savedEdits.current?.selectedCategory ?? CATEGORIES[0]);
+  const [title, setTitle] = useState(() => savedEdits?.title ?? '');
+  const [selectedCondition, setSelectedCondition] = useState(() => savedEdits?.selectedCondition ?? 'Good');
+  const [price, setPrice] = useState(() => savedEdits?.price ?? '');
+  const [qty, setQty] = useState(() => savedEdits?.qty ?? '1');
+  const [description, setDescription] = useState(() => savedEdits?.description ?? '');
+  const [specifics, setSpecifics] = useState(() => savedEdits?.specifics ?? { Brand: '', Model: '', Size: '', Color: '', Material: '', MPN: '' });
+  const [selectedShipping, setSelectedShipping] = useState(() => savedEdits?.selectedShipping ?? 'calculated');
+  // The cost, not the method. Since M2 it arrives as the model's estimate made
+  // in a Goodwill aisle; at home there is a scale, so it is editable — and what
+  // he settles on here is what the profit math and E3's Earnings both record.
+  const [shippingCost, setShippingCost] = useState(() =>
+    savedEdits?.shippingCost ?? String(listingItem?.shipping ?? DEFAULT_SHIPPING));
+  const [shippingEdited, setShippingEdited] = useState(() => savedEdits?.shippingEdited ?? false);
+  const [selectedCategory, setSelectedCategory] = useState(() => savedEdits?.selectedCategory ?? CATEGORIES[0]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sendErrors, setSendErrors] = useState(null); // { fieldErrors, general }
   const [ebayConnected, setEbayConnected] = useState(undefined);
@@ -136,7 +144,7 @@ export default function ListingMode({ listingItem, listingData, onClearListing, 
   // Only populate from listingData if the user has no saved edits (first time this listing opens)
   useEffect(() => {
     if (!listingData) return;
-    if (savedEdits.current) return;
+    if (savedEdits) return;
     setTitle(listingData.title || '');
     setDescription(listingData.description || '');
     setPrice(listingData.price ? String(listingData.price) : '');
@@ -145,19 +153,21 @@ export default function ListingMode({ listingItem, listingData, onClearListing, 
     if (listingData.specifics) {
       setSpecifics(prev => ({ ...prev, ...listingData.specifics }));
     }
-  }, [listingData]);
+    // `savedEdits` is read once at mount and never written, so listing it
+    // changes nothing about when this runs.
+  }, [listingData, savedEdits]);
 
   // Persist all editable fields on every change
   useEffect(() => {
     const edits = {
       title, selectedCondition, price, qty, description,
-      specifics, selectedShipping, selectedCategory,
+      specifics, selectedShipping, selectedCategory, shippingCost, shippingEdited,
       photos: photos.map(p => p.dataUrl),
     };
     listingEditsService.set(edits).then(ok => {
       if (!ok) listingEditsService.set({ ...edits, photos: [] });
     });
-  }, [title, selectedCondition, price, qty, description, specifics, selectedShipping, selectedCategory, photos]);
+  }, [title, selectedCondition, price, qty, description, specifics, selectedShipping, selectedCategory, shippingCost, shippingEdited, photos]);
 
   function handleAddPhotos(e) {
     const files = Array.from(e.target.files);
@@ -238,12 +248,12 @@ export default function ListingMode({ listingItem, listingData, onClearListing, 
         title,
         price: parseFloat(price) || 0,
         goodwillPrice: listingItem?.goodwillPrice ?? 0,
-        estProfit: calcProfit(parseFloat(price) || 0, listingItem?.goodwillPrice ?? 0, listingItem?.shipping ?? DEFAULT_SHIPPING).net,
+        estProfit: calcProfit(parseFloat(price) || 0, listingItem?.goodwillPrice ?? 0, itemShipping).net,
         condition: selectedCondition,
         category: selectedCategory,
-        // The item's real shipping, so E3's Earnings is not a guess. Without it
-        // calcProfit falls back to $5.00 — the optimism V3 just removed.
-        shipping: listingItem?.shipping,
+        // The cost he confirmed at home, so E3's Earnings is neither a guess nor
+        // calcProfit's $5.00 default — the optimism V3 removed.
+        shipping: itemShipping,
         sentAt: Date.now(),
         status: 'draft_sent',
         // The real offer, and the SKU E3 matches sold orders back by (ebay §7).
@@ -280,7 +290,7 @@ export default function ListingMode({ listingItem, listingData, onClearListing, 
       category: selectedCategory,
       photos: photos.map(p => ({ dataUrl: p.dataUrl, mimeType: 'image/jpeg' })),
       goodwillPrice: listingItem?.goodwillPrice ?? 0,
-      estProfit: calcProfit(parseFloat(price) || 0, listingItem?.goodwillPrice ?? 0, listingItem?.shipping ?? DEFAULT_SHIPPING).net,
+      estProfit: calcProfit(parseFloat(price) || 0, listingItem?.goodwillPrice ?? 0, itemShipping).net,
       source: 'manual',
     });
     showToast('Draft saved', 'success');
@@ -289,11 +299,14 @@ export default function ListingMode({ listingItem, listingData, onClearListing, 
   const mercari = listingItem?.listingMercari ?? null;
   const sellPrice = parseFloat(price) || 0;
   const goodwillPrice = listingItem?.goodwillPrice || 0;
-  // The item's OWN shipping, not calcProfit's $5.00 default. Omitting it made
-  // this number disagree with the verdict screen's for the same item, by about
-  // $7 in the optimistic direction — the editor is the last place a profit
-  // figure should flatter itself.
-  const itemShipping = listingItem?.shipping;
+  // The confirmed cost, not calcProfit's $5.00 default. Omitting it made this
+  // number disagree with the verdict screen's for the same item, by about $7 in
+  // the optimistic direction — the editor is the last place a profit figure
+  // should flatter itself. An unparseable field means "unset", not "free".
+  const parsedShipping = parseFloat(shippingCost);
+  const itemShipping = Number.isFinite(parsedShipping)
+    ? parsedShipping
+    : (listingItem?.shipping ?? DEFAULT_SHIPPING);
   const { net: liveProfit } = calcProfit(sellPrice, goodwillPrice, itemShipping);
   const { rule1: keeps3x, rule2: keeps20 } = checkRules(sellPrice, goodwillPrice, liveProfit);
   const rulesMissed = sellPrice > 0 && (!keeps3x || !keeps20);
@@ -571,6 +584,25 @@ export default function ListingMode({ listingItem, listingData, onClearListing, 
       {/* Shipping */}
       <div className="listing-section">
         <div className="listing-section-title">Shipping</div>
+        {/* What it costs, above how it is charged. This is the figure the
+            verdict was decided on — estimated by the model at the shelf, and
+            correctable here, where there is a scale. It feeds "You'd keep" and
+            it is what Selling records as the real cost after the sale. */}
+        <Field
+          label="Shipping cost"
+          hint={shippingEdited ? 'yours' : '✦ AI estimate'}
+          className="shipping-cost-field"
+        >
+          <Input
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="0.01"
+            aria-label="Shipping cost"
+            value={shippingCost}
+            onChange={(e) => { setShippingCost(e.target.value); setShippingEdited(true); }}
+          />
+        </Field>
         <div className="shipping-options">
           {SHIPPING_OPTIONS.map(opt => (
             <Row

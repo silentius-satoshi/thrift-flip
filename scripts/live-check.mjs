@@ -370,7 +370,10 @@ function buildReport(rows, anchor, stamp) {
     const regs = row.ungrounded.ok
       ? `${row.ungrounded.result.listing?.title ? 'eBay' : '—'} / ${row.ungrounded.result.listingMercari?.title ? 'Mercari' : '—'}`
       : '—';
-    return `| ${i + 1} | ${row.item.slug} | ${idCell(row, 'ungrounded')} | ${idCell(row, 'grounded')} | ${cond} | ${money(uEst)} | ${money(gEst)} | ${truth} | ${within(uEst)} / ${within(gEst)} | ${conf} | ${regs} | ${row.grounded.ok ? row.grounded.queries.length : '—'} |`;
+    // Reported, never scored: the fixtures carry no weighed postage, so any
+    // grade would be invented. M2 spends this number, so it gets looked at.
+    const ship = row.ungrounded.ok ? money(row.ungrounded.result.shipping) : '—';
+    return `| ${i + 1} | ${row.item.slug} | ${idCell(row, 'ungrounded')} | ${idCell(row, 'grounded')} | ${cond} | ${money(uEst)} | ${money(gEst)} | ${truth} | ${within(uEst)} / ${within(gEst)} | ${ship} | ${conf} | ${regs} | ${row.grounded.ok ? row.grounded.queries.length : '—'} |`;
   }).join('\n');
 
   const hitRate = (arm) => {
@@ -388,11 +391,16 @@ _Model: \`${GEMINI_MODEL}\`. Items: ${rows.length}. Grounded search queries bill
 
 **${gatePass ? 'PASS' : 'FAIL'}** — ${coreCorrect}/${core.length} core items correct on brand+model (need ${CORE_GATE} of ${CORE_SLUGS.length}).
 ${core.length < CORE_SLUGS.length ? `\n> Missing fixtures for: ${CORE_SLUGS.filter((s) => !core.some((r) => r.item.slug === s)).join(', ')}. The gate cannot pass until all five exist.\n` : ''}
-| # | Item | Ungrounded ID | Grounded ID | Condition | Est. (ungrounded) | Est. (grounded) | Real sold median | Within range U/G | ID confidence | Registers | Search queries |
-|---|---|---|---|---|---|---|---|---|---|---|---|
+| # | Item | Ungrounded ID | Grounded ID | Condition | Est. (ungrounded) | Est. (grounded) | Real sold median | Within range U/G | Shipping est. | ID confidence | Registers | Search queries |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
 ${sheet}
 
 Sold-range hit rate — ungrounded **${hitRate('ungrounded')}**, grounded **${hitRate('grounded')}**.
+
+**Shipping est.** is \`pricing.shipping_estimate\` after M2's [4, 100] clamp — the
+figure the verdict actually spends now that the capture screen no longer asks
+for one. It is **unscored**: the fixtures have no weighed postage to score it
+against, so read the column for anything absurd rather than for a percentage.
 
 ## Calibration — does stated confidence track accuracy?
 

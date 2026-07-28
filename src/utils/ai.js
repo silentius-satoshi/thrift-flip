@@ -1,7 +1,7 @@
 // Direct client call to Gemini on the user's own key — no middleman, no server.
 // Errors thrown from here carry a { code } and nothing else: never the key, never
 // the request URL, never the raw response body.
-import { GEMINI_MODEL } from '../config/gemini';
+import { GEMINI_MODEL, DEFAULT_SHIPPING } from '../config/gemini';
 import { SYSTEM_PROMPT, CHAT_PROMPT } from '../config/prompt';
 import { RESPONSE_SCHEMA } from '../config/schema';
 import { credentialStore } from './credentials';
@@ -81,6 +81,29 @@ function readJsonPart(data) {
   }
 }
 
+// A shipping cost the model estimated, made safe to spend money against.
+//
+// M2 moved this number off the capture screen — standing in an aisle holding an
+// unweighed object, Dad cannot know it, and a wrong guess there moves the buy
+// decision. The clamp is the whole guard: a hallucinated 0 would make every
+// item look profitable, and a hallucinated 900 would make every item a skip.
+// Outside [4, 100] the model is not estimating postage, so its number is
+// discarded rather than trusted at the boundary.
+export const SHIPPING_MIN = 4;
+export const SHIPPING_MAX = 100;
+
+export function resolveShipping(pricing, fallback = DEFAULT_SHIPPING) {
+  const raw = pricing?.shipping_estimate;
+  // Number(null) and Number('') are both 0 — which would clamp to the floor and
+  // read on screen as a real $4 estimate, the cheapest possible, flattering
+  // every verdict. An absent figure has to stay absent, so the shape is checked
+  // before the value is coerced.
+  if (typeof raw !== 'number' && (typeof raw !== 'string' || raw.trim() === '')) return fallback;
+  const estimate = Number(raw);
+  if (!Number.isFinite(estimate)) return fallback;
+  return Math.min(SHIPPING_MAX, Math.max(SHIPPING_MIN, estimate));
+}
+
 // Maps the model's schema onto the shape the verdict screen already consumes,
 // so ShoppingMode stays composition. Sold-comps fields are null/empty at V1 —
 // comps are model-only until V2's ladder.
@@ -88,6 +111,11 @@ function adapt(parsed, { goodwillPrice, shipping, comps }) {
   const pricing = parsed.pricing ?? {};
   const estSellPrice = Number(pricing.estimate);
   if (!Number.isFinite(estSellPrice)) throw err('bad-response');
+  // Whose number this is has to travel with it. adapt() always produces a
+  // shipping figure, so its presence proves nothing — and a house default shown
+  // as "AI estimate" is the exact dishonesty the label exists to prevent.
+  const modelShipping = resolveShipping(pricing, null);
+  shipping = modelShipping ?? shipping;
   const { ebayFee, net } = calcProfit(estSellPrice, goodwillPrice, shipping);
   const confidence = pricing.confidence ?? 'low';
   const rationale = pricing.rationale ?? '';
@@ -100,6 +128,8 @@ function adapt(parsed, { goodwillPrice, shipping, comps }) {
     estSellPrice,
     fees: ebayFee,
     shipping,
+    // False for anything analyzed before M2's schema, so those keep the plain label.
+    shippingFromModel: modelShipping !== null,
     netProfit: net,
     priceRange: [Number(pricing.range_low), Number(pricing.range_high)],
     confidence,
@@ -124,7 +154,12 @@ function adapt(parsed, { goodwillPrice, shipping, comps }) {
   };
 }
 
-export async function analyzeItem({ photoBase64s = [], mimeTypes = [], details, condition, goodwillPrice, shipping }) {
+export async function analyzeItem({
+  photoBase64s = [], mimeTypes = [], details, condition, goodwillPrice,
+  // Only reached when the model returns no usable shipping_estimate — since M2
+  // there is no field on the capture screen for a caller to pass instead.
+  shipping = DEFAULT_SHIPPING,
+}) {
   const key = await getAiKey();
   if (!key) throw err('no-key');
 

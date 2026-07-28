@@ -1,6 +1,6 @@
 /* ── Layout utilities ── */
 .screen {
-  padding: 16px var(--gutter) calc(var(--nav-total) + 16px);
+  padding: calc(16px + var(--safe-t)) var(--gutter) calc(var(--nav-total) + 16px);
   min-height: 100dvh;
 }
 

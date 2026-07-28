@@ -81,7 +81,9 @@ a good buy at their price is arithmetic done elsewhere.
 
 ## 4. Response schema — paste this
 
-`listing_mercari` is deliberately omitted; it's a V1.5 concern and adds output tokens V0 doesn't need.
+`listing_mercari` is deliberately omitted; it's a V1.5 concern and adds output tokens V0 doesn't need. That omission is why this block is **not** a byte-for-byte copy of `src/config/schema.js` — the `pricing` block below matches it exactly, and the rest is V0's deliberate subset.
+
+`pricing.shipping_estimate` arrived at **M2**, when the Ship field left the capture screen: nobody can weigh a lamp standing in a Goodwill aisle. Its instruction rides the `description` rather than the prompt for the same reason `listing_mercari`'s register rules do — the system prompt in §3 is the byte-verbatim prompt of record.
 
 ```json
 {
@@ -138,9 +140,13 @@ a good buy at their price is arithmetic done elsewhere.
         "range_low": { "type": "number" },
         "range_high": { "type": "number" },
         "confidence": { "type": "string", "enum": ["high", "medium", "low"] },
-        "rationale": { "type": "string" }
+        "rationale": { "type": "string" },
+        "shipping_estimate": {
+          "type": "number",
+          "description": "Estimated cost in USD to ship this item domestically, packaging included, at typical USPS/UPS retail rates."
+        }
       },
-      "required": ["estimate", "range_low", "range_high", "confidence", "rationale"]
+      "required": ["estimate", "range_low", "range_high", "confidence", "rationale", "shipping_estimate"]
     },
     "strategy": {
       "type": "object",

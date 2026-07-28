@@ -28,6 +28,11 @@ img { display: block; max-width: 100%; }
   /* Layout — single source of truth for the bottom chrome */
   --nav-h:56px; --bar-h:64px;
   --safe-b:env(safe-area-inset-bottom,0px);
+  /* M2: installed, with viewport-fit=cover and a translucent status bar, the
+     web view runs under the island. Everything that touches the top of the
+     viewport pads by this — the inset is 0 in a browser tab and in every
+     emulator, so the chains have to collapse cleanly to nothing. */
+  --safe-t:env(safe-area-inset-top,0px);
   --nav-total:calc(var(--nav-h) + var(--safe-b));
   --gutter:16px; --column:390px;
   /* Motion */

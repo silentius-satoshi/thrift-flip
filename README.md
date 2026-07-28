@@ -7,6 +7,7 @@ A mobile-first dark mode React app for resellers who shop at Goodwill and sell o
 - **React 19** + **Vite 8** — no TypeScript
 - **Plain CSS** — a token system in `src/index.css` and a shared component layer in `src/components/ui/`; screen CSS is layout glue only
 - **Direct `fetch` to Gemini** — analysis goes straight from the device on your own key, with nothing in between
+- **A live viewfinder** — `getUserMedia` streams the rear camera into the capture screen and the shutter grabs a frame; if the camera is refused or absent it falls back to the native one, which is where every photo came from before M2
 - **Two stateless relays** (`api/ebay/*`) — eBay serves no CORS headers and its token exchange needs a client secret, so a thin relay is unavoidable. It stores nothing
 - **React state + localStorage + IndexedDB** — no Redux, no external state library. Photos and encrypted credentials live in IndexedDB
 - **A hand-rolled service worker** (`src/sw.js`, no build plugins beyond a 25-line one in `vite.config.js`) — installed to the home screen, the app **boots with no network at all**, which is the whole point of a pencil floor figured on the phone
@@ -75,11 +76,12 @@ npm run build
 Two harnesses sit outside `npm test`, both dev-only and neither a dependency:
 
 - `scripts/live-check.mjs` runs real analyses against labeled fixtures and scores identification, anchoring and calibration. It takes keys from the environment only.
-- `scripts/mobile-check.mjs` builds, serves `dist/`, and proves offline boot, the service worker's caching rules and its deploy purge, then sweeps every screen at 390×844 for overflow, sub-44px tap targets and misplaced fixed chrome. Needs a browser for the run and nothing afterwards:
+- `scripts/mobile-check.mjs` builds, serves `dist/`, and proves offline boot, the service worker's caching rules and its deploy purge, the live viewfinder and its fallback, and the shipping estimate's clamp — then sweeps every screen at 360×800, 375×667, 390×844 and 430×932 for overflow, sub-44px tap targets and misplaced fixed chrome. Needs a browser for the run and nothing afterwards:
 
   ```bash
   npm i --no-save playwright-core && npx playwright-core install chromium
-  node scripts/mobile-check.mjs          # --pwa or --sweep for one suite
+  node scripts/mobile-check.mjs                      # everything
+  node scripts/mobile-check.mjs --camera --shipping  # or one suite at a time
   ```
 
 See `docs/v1-live-check-runbook.md`.
@@ -95,10 +97,11 @@ See `docs/v1-live-check-runbook.md`.
 - [x] Real chat on the analysis, with the photos in context (V3)
 - [x] Sold orders flowing back into Selling; comps tier 0 from your own sales (E3–E4)
 - [x] Offline boot and a measured mobile pass — the installed app opens with no signal (M1)
+- [x] Live viewfinder, shipping estimated by the model instead of guessed in the aisle, safe areas (M2)
 - [ ] Comps tiers A and B — sold-listing search beyond your own history (V2)
 - [ ] Multi-device sync and portable identity (Nostr N1–N6, deferred)
 
-**The build is complete; the verification is not.** Ten checks need a real
+**The build is complete; the verification is not.** Eleven checks need a real
 phone, a real key and a sandbox account — they are indexed in
 `docs/v1-live-check-runbook.md` §10 and every one is still unrun. Start with
 §11a: on iOS, adding the app to the home screen *after* adding your key leaves

@@ -82,8 +82,17 @@ export const RESPONSE_SCHEMA = {
         range_high: { type: 'NUMBER' },
         confidence: { type: 'STRING', enum: ['high', 'medium', 'low'] },
         rationale: { type: 'STRING' },
+        // M2: the one number Dad cannot know in an aisle, holding an unweighed
+        // object. It replaced a Ship field on the capture screen. Instruction in
+        // the description for the same reason listing_mercari's rules are —
+        // the system prompt is the byte-verbatim prompt of record (v0 §3).
+        shipping_estimate: {
+          type: 'NUMBER',
+          description: 'Estimated cost in USD to ship this item domestically, packaging '
+            + 'included, at typical USPS/UPS retail rates.',
+        },
       },
-      required: ['estimate', 'range_low', 'range_high', 'confidence', 'rationale'],
+      required: ['estimate', 'range_low', 'range_high', 'confidence', 'rationale', 'shipping_estimate'],
     },
     strategy: {
       type: 'OBJECT',

@@ -2,7 +2,11 @@
 //
 //   --pwa    offline boot, cache discipline, and the rebuild purge
 //   --dev    that the worker cannot outlive a preview and freeze `npm run dev`
-//   --sweep  a 390x844 pass over every screen: overflow, tap targets, chrome
+//   --camera the live viewfinder, and that a refused camera falls back cleanly
+//   --shipping  that the verdict spends the model's estimate, clamped
+//   --sweep  a pass over every screen at 360x800, 375x667, 390x844 and 430x932:
+//            overflow, tap targets, fixed chrome. Roughly four times the
+//            runtime of one pass; --viewport=360x800 runs a single width.
 //
 // Browser automation is deliberately NOT a dependency of this app — it would be
 // the largest thing in node_modules and nothing ships with it. Install it for
@@ -31,12 +35,26 @@ const APP = `http://localhost:${PORT}`;
 const SHOTS = process.env.SHOTS ?? null;
 
 const args = process.argv.slice(2);
-const only = args.filter((a) => ['--pwa', '--sweep', '--dev'].includes(a));
+const only = args.filter((a) => ['--pwa', '--sweep', '--dev', '--camera', '--shipping'].includes(a));
 const runs = (flag) => only.length === 0 || only.includes(flag);
 
 const IOS_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 '
   + '(KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
 const PHONE = { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, deviceScaleFactor: 3, userAgent: IOS_UA };
+
+// The narrow end is an SE or a mini; the wide end a Pro Max. `--column` is a
+// max-width, so 360 is where anything that assumed 390 gives way, and 430 is
+// where a flex row has enough slack to hide a target that is too small at 360.
+const VIEWPORTS = [
+  { label: '360x800', width: 360, height: 800 },
+  { label: '375x667', width: 375, height: 667 },
+  { label: '390x844', width: 390, height: 844 },
+  { label: '430x932', width: 430, height: 932 },
+];
+const oneViewport = (args.find((a) => a.startsWith('--viewport=')) ?? '').split('=')[1];
+const SWEEP_VIEWPORTS = oneViewport
+  ? VIEWPORTS.filter((v) => v.label === oneViewport)
+  : VIEWPORTS;
 const MIN_TARGET = 44;
 const PIN = '135790';
 const AI_KEY = 'AIzaSyDUMMY-key-000000000000000000';
@@ -209,11 +227,46 @@ const ANALYSIS = {
   pricing: { estimate: 94.5, range_low: 80, range_high: 110, confidence: 'medium', rationale: 'comparable sales' },
   strategy: { note: 'List Sunday evening.' },
 };
-const stubGemini = (page) => page.route(GEMINI, (route) => route.fulfill({
+const stubGemini = (page, pricing = {}) => page.route(GEMINI, (route) => route.fulfill({
   status: 200,
   contentType: 'application/json',
-  body: JSON.stringify({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: JSON.stringify(ANALYSIS) }] } }] }),
+  body: JSON.stringify({ candidates: [{ finishReason: 'STOP', content: { parts: [{
+    text: JSON.stringify({ ...ANALYSIS, pricing: { ...ANALYSIS.pricing, ...pricing } }),
+  }] } }] }),
 }));
+
+// Capture → verdict, from a clean capture screen. Shared by the M2 suites.
+async function runVerdict(page, { note = 'wool blanket', price = '8' } = {}) {
+  await page.evaluate(() => {
+    // A stamped verdict survives a reload by design, so it has to be cleared or
+    // the next case restores the previous one instead of capturing afresh.
+    localStorage.removeItem('thrift-flip-shopping-verdict');
+    localStorage.removeItem('thrift-flip-shopping-form');
+    localStorage.setItem('thrift-flip-screen', 'shop');
+  });
+  await page.goto(`${APP}/`, { waitUntil: 'load' });
+  await page.waitForSelector('.buy-cam', { timeout: 10000 });
+  await page.setInputFiles('input[type=file]', {
+    name: 'item.png', mimeType: 'image/png', buffer: Buffer.from(PNG_1x1, 'base64'),
+  });
+  await page.fill('.buy-details .ui-input:not([type=number])', note);
+  await page.fill('.buy-money-row .ui-input', price);
+  await page.click('.buy-details .ui-btn:has-text("Get the verdict")');
+  await page.waitForSelector('.buy-barred', { timeout: 15000 });
+  await ceremony(page);
+  // Not the advisor card — that only renders on a BUY, and a $100 shipping
+  // clamp is deliberately a SKIP. The Earnings breakdown is on both.
+  await page.waitForFunction(() => [...document.querySelectorAll('.ui-panel-row-label')]
+    .some((l) => l.textContent.startsWith('Selling costs')), null, { timeout: 20000 });
+}
+
+// The Earnings panel, read back as {label: value} so a row can be asserted by
+// what it says as well as what it shows.
+const earnings = (page) => page.evaluate(() =>
+  Object.fromEntries([...document.querySelectorAll('.ui-panel-row')].map((row) => [
+    row.querySelector('.ui-panel-row-label')?.textContent ?? '',
+    row.querySelector('.ui-panel-row-value')?.textContent ?? '',
+  ]).concat([['TOTAL', document.querySelector('.ui-panel-total-value')?.textContent ?? '']])));
 
 // ── PWA suite ──────────────────────────────────────────────────────────────
 
@@ -461,6 +514,180 @@ async function devSuite(chromium, exe) {
   }
 }
 
+// ── The shipping estimate (M2) ─────────────────────────────────────────────
+
+// M2 took the Ship field off the capture screen — nobody can weigh a lamp in an
+// aisle — so the model's number is what the buy decision is now made on. These
+// assertions are the difference between "the model said something" and "the
+// verdict spent what the model said".
+async function shippingSuite(chromium, exe) {
+  const S = 'shipping';
+  const browser = await chromium.launch({ executablePath: exe, args: ['--no-sandbox'] });
+  const context = await browser.newContext(PHONE);
+  const page = await context.newPage();
+  watch(page);
+
+  // estimate 94.50, cost 8.00, fee 13.25% + $0.30 = 12.82.
+  const netFor = (ship) => (94.5 - 12.82 - ship - 8).toFixed(2);
+
+  try {
+    await stubGemini(page);
+    await page.goto(`${APP}/`, { waitUntil: 'load' });
+    await wipe(page);
+    await enrolKey(page);
+
+    for (const [label, pricing, ship, note] of [
+      ['the model\'s figure is what gets spent', { shipping_estimate: 9 }, 9, 'AI estimate'],
+      ['a response with no estimate falls back to the house figure', {}, 12, 'plain'],
+      ['a nonsense low estimate is clamped up, not trusted', { shipping_estimate: 0.5 }, 4, 'AI estimate'],
+      ['a nonsense high estimate is clamped down', { shipping_estimate: 250 }, 100, 'AI estimate'],
+    ]) {
+      await page.unroute(GEMINI);
+      await stubGemini(page, pricing);
+      await runVerdict(page);
+      const rows = await earnings(page);
+      const shippingRow = Object.entries(rows).find(([k]) => k.startsWith('Shipping label'));
+      ok(S, `${label} — the line reads $${ship}`,
+        shippingRow?.[1] === `−$${ship.toFixed(2)}`, `${shippingRow?.[0]} = ${shippingRow?.[1]}`);
+      ok(S, `${label} — "You'd keep" agrees`,
+        rows.TOTAL === `$${netFor(ship)}`, `${rows.TOTAL}, expected $${netFor(ship)}`);
+      // The label has to say whose number it is, or a $4 clamp reads as measured.
+      ok(S, `${label} — the row is labelled "${note}"`,
+        note === 'AI estimate'
+          ? shippingRow?.[0].includes('AI estimate')
+          : !shippingRow?.[0].includes('AI estimate'),
+        shippingRow?.[0]);
+    }
+
+    // The pencil screen never saw a model response, and says so.
+    await page.unroute(GEMINI);
+    await page.route(GEMINI, (route) => route.abort());
+    await page.evaluate(() => {
+      localStorage.removeItem('thrift-flip-shopping-verdict');
+      localStorage.removeItem('thrift-flip-shopping-form');
+      localStorage.setItem('thrift-flip-screen', 'shop');
+    });
+    await page.goto(`${APP}/`, { waitUntil: 'load' });
+    await page.waitForSelector('.buy-cam', { timeout: 10000 });
+    await page.setInputFiles('input[type=file]', {
+      name: 'item.png', mimeType: 'image/png', buffer: Buffer.from(PNG_1x1, 'base64'),
+    });
+    await page.fill('.buy-money-row .ui-input', '8');
+    await page.click('.buy-details .ui-btn:has-text("Get the verdict")');
+    await page.waitForSelector('.buy-barred', { timeout: 15000 });
+    await ceremony(page);
+    const pencil = await page.textContent('.buy-barred');
+    ok(S, 'the pencil floor names its shipping as an estimate', pencil.includes('Fees + shipping (est. $12)'),
+      pencil.match(/Fees \+ shipping[^−]*/)?.[0] ?? '');
+    ok(S, 'and still lands on the $46.50 floor for an $8 item', pencil.includes('46.50'));
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/m2-pencil.png`, fullPage: true });
+  } finally {
+    await browser.close();
+  }
+}
+
+// ── The live viewfinder (M2) ───────────────────────────────────────────────
+
+async function cameraSuite(chromium, exe) {
+  const S = 'camera';
+
+  // A fake device plus a fake permission UI: the stream Chrome hands back is a
+  // rolling test pattern, which is all the frame grab needs.
+  const live = await chromium.launch({
+    executablePath: exe,
+    args: ['--no-sandbox', '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'],
+  });
+  try {
+    const context = await live.newContext({ ...PHONE, permissions: ['camera'] });
+    const page = await context.newPage();
+    watch(page);
+    await stubGemini(page, { shipping_estimate: 9 });
+    await page.goto(`${APP}/`, { waitUntil: 'load' });
+    await wipe(page);
+    await enrolKey(page);
+    await page.evaluate(() => localStorage.setItem('thrift-flip-screen', 'shop'));
+    await page.goto(`${APP}/`, { waitUntil: 'load' });
+    await page.waitForSelector('.buy-cam', { timeout: 10000 });
+
+    const streaming = await page.waitForFunction(() => {
+      const v = document.querySelector('.buy-vf-video');
+      return Boolean(v && v.videoWidth > 0 && v.videoHeight > 0);
+    }, null, { timeout: 15000 }).then(() => true, () => false);
+    ok(S, 'the viewfinder streams', streaming);
+    ok(S, 'and the fallback brackets stay out of the way', (await page.$$('.buy-bk')).length === 0);
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/m2-viewfinder-live.png`, fullPage: true });
+
+    await page.click('.ui-shutter');
+    const shot = await page.waitForSelector('.buy-cam-ctl .ui-camside img', { timeout: 10000 })
+      .then(() => true, () => false);
+    ok(S, 'one tap on the shutter keeps a frame', shot);
+
+    // The captured frame has to be a real photo — same downscale, same store,
+    // same request — not a preview that only looks like one.
+    const bytes = await page.evaluate(async () => {
+      const db = await new Promise((res, rej) => {
+        const req = indexedDB.open('thrift-flip-photos');
+        req.onsuccess = () => res(req.result); req.onerror = () => rej(req.error);
+      });
+      const store = db.transaction('photos').objectStore('photos');
+      const all = await new Promise((res) => { const r = store.getAll(); r.onsuccess = () => res(r.result); });
+      const rows = all.flatMap((row) => row.photos ?? []);
+      return rows.map((p) => ({ mimeType: p.mimeType, length: p.base64?.length ?? 0 }));
+    }).catch(() => []);
+    ok(S, 'the frame reached the photo store as jpeg bytes',
+      bytes.some((b) => b.mimeType === 'image/jpeg' && b.length > 100), JSON.stringify(bytes));
+
+    await page.fill('.buy-details .ui-input:not([type=number])', 'wool blanket');
+    await page.fill('.buy-money-row .ui-input', '8');
+    await page.click('.buy-details .ui-btn:has-text("Get the verdict")');
+    await page.waitForSelector('.buy-barred', { timeout: 15000 });
+    await ceremony(page);
+    const reached = await page.waitForSelector('.buy-advisor-chat', { timeout: 20000 })
+      .then(() => true, () => false);
+    ok(S, 'a viewfinder photo analyzes end to end', reached);
+    await context.close();
+  } finally {
+    await live.close();
+  }
+
+  // No fake UI this time: the permission is refused, which is the state the
+  // fallback exists for. Nothing should nag, and the old path should be intact.
+  const denied = await chromium.launch({
+    executablePath: exe,
+    args: ['--no-sandbox', '--use-fake-device-for-media-stream', '--deny-permission-prompts'],
+  });
+  try {
+    const context = await denied.newContext({ ...PHONE, permissions: [] });
+    const page = await context.newPage();
+    watch(page);
+    await page.goto(`${APP}/`, { waitUntil: 'load' });
+    await wipe(page);
+    await page.evaluate(() => localStorage.setItem('thrift-flip-screen', 'shop'));
+    await page.goto(`${APP}/`, { waitUntil: 'load' });
+    await page.waitForSelector('.buy-cam', { timeout: 10000 });
+
+    const fellBack = await page.waitForSelector('.buy-bk', { timeout: 15000 }).then(() => true, () => false);
+    ok(S, 'a refused camera falls back to the brackets', fellBack);
+    ok(S, 'and no video element is left behind', (await page.$$('.buy-vf-video')).length === 0);
+    ok(S, 'no permission nag appears', !(await page.textContent('body')).toLowerCase().includes('permission'));
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/m2-viewfinder-fallback.png`, fullPage: true });
+
+    // The shutter must still open the native camera — i.e. click the file input.
+    await page.evaluate(() => {
+      window.__fileClicked = false;
+      document.querySelector('input[type=file]').addEventListener('click', (e) => {
+        e.preventDefault();            // no native picker in a headless run
+        window.__fileClicked = true;
+      });
+    });
+    await page.click('.ui-shutter');
+    ok(S, 'the shutter still opens the native camera', await page.evaluate(() => window.__fileClicked));
+    await context.close();
+  } finally {
+    await denied.close();
+  }
+}
+
 // ── Viewport sweep ─────────────────────────────────────────────────────────
 
 const TARGET_SEL = 'button, a[href], input, select, textarea, [role="button"], [tabindex]:not([tabindex="-1"])';
@@ -496,10 +723,13 @@ function auditTargets(sel, min) {
   return out;
 }
 
-async function auditView(page, id) {
-  const S = 'sweep';
-  const width = await page.evaluate(() => document.scrollingElement.scrollWidth);
-  ok(S, `${id}: no horizontal overflow`, width <= 390, `scrollWidth ${width}`);
+async function auditView(page, id, S = 'sweep') {
+  // Against the actual viewport, not a constant: the whole point of sweeping
+  // four widths is that the number is different at each one.
+  const { width, inner } = await page.evaluate(() => ({
+    width: document.scrollingElement.scrollWidth, inner: window.innerWidth,
+  }));
+  ok(S, `${id}: no horizontal overflow`, width <= inner, `scrollWidth ${width} > innerWidth ${inner}`);
 
   const violations = await page.evaluate(
     ([sel, min]) => window.__audit(sel, min), [TARGET_SEL, MIN_TARGET],
@@ -510,10 +740,13 @@ async function auditView(page, id) {
   return real;
 }
 
-async function sweepSuite(chromium, exe) {
-  const S = 'sweep';
+async function sweepSuite(chromium, exe, viewport = VIEWPORTS[2]) {
+  const S = `sweep ${viewport.label}`;
+  const auditAt = (page, id) => auditView(page, id, S);
   const browser = await chromium.launch({ executablePath: exe, args: ['--no-sandbox'] });
-  const context = await browser.newContext(PHONE);
+  const context = await browser.newContext({
+    ...PHONE, viewport: { width: viewport.width, height: viewport.height },
+  });
   const page = await context.newPage();
   watch(page);
   await page.addInitScript(`window.__audit = ${auditTargets.toString()}`);
@@ -531,14 +764,14 @@ async function sweepSuite(chromium, exe) {
     await page.evaluate(() => localStorage.setItem('thrift-flip-screen', 'shop'));
     await page.goto(`${APP}/`, { waitUntil: 'load' });
     await page.waitForSelector('.buy-cam', { timeout: 8000 });
-    seen.push(...await auditView(page, 'shop · capture'));
-    if (SHOTS) await page.screenshot({ path: `${SHOTS}/m1-sweep-capture.png`, fullPage: true });
+    seen.push(...await auditAt(page, 'shop · capture'));
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/m1-sweep-${viewport.label}-capture.png`, fullPage: true });
 
     await page.setInputFiles('input[type=file]', {
       name: 'item.png', mimeType: 'image/png', buffer: Buffer.from(PNG_1x1, 'base64'),
     });
     await page.waitForSelector('.buy-cam-ctl .ui-camside img', { timeout: 8000 });
-    seen.push(...await auditView(page, 'shop · capture with a photo'));
+    seen.push(...await auditAt(page, 'shop · capture with a photo'));
 
     // The sheet slides up over 300ms from translateY(100%), so for that whole
     // window the grabber is somewhere other than where it was just measured —
@@ -558,7 +791,7 @@ async function sweepSuite(chromium, exe) {
     };
 
     await openSheet();
-    seen.push(...await auditView(page, 'shop · photo sheet'));
+    seen.push(...await auditAt(page, 'shop · photo sheet'));
 
     const gone = () => page.waitForSelector('.ui-sheet', { state: 'detached', timeout: 4000 })
       .then(() => true, () => false);
@@ -589,8 +822,8 @@ async function sweepSuite(chromium, exe) {
     await page.waitForSelector('.buy-barred', { timeout: 15000 });
     await ceremony(page);
     await page.waitForSelector('.buy-advisor-chat', { timeout: 20000 });
-    seen.push(...await auditView(page, 'shop · verdict'));
-    if (SHOTS) await page.screenshot({ path: `${SHOTS}/m1-sweep-verdict.png`, fullPage: true });
+    seen.push(...await auditAt(page, 'shop · verdict'));
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/m1-sweep-${viewport.label}-verdict.png`, fullPage: true });
 
     // ── Fixed chrome, measured where it actually sits ──────────────────────
     const chrome = await page.evaluate(() => {
@@ -625,17 +858,17 @@ async function sweepSuite(chromium, exe) {
     await page.goto(`${APP}/`, { waitUntil: 'load' });
     await page.waitForSelector('.cart-item', { timeout: 8000 });
     await ceremony(page);
-    seen.push(...await auditView(page, 'cart'));
+    seen.push(...await auditAt(page, 'cart'));
 
     await page.click('.cart-item-actions .ui-btn:has-text("Ready to list")');
     await ceremony(page, 4000);
     await page.waitForSelector('.distribution-row', { timeout: 20000 });
-    seen.push(...await auditView(page, 'listing'));
-    if (SHOTS) await page.screenshot({ path: `${SHOTS}/m1-sweep-listing.png`, fullPage: true });
+    seen.push(...await auditAt(page, 'listing'));
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/m1-sweep-${viewport.label}-listing.png`, fullPage: true });
 
     await page.click('.ui-btn:has-text("Preview")');
     await page.waitForSelector('.preview-back-btn', { timeout: 8000 });
-    seen.push(...await auditView(page, 'preview'));
+    seen.push(...await auditAt(page, 'preview'));
     await page.click('.preview-back-btn');
     await page.waitForSelector('.listing-screen', { timeout: 8000 });
 
@@ -651,8 +884,8 @@ async function sweepSuite(chromium, exe) {
       await page.goto(`${APP}/`, { waitUntil: 'load' });
       await page.waitForSelector(wait, { timeout: 10000 });
       await ceremony(page);
-      seen.push(...await auditView(page, screen));
-      if (SHOTS) await page.screenshot({ path: `${SHOTS}/m1-sweep-${screen}.png`, fullPage: true });
+      seen.push(...await auditAt(page, screen));
+      if (SHOTS) await page.screenshot({ path: `${SHOTS}/m1-sweep-${viewport.label}-${screen}.png`, fullPage: true });
     }
 
     // The Flip thread, which only a click reaches.
@@ -664,8 +897,8 @@ async function sweepSuite(chromium, exe) {
       await conv.click();
       await page.waitForTimeout(600);
       await ceremony(page);
-      seen.push(...await auditView(page, 'flip · thread'));
-      if (SHOTS) await page.screenshot({ path: `${SHOTS}/m1-sweep-flip-thread.png`, fullPage: true });
+      seen.push(...await auditAt(page, 'flip · thread'));
+      if (SHOTS) await page.screenshot({ path: `${SHOTS}/m1-sweep-${viewport.label}-flip-thread.png`, fullPage: true });
 
       // The failed-message state carries a Retry link that no other route
       // reaches, so it gets measured rather than assumed. Killing the request
@@ -677,7 +910,7 @@ async function sweepSuite(chromium, exe) {
       await ceremony(page);
       const failed = await page.waitForSelector('.chat-failed', { timeout: 20000 }).catch(() => null);
       ok(S, 'flip · thread: a killed request offers Retry rather than silence', Boolean(failed));
-      if (failed) seen.push(...await auditView(page, 'flip · thread, message failed'));
+      if (failed) seen.push(...await auditAt(page, 'flip · thread, message failed'));
       await page.unroute(GEMINI);
       await stubGemini(page);
     }
@@ -690,12 +923,13 @@ async function sweepSuite(chromium, exe) {
       await page.goto(`${APP}/`, { waitUntil: 'load' });
       await page.waitForSelector('.settings', { timeout: 10000 });
       await ceremony(page);
-      seen.push(...await auditView(page, `settings · ${view}`));
+      seen.push(...await auditAt(page, `settings · ${view}`));
     }
 
     // ── Landscape: not optimised for, but it must not break ────────────────
     const before = consoleErrors.length;
-    await page.setViewportSize({ width: 844, height: 390 });
+    const landscape = { width: viewport.height, height: viewport.width };
+    await page.setViewportSize(landscape);
     await page.evaluate(() => localStorage.setItem('thrift-flip-screen', 'history'));
     await page.goto(`${APP}/`, { waitUntil: 'load' });
     await page.waitForSelector('.screen', { timeout: 10000 });
@@ -704,8 +938,10 @@ async function sweepSuite(chromium, exe) {
       width: document.scrollingElement.scrollWidth,
       left: document.getElementById('root').getBoundingClientRect().left,
     }));
-    ok(S, 'landscape: no horizontal overflow', land.width <= 844, `scrollWidth ${land.width}`);
-    ok(S, 'landscape: the column stays centred', Math.abs(land.left - (844 - 390) / 2) < 2, `left ${land.left}`);
+    ok(S, 'landscape: no horizontal overflow', land.width <= landscape.width, `scrollWidth ${land.width}`);
+    // Narrower than the column means it fills the width; wider means centred.
+    const expectedLeft = Math.max(0, (landscape.width - 390) / 2);
+    ok(S, 'landscape: the column stays centred', Math.abs(land.left - expectedLeft) < 2, `left ${land.left}`);
     ok(S, 'landscape: nothing threw', consoleErrors.length === before,
       consoleErrors.slice(before).join(' | '));
 
@@ -715,7 +951,7 @@ async function sweepSuite(chromium, exe) {
     }
   } catch (e) {
     // A timeout says which selector, never which screen. The shot says both.
-    if (SHOTS) await page.screenshot({ path: `${SHOTS}/m1-sweep-stopped.png`, fullPage: true }).catch(() => {});
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/m1-sweep-${viewport.label}-stopped.png`, fullPage: true }).catch(() => {});
     throw e;
   } finally {
     await browser.close();
@@ -733,7 +969,14 @@ console.log(`serving dist/ at ${APP}`);
 try {
   if (runs('--pwa')) await pwaSuite(chromium, exe);
   if (runs('--dev')) await devSuite(chromium, exe);
-  if (runs('--sweep')) await sweepSuite(chromium, exe);
+  if (runs('--camera')) await cameraSuite(chromium, exe);
+  if (runs('--shipping')) await shippingSuite(chromium, exe);
+  if (runs('--sweep')) {
+    for (const viewport of SWEEP_VIEWPORTS) {
+      console.log(`sweeping ${viewport.label}…`);
+      await sweepSuite(chromium, exe, viewport);
+    }
+  }
 } catch (e) {
   ok('run', 'the harness completed', false, String(e).split('\n')[0]);
 } finally {

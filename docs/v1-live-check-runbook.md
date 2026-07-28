@@ -406,10 +406,10 @@ Result: ☐ pass ☐ fail — quote the row:
 
 ## 10. The index — what "done" means from here
 
-**The build is finished. This table is what is left.** All ten rows need a person
-with a phone, a real key, or a sandbox account; none of them can be closed by a
-commit, and none of them has been run. (§11 is numbered after this index because
-it arrived after it — the index is §10 and stays there.)
+**The build is finished. This table is what is left.** All eleven rows need a
+person with a phone, a real key, or a sandbox account; none of them can be
+closed by a commit, and none of them has been run. (§§11–12 are numbered after
+this index because they arrived after it — the index is §10 and stays there.)
 
 The second column matters as much as the third. Each step shipped with real
 headless verification, so "unrun" describes the *live* half specifically — not
@@ -427,6 +427,7 @@ the whole check, and not the code beneath it.
 | 8 | The chat can see (V3) | photos on every request, retry state, no base64 in localStorage | **UNRUN** — only a real model can be photo-grounded |
 | 9 | The flywheel closes (E3) | 18 assertions: real fee, dedupe, throttle, comps injected + cited | **UNRUN** — needs a sandbox **buyer** account too |
 | 11 | Installed on the phone (M1) | 60 assertions: offline boot + the pencil flow with the network off, cache discipline, the deploy purge, and a 390×844 sweep of every screen | **UNRUN** — an emulator cannot install to a home screen |
+| 12 | The viewfinder and the island (M2) | 23 assertions: the stream, the frame grab, the refused-camera fallback, and the shipping estimate clamped and labelled | **UNRUN** — no emulator has a camera permission, a real sensor, or a safe-area inset |
 
 **Deferred by design, not pending:** multi-device token sync and the
 ciphertext-sync gate (Nostr N2/N3), and comps tiers A and B (V2). Those are not
@@ -438,7 +439,8 @@ before anything else touches the phone** — installing after the key is added
 strands the key in the wrong storage container, and §5 is one of the steps that
 would strand it. Then §5 (the vault, on the actual phone), then §§6→7→9 as one
 sandbox sitting, since each depends on the last. §§1, 3, 4 and 8 need only a key
-and can be done on any quiet evening.
+and can be done on any quiet evening. **§12 rides along with §11** — both need the installed app, and
+§12c is the same backgrounding trip as §11c.
 
 ---
 
@@ -533,6 +535,76 @@ Result: ☐ pass ☐ fail — what the action bar did:
 
 ---
 
+## 12. The viewfinder and the island (M2)
+
+Also on the installed app, so do it in the same sitting as §11. The harness
+covers the mechanism — the stream, the frame grab, the fallback, and the
+shipping arithmetic — with a fake camera and a zero inset. What it cannot reach
+is a real sensor, a real permission dialog, and a real notch.
+
+```bash
+node scripts/mobile-check.mjs --camera --shipping
+```
+
+**12a — The permission is asked once.** Fresh install, first time the Buy screen
+opens. Expected: iOS asks for the camera **once**, and after you allow it the
+viewfinder is live — the thing in front of you, moving, inside the rounded card.
+Leave Buy and come back: **no second prompt**, and no delay beyond the stream
+warming up.
+
+Result: ☐ pass ☐ fail — how many prompts:
+
+**12b — Refusing it costs nothing.** Settings → Thrift Flip → Camera → off.
+Reopen Buy. Expected: the grey corner brackets are back, the shutter opens the
+**native camera** exactly as it did before M2, and the app says nothing about
+permissions — no banner, no nag, no second ask. Take a photo that way and the
+verdict still runs.
+
+Result: ☐ pass ☐ fail:
+
+> This is the state the whole fallback exists for, and it is one tap away in
+> Settings. If it feels like a degraded app rather than the old app, that is a
+> finding worth writing down.
+
+**12c — Backgrounding and coming back.** Camera back on, viewfinder live. Swipe
+up to the home screen, wait ten seconds, reopen the app. Expected: the stream
+**resumes by itself**. iOS reclaims the camera when an app backgrounds, so a
+frozen last frame or a black card means the re-acquire did not fire.
+
+Result: ☐ pass ☐ fail — what the card showed on return:
+
+**12d — A viewfinder photo goes the whole way.** One shutter tap on a real item,
+add a note and its Goodwill price, Get the verdict. Expected: the photo appears
+in the strip, the analysis identifies the thing you actually pointed at, and the
+listing that comes back describes it. The frame grab shares the file input's
+downscale, so this is really asking whether the *sensor* path is as good.
+
+Result: ☐ pass ☐ fail:
+
+**12e — The island.** On a Pro-model iPhone, in the installed app, on **every**
+screen: Buy, Cart, List, Selling, Flip, Drafts, Preview, Settings. Expected: no
+control, no title and no text sits under the notch or the Dynamic Island. The
+viewfinder card starts below it. Every emulator resolves the inset to 0, so this
+is the only place `--safe-t` is ever really tested.
+
+Result: ☐ pass ☐ fail — anything clipped, and on which screen:
+
+**12f — The shipping line says whose number it is.** Any verdict. Expected: the
+Earnings panel reads **"Shipping label · AI estimate"** with a figure that suits
+the item — a mug is not $40 to post. On the pencil screen with no signal it
+reads **"Fees + shipping (est. $12)"** instead, because nothing estimated it.
+Then open the listing editor: the Shipping section shows that same number in an
+editable field, marked *✦ AI estimate* until you change it.
+
+Result: ☐ pass ☐ fail — what the model guessed, and what the label actually was:
+
+> **12f is the one to watch over a few trips.** The estimate is clamped to
+> \$4–\$100, which stops an absurd number from deciding a buy — but it cannot
+> stop a *plausible* wrong one. If it is consistently light on heavy things,
+> that is a prompt problem, and the fix is the schema description, not the code.
+
+---
+
 ## What is already verified, so you don't re-run it
 
 Green in the V1+S1 build, headlessly: `npm test` (20 specs on `calcProfit`,
@@ -542,6 +614,13 @@ working; Settings and the key sub-view surviving refresh; the key masked to
 last-4 and never rendered, logged, or exported; backup excluding
 `thrift-flip-ai-key` and import restoring a cart; PWA manifest/icons/metas; a
 27MB photo storing at 204KB after downscale.
+
+Green in the M2 build, headlessly: the viewfinder streaming from a fake device
+and one shutter tap landing jpeg bytes in the photo store and analyzing through;
+a refused camera falling back to the brackets, the native-camera shutter and no
+nag; and the shipping estimate spent, clamped at both bounds, labelled by
+provenance, with the pencil floor still $46.50. The sweep now runs at 360×800,
+375×667, 390×844 and 430×932. **§12 is what none of that reaches.**
 
 Green in the M1 build, headlessly, at 390×844 with touch: the app booting with
 the network off and the pencil flow running through it to a floor and a cart;

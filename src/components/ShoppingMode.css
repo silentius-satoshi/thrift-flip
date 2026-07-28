@@ -11,6 +11,9 @@
   display: flex;
   flex-direction: column;
   z-index: 50;
+  /* The capture screen is the only thing that owns the viewport outright, so
+     it is the only one that has to clear the island itself. */
+  padding-top: var(--safe-t);
 }
 .buy-vf {
   flex: 1;
@@ -19,6 +22,16 @@
   margin: 12px 14px;
   border-radius: 16px;
   overflow: hidden;
+  background: #151515;
+}
+/* The live stream. `cover` because the viewfinder card and the sensor have
+   different aspect ratios and letterboxing a camera reads as a fault. */
+.buy-vf-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   background: #151515;
 }
 .buy-vf-backdrop {
