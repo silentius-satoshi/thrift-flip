@@ -96,6 +96,59 @@ function say(...parts) {
   console.log(scrub(parts.join(' ')));
 }
 
+// ── The wire tap ────────────────────────────────────────────────────────────
+// `analyzeItem` throws `{ code }` and nothing else — deliberately, because a
+// user in an aisle cannot act on the difference between a safety block and a
+// token ceiling. The harness needs that difference, and re-issuing the request
+// would both double the spend and might not reproduce. So it watches the wire
+// production already uses: the body is read once, recorded, and handed back as
+// an identical Response. Nothing in src/ changes, and the arm stays the
+// production path this file's header promises.
+//
+// It never records the URL. That carries `?key=`.
+const wire = { last: null };
+const realFetch = globalThis.fetch;
+globalThis.fetch = async (input, init) => {
+  const url = String(typeof input === 'string' ? input : input?.url ?? '');
+  const response = await realFetch(input, init);
+  if (!url.includes('generativelanguage.googleapis.com')) return response;
+  const raw = await response.text();
+  wire.last = { status: response.status, raw };
+  return new Response(raw, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers,
+  });
+};
+
+// What the collapsed `bad-response` was actually hiding. Everything here reaches
+// the report through scrub(), and the raw excerpt is capped.
+function diagnose(slot) {
+  if (!slot) return { note: 'no response reached the wire (network or thrown before send)' };
+  const { status, raw } = slot;
+  let parsed = null;
+  try { parsed = JSON.parse(raw); } catch { /* the malformed case is itself the finding */ }
+  const candidate = parsed?.candidates?.[0];
+  const text = candidate?.content?.parts?.map((p) => p.text).filter(Boolean).join('') ?? '';
+  const usage = parsed?.usageMetadata ?? {};
+  return {
+    status,
+    finishReason: candidate?.finishReason ?? null,
+    blockReason: parsed?.promptFeedback?.blockReason ?? null,
+    envelopeParsed: parsed !== null,
+    rawLength: raw.length,
+    textLength: text.length,
+    // thoughtsTokenCount is the field that separates "thinking ate the
+    // allowance" from "the output was genuinely long".
+    promptTokens: usage.promptTokenCount ?? null,
+    thoughtsTokens: usage.thoughtsTokenCount ?? null,
+    candidatesTokens: usage.candidatesTokenCount ?? null,
+    totalTokens: usage.totalTokenCount ?? null,
+    excerpt: (text || raw).slice(0, 200),
+    textTail: text ? text.slice(-80) : null,
+  };
+}
+
 // ── Fixtures ────────────────────────────────────────────────────────────────
 function loadFixtures() {
   if (!existsSync(FIXTURES)) return [];
@@ -137,6 +190,7 @@ function scoreId(item, identification) {
 // production request shape meets the live API (V1 verified against a stub).
 // It deliberately does not fall back to any other body shape.
 async function runUngrounded(item, goodwillPrice = 8) {
+  wire.last = null;
   try {
     const result = await analyzeItem({
       photoBase64s: item.photos.map((p) => p.base64),
@@ -148,8 +202,28 @@ async function runUngrounded(item, goodwillPrice = 8) {
     });
     return { ok: true, result };
   } catch (e) {
-    return { ok: false, code: e?.code ?? 'unknown' };
+    return { ok: false, code: e?.code ?? 'unknown', diag: diagnose(wire.last) };
   }
+}
+
+// `quota` and `bad-key` are account state — a second identical request spends
+// wall-clock to be told the same thing. Only the codes that could plausibly be
+// transient are worth a retry, and whether they repeat IS the diagnosis.
+const RETRYABLE = new Set(['bad-response', 'offline', 'unknown']);
+
+async function attempt(run, label) {
+  const attempts = [];
+  for (let i = 0; i < 2; i++) {
+    const outcome = await run();
+    attempts.push(outcome);
+    if (outcome.ok || !RETRYABLE.has(outcome.code)) break;
+    if (i === 0) {
+      say(`  ↻ ${label} failed \`${outcome.code}\` — one retry`);
+      await sleep(GAP_MS);
+    }
+  }
+  // The last attempt is the answer; every attempt is the evidence.
+  return { ...attempts.at(-1), attempts };
 }
 
 // ── Arm 2: same call plus the search tool ───────────────────────────────────
@@ -206,6 +280,7 @@ async function postGemini(body) {
 }
 
 async function runGrounded(item, goodwillPrice = 8) {
+  wire.last = null;
   if (!GEMINI_KEY) return { ok: false, code: 'no-key' };
   // Production's generationConfig shape first, so the arms differ by one thing.
   // Current docs moved to responseFormat; the older fields are still in the API
@@ -215,20 +290,20 @@ async function runGrounded(item, goodwillPrice = 8) {
     try {
       response = await postGemini(groundedBody(item, goodwillPrice, shape));
     } catch {
-      return { ok: false, code: 'offline' };
+      return { ok: false, code: 'offline', diag: diagnose(wire.last) };
     }
     if (response.status === 400 && shape === 'responseSchema') continue; // try the newer shape
     if (!response.ok) {
       const code = response.status === 429 ? 'quota'
         : [400, 401, 403].includes(response.status) ? 'bad-key'
           : 'bad-response';
-      return { ok: false, code, status: response.status };
+      return { ok: false, code, status: response.status, diag: diagnose(wire.last) };
     }
     let data;
     try {
       data = await response.json();
     } catch {
-      return { ok: false, code: 'bad-response' };
+      return { ok: false, code: 'bad-response', diag: diagnose(wire.last) };
     }
     const candidate = data?.candidates?.[0];
     const text = candidate?.content?.parts?.map((p) => p.text).filter(Boolean).join('') ?? '';
@@ -236,20 +311,43 @@ async function runGrounded(item, goodwillPrice = 8) {
     try {
       parsed = JSON.parse(text);
     } catch {
-      return { ok: false, code: 'bad-response', shape };
+      return { ok: false, code: 'bad-response', shape, diag: diagnose(wire.last) };
     }
     // webSearchQueries is also the billing unit — one request can run several.
     const queries = candidate?.groundingMetadata?.webSearchQueries ?? [];
     return { ok: true, parsed, queries, sources: parsed.sources ?? [], shape };
   }
-  return { ok: false, code: 'bad-response' };
+  return { ok: false, code: 'bad-response', diag: diagnose(wire.last) };
 }
 
 // ── SerpApi sold-price ground truth ─────────────────────────────────────────
 // LH_Sold / LH_Complete are eBay's own URL params and are NOT SerpApi
 // parameters — passing them would silently return active asking prices.
 // show_only=Sold,Complete is the supported mechanism.
-const serp = { credits: 0 };
+const serp = { credits: 0, live: 0, archived: 0, billedNote: false };
+// Every failed attempt, from every arm, for the Failures appendix.
+const anchorFailures = [];
+
+// The dashboard reading of R1's "503 x4": none of them were refusals. The eBay
+// engine ran 22-74s and four searches COMPLETED server-side after the harness
+// had already given up — and SerpApi billed all four. So the fixes are patience
+// and archive retrieval, not haste: a completed search can be fetched from the
+// archive for free, and re-issuing it would pay for the same work twice.
+const SERP_TIMEOUT_MS = 120_000;
+const SERP_RETRY_MS = 60_000;
+
+// Free: an archived retrieval is a lookup, not a search.
+async function fromArchive(id) {
+  if (!id) return null;
+  try {
+    const url = new URL(`https://serpapi.com/searches/${encodeURIComponent(id)}.json`);
+    url.searchParams.set('api_key', SERPAPI_KEY);
+    const response = await fetch(url, { signal: AbortSignal.timeout(SERP_TIMEOUT_MS) });
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data?.organic_results?.length ? data : null;
+  } catch { return null; }
+}
 
 async function soldComps(item) {
   if (!SERPAPI_KEY) return null;
@@ -265,20 +363,44 @@ async function soldComps(item) {
     url.searchParams.set('api_key', SERPAPI_KEY);
 
     let data;
+    let source = 'live';
     try {
-      const response = await fetch(url);
-      data = await response.json();
-      if (!response.ok) return { error: `HTTP ${response.status}`, query };
-    } catch {
-      return { error: 'network', query };
+      const response = await fetch(url, { signal: AbortSignal.timeout(SERP_TIMEOUT_MS) });
+      data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        // The error body usually still names the search that is running. Ask the
+        // archive for it before spending a second credit on the same work.
+        const id = data?.search_metadata?.id;
+        say(`  serpapi HTTP ${response.status}${id ? ` — checking the archive for ${id}` : ''}`);
+        let recovered = await fromArchive(id);
+        if (!recovered && id) {
+          say(`  serpapi: not archived yet — waiting ${SERP_RETRY_MS / 1000}s for it to land`);
+          await sleep(SERP_RETRY_MS);
+          recovered = await fromArchive(id);
+        }
+        if (recovered) {
+          data = recovered;
+          source = 'archive';
+          serp.archived++;
+        } else if (!noCache) {
+          // Pass two re-issues live with no_cache — that is the one paid retry.
+          say('  serpapi: nothing in the archive, re-issuing live');
+          continue;
+        } else {
+          return { error: `HTTP ${response.status}`, query, source: 'failed' };
+        }
+      }
+    } catch (e) {
+      const why = e?.name === 'TimeoutError' ? `timeout after ${SERP_TIMEOUT_MS / 1000}s` : 'network';
+      return { error: why, query, source: 'failed' };
     }
-    serp.credits++;
+    if (source === 'live') { serp.credits++; serp.live++; }
     // Zero results is HTTP 200 with organic_results absent and an error string.
     // There is a known flaky-empty bug, hence the single no_cache retry.
     const rows = data.organic_results ?? [];
     if (!rows.length) {
       if (!noCache) continue;
-      return { error: data.error ?? 'no results', query };
+      return { error: data.error ?? 'no results', query, source };
     }
     const prices = rows
       .filter((r) => !r.sponsored)          // promoted listings skew high
@@ -293,9 +415,10 @@ async function soldComps(item) {
       })
       .filter((n) => Number.isFinite(n))
       .sort((a, b) => a - b);
-    if (!prices.length) return { error: 'no usable prices', query };
+    if (!prices.length) return { error: 'no usable prices', query, source };
     return {
       query,
+      source,
       n: prices.length,
       median: prices[Math.floor(prices.length / 2)],
       low: prices[0],
@@ -346,6 +469,53 @@ function calibrationTable(rows, arm) {
   return lines.join('\n');
 }
 
+// What `bad-response` was covering. One block per failed attempt, so a code that
+// repeats and a code that clears on the retry read differently at a glance.
+function buildFailures(rows, stamp) {
+  const entries = [
+    ...rows.flatMap((row) => ['ungrounded', 'grounded']
+      .filter((arm) => !row[arm].ok)
+      .map((arm) => ({ slug: row.item.slug, arm, attempts: row[arm].attempts ?? [row[arm]] }))),
+    ...anchorFailures,
+  ];
+  if (!entries.length) return `## Failures\n\n_None — every call in this run succeeded (${stamp})._\n`;
+
+  const lines = [
+    '## Failures',
+    '',
+    `_Captured ${stamp}. \`bad-response\` in \`ai.js\` collapses four distinct failures`,
+    '— unparseable JSON, empty text, a `blockReason`, and a non-`STOP` `finishReason` —',
+    'into one code, because nobody in an aisle can act on the difference. The harness',
+    'taps the wire to see through it; production is unchanged._',
+    '',
+  ];
+  for (const entry of entries) {
+    lines.push(`### \`${entry.slug}\` · ${entry.arm}`, '');
+    entry.attempts.forEach((att, i) => {
+      const label = `attempt ${i + 1} of ${entry.attempts.length}`;
+      if (att.ok) { lines.push(`- **${label}: recovered** — the failure was transient.`, ''); return; }
+      const d = att.diag ?? {};
+      if (d.note || d.status === undefined) {
+        lines.push(`- **${label}: \`${att.code}\`** — ${d.note ?? 'no response body was captured for this call'}`, '');
+        return;
+      }
+      lines.push(
+        `- **${label}: \`${att.code}\`**`,
+        `  - HTTP \`${d.status}\` · finishReason \`${d.finishReason ?? 'none'}\` · blockReason \`${d.blockReason ?? 'none'}\``,
+        `  - envelope parsed: ${d.envelopeParsed ? 'yes' : '**no**'} · raw ${d.rawLength} chars · text ${d.textLength} chars`,
+        `  - tokens — prompt ${d.promptTokens ?? '?'} · thoughts **${d.thoughtsTokens ?? '?'}** · candidates ${d.candidatesTokens ?? '?'} · total ${d.totalTokens ?? '?'}`,
+        '',
+        '    ```',
+        `    ${String(d.excerpt ?? '').replace(/\n/g, ' ')}`,
+        '    ```',
+      );
+      if (d.textTail) lines.push(`    …ends: \`${d.textTail.replace(/\n/g, ' ')}\``);
+      lines.push('');
+    });
+  }
+  return lines.join('\n');
+}
+
 function buildReport(rows, anchor, stamp) {
   const core = rows.filter((r) => CORE_SLUGS.includes(r.item.slug));
   const coreCorrect = core.filter((r) => r.ungroundedScore === 'correct').length;
@@ -389,7 +559,9 @@ _Model: \`${GEMINI_MODEL}\`. Items: ${rows.length}. Grounded search queries bill
 
 ## Gate — the five core items (v0 §6 sheet, both arms)
 
-**${gatePass ? 'PASS' : 'FAIL'}** — ${coreCorrect}/${core.length} core items correct on brand+model (need ${CORE_GATE} of ${CORE_SLUGS.length}).
+${SUBSET
+  ? `_Not assessed — this was a subset run (\`--only=${onlySlugs.join(',')}\`). ${core.length} of ${CORE_SLUGS.length} core items ran, so the gate is not measurable and the last full run's verdict stands._`
+  : `**${gatePass ? 'PASS' : 'FAIL'}** — ${coreCorrect}/${core.length} core items correct on brand+model (need ${CORE_GATE} of ${CORE_SLUGS.length}).`}
 ${core.length < CORE_SLUGS.length ? `\n> Missing fixtures for: ${CORE_SLUGS.filter((s) => !core.some((r) => r.item.slug === s)).join(', ')}. The gate cannot pass until all five exist.\n` : ''}
 | # | Item | Ungrounded ID | Grounded ID | Condition | Est. (ungrounded) | Est. (grounded) | Real sold median | Within range U/G | Shipping est. | ID confidence | Registers | Search queries |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -443,11 +615,19 @@ the display and no-collection clauses on every one of them.
 5,000 prompts/month free (shared across all Gemini 3 models), then **$14 per
 1,000 search queries** — billed per query executed, not per request, so one item
 can burn several. This run executed **${queries}** search ${queries === 1 ? 'query' : 'queries'}${queries ? ` (≈ $${((queries / 1000) * 14).toFixed(3)} at list price)` : ''}.
-SerpApi credits consumed: **${serp.credits}** (free plan allows 250/month).
+SerpApi: **${serp.live}** live search${serp.live === 1 ? '' : 'es'}, **${serp.archived}** recovered
+from the archive (free). Counted client-side, and that count **under-reports**:
+SerpApi bills a search that completes server-side even when the client saw a 503
+and gave up, which is exactly what happened on the previous run. The dashboard
+is the authority, not this line. Free plan allows 250/month.
 
 ## Manual remainder:
 
-${SERPAPI_KEY ? '- Sold medians were filled automatically; spot-check one against eBay to confirm the query matched the right item.' : '- **eBay sold medians** — no `SERPAPI_KEY` was set, so every ground-truth cell is a placeholder. Fill them from eBay → search → filter **Sold items** → median of the last ~10 comparable sales (~30s each).'}
+${!SERPAPI_KEY
+  ? '- **eBay sold medians** — no `SERPAPI_KEY` was set, so every ground-truth cell is a placeholder. Fill them from eBay → search → filter **Sold items** → median of the last ~10 comparable sales (~30s each).'
+  : (serp.live || serp.archived)
+    ? '- Sold medians were filled automatically; spot-check one against eBay to confirm the query matched the right item.'
+    : '- **Sold medians were NOT filled** — every SerpApi call failed this run, so every ground-truth cell is still a placeholder. Fill them by hand, or re-run once the account is healthy.'}
 - **Kill the key** (runbook §4) — delete the key in aistudio.google.com/apikey, then run one analysis in the app. Expect the pencil tag to still render with the "That key didn't work" copy and a working Add to cart. Inherently manual; no harness can revoke a key for you.
 - **The comparison bar** (plan §6.3) — run a few of these items through the Gemini app the way you do today. The test is beating that habit, not beating nothing.
 `;
@@ -456,9 +636,14 @@ ${SERPAPI_KEY ? '- Sold medians were filled automatically; spot-check one agains
 // ── Anchoring ───────────────────────────────────────────────────────────────
 async function runAnchor(item) {
   say(`\n▸ anchoring on "${item.slug}" — $${ANCHOR_LOW} vs $${ANCHOR_HIGH}`);
-  const low = await runUngrounded(item, ANCHOR_LOW);
+  const low = await attempt(() => runUngrounded(item, ANCHOR_LOW), `${item.slug} anchor $${ANCHOR_LOW}`);
   await sleep(GAP_MS);
-  const high = await runUngrounded(item, ANCHOR_HIGH);
+  const high = await attempt(() => runUngrounded(item, ANCHOR_HIGH), `${item.slug} anchor $${ANCHOR_HIGH}`);
+  anchorFailures.push(
+    ...[['low', low], ['high', high]]
+      .filter(([, r]) => !r.ok)
+      .map(([which, r]) => ({ slug: `${item.slug} (anchor ${which})`, arm: 'ungrounded', attempts: r.attempts })),
+  );
   if (!low.ok || !high.ok) {
     const code = low.ok ? high.code : low.code;
     say(`  anchoring inconclusive — ${code}`);
@@ -488,7 +673,17 @@ async function runAnchor(item) {
 
 // ── Main ────────────────────────────────────────────────────────────────────
 const anchorSlug = process.argv.find((a) => a.startsWith('--anchor='))?.split('=')[1];
-const items = loadFixtures();
+const onlyArg = process.argv.find((a) => a.startsWith('--only='))?.split('=')[1];
+const onlySlugs = onlyArg ? onlyArg.split(',').map((s) => s.trim()).filter(Boolean) : null;
+const allItems = loadFixtures();
+// A subset run measures a couple of items closely; it cannot speak for the
+// five-item gate, and it must not overwrite the record of a run that could.
+const SUBSET = Boolean(onlySlugs);
+const items = SUBSET ? allItems.filter((i) => onlySlugs.includes(i.slug)) : allItems;
+if (SUBSET) {
+  const missing = onlySlugs.filter((slug) => !allItems.some((i) => i.slug === slug));
+  if (missing.length) say(`--only: no fixture for ${missing.join(', ')}`);
+}
 
 if (!items.length) {
   say(`No fixtures found in fixtures/live/.\n\n${CONVENTION}\n`);
@@ -507,7 +702,7 @@ const rows = [];
 for (const item of items) {
   say(`▸ ${item.slug} (${item.photos.length} photo${item.photos.length === 1 ? '' : 's'}) expecting ${item.brand} ${item.model}`);
 
-  const ungrounded = await runUngrounded(item);
+  const ungrounded = await attempt(() => runUngrounded(item), `${item.slug} ungrounded`);
   const ungroundedScore = ungrounded.ok ? scoreId(item, ungrounded.result.identification) : 'wrong';
   say(`  ungrounded: ${ungrounded.ok ? `${ungroundedScore} · ${money(ungrounded.result.estSellPrice)}` : `error \`${ungrounded.code}\``}`);
   if (ungrounded.ok) {
@@ -518,7 +713,7 @@ for (const item of items) {
   }
   await sleep(GAP_MS);
 
-  const grounded = await runGrounded(item);
+  const grounded = await attempt(() => runGrounded(item), `${item.slug} grounded`);
   const groundedScore = grounded.ok ? scoreId(item, grounded.parsed.identification) : 'wrong';
   say(`  grounded:   ${grounded.ok ? `${groundedScore} · ${money(Number(grounded.parsed.pricing?.estimate))} · ${grounded.queries.length} search ${grounded.queries.length === 1 ? 'query' : 'queries'}` : `error \`${grounded.code}\``}`);
   await sleep(GAP_MS);
@@ -537,5 +732,20 @@ if (anchorSlug) {
   else say(`\n--anchor=${anchorSlug} — no fixture with that slug; skipping.`);
 }
 
-writeFileSync(OUT, scrub(buildReport(rows, anchorReport, new Date().toISOString())));
-say(`\nWrote docs/live-check-results.md`);
+const stamp = new Date().toISOString();
+const failures = scrub(buildFailures(rows, stamp));
+
+if (SUBSET && existsSync(OUT)) {
+  // A subset run answers a narrow question and must not overwrite the record of
+  // a run that answered the broad one — the table, the calibration rows and any
+  // hand-written read-out all survive. Only the appendix is replaced.
+  const existing = readFileSync(OUT, 'utf8');
+  const marker = '\n## Failures\n';
+  const head = existing.includes(marker) ? existing.slice(0, existing.indexOf(marker)) : existing.replace(/\s*$/, '\n');
+  writeFileSync(OUT, `${head}\n---\n\n${failures}`);
+  say(`\nSubset run — updated only the Failures appendix of docs/live-check-results.md`);
+  say('The table above it is from the last full run and was left untouched.');
+} else {
+  writeFileSync(OUT, `${scrub(buildReport(rows, anchorReport, stamp))}\n---\n\n${failures}`);
+  say(`\nWrote docs/live-check-results.md`);
+}

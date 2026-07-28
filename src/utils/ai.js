@@ -34,18 +34,26 @@ function codeForStatus(status) {
   return 'bad-response';
 }
 
-// The V0 doc's message shape (§5). The purchase-price line is isolated so the
-// anchoring test (plan §6.2) can remove it by deleting one line: if the estimate
-// moves between a $4 and a $30 stated price, the model is pricing off what the
-// user pays and every verdict is circular.
-export function buildUserMessage({ details, condition, goodwillPrice, compsBlock }) {
+// The V0 doc's message shape (§5), minus the purchase price.
+//
+// The anchoring test ran on 2026-07-28 and FAILED: on the same photos, a stated
+// $4 produced a $35.00 estimate and a stated $30 produced $55.00 — 57.1% drift
+// against a 10% tolerance. The model was pricing off what the user was about to
+// pay, which made every verdict circular: it would price any item at roughly 3x
+// its own sticker and then congratulate you for clearing 3x. The line the test
+// was written to delete is deleted.
+//
+// The price is still used everywhere it decides anything — calcProfit,
+// checkRules, pencilFloor and usablePrice are all client-side and never see the
+// model. Nothing about the verdict arithmetic changed; only what the model is
+// told.
+export function buildUserMessage({ details, condition, compsBlock }) {
   return [
     `Notes: ${details || '(none)'}`,
     `Condition as I see it: ${condition || '(not stated)'}`,
-    `Goodwill price: $${Number(goodwillPrice).toFixed(2)}`, // ANCHORING: delete this line if the test fails
     // Tier 0 comps, injected by the client rather than asked of the model
-    // (vision §5). This is SOLD data — the thing §5 says to weight — and is not
-    // what the anchoring rule above guards against, which is the purchase price.
+    // (vision §5). This is SOLD data — what §5 says to weight — and is the one
+    // price the model should see. What it must never see is what Dad is paying.
     compsBlock ? `\n${compsBlock}` : null,
   ].filter(Boolean).join('\n');
 }

@@ -145,19 +145,23 @@ describe('injection into the analyze request', () => {
   it('leaves the message untouched when there are no comps', () => {
     const msg = buildUserMessage({ details: 'wool blanket', condition: 'Good', goodwillPrice: 8 });
     expect(msg).not.toContain('previously sold');
-    expect(msg.split('\n')).toHaveLength(3);
+    expect(msg.split('\n')).toHaveLength(2); // notes + condition; the price line went at D1
   });
 
-  it('appends the block below the anchoring line, not in place of it', () => {
+  it('appends the block last, and never sends the purchase price', () => {
     const msg = buildUserMessage({
       details: 'wool blanket', condition: 'Good', goodwillPrice: 8,
       compsBlock: 'The seller previously sold similar items:\n- "x" sold for $94.50',
     });
-    // The anchoring line is the one the calibration test deletes; comps must
-    // not disturb it. This is SOLD data, which vision §5 says to weight — not
-    // the purchase price the anchoring rule guards against.
-    expect(msg).toContain('Goodwill price: $8.00');
-    expect(msg.indexOf('Goodwill price')).toBeLessThan(msg.indexOf('previously sold'));
+    // This assertion used to prove the anchoring line survived comps injection.
+    // The anchoring test failed on 2026-07-28 (57.1% drift) and that line is
+    // gone, so it now guards the opposite: the purchase price must never reach
+    // the model again, by this route or any other.
+    expect(msg).not.toContain('Goodwill price');
+    expect(msg).not.toContain('$8.00');
+    // Comps are SOLD data — vision §5 says to weight them, and they still ride
+    // last, below the condition line.
+    expect(msg.indexOf('Condition as I see it')).toBeLessThan(msg.indexOf('previously sold'));
   });
 
   it('rides the real request when a matching sale exists', async () => {
