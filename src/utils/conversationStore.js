@@ -34,6 +34,25 @@ export function updateChatHistory(id, chatHistory) {
   } catch { /* ignore */ }
 }
 
+/**
+ * Update only what the item is, leaving what was said about it alone.
+ *
+ * `saveConversation` writes the whole record, `chatHistory` included — which is
+ * right when an analysis creates a conversation and wrong when one *revises* it.
+ * A re-check carries new notes and a new condition, and running it through
+ * saveConversation would replace a real Flip thread with the fresh one-line
+ * teaser. The mirror of `updateChatHistory`, in the other direction.
+ */
+export function updateItemContext(id, itemContext) {
+  try {
+    // Direct read — sync required for immediate read-modify-write
+    const raw = localStorage.getItem(convKey(id));
+    if (!raw) return;
+    const record = JSON.parse(raw);
+    setItem(convKey(id), { ...record, itemContext: { ...record.itemContext, ...itemContext } });
+  } catch { /* ignore */ }
+}
+
 export function markStatus(id, status) {
   saveIndex(getIndex().map(e => e.id === id ? { ...e, status } : e));
 }

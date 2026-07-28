@@ -93,7 +93,7 @@ export default function UIKitchen() {
         <div className="lbl">Verdict banners</div>
         <div className="uikitchen-stack">
           <VerdictBanner verdict="go" label="BUY IT" detail="keeps $61.68" />
-          <VerdictBanner verdict="skip" label="SKIP" detail="resells under $10" />
+          <VerdictBanner verdict="skip" label="LEAVE IT" detail="on the shelf · resells under $10" />
           <VerdictBanner verdict="pencil" label="PENCIL IT" detail="thin margin — check comps" />
         </div>
       </section>

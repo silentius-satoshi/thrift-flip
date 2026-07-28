@@ -2,11 +2,11 @@ import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { analyzeItem } from '../utils/ai';
 import { openCamera, stopStream, captureFrame, downscaleFile } from '../utils/camera';
 import * as photoStore from '../utils/photoStore';
-import { saveConversation, markStatus, getConversation } from '../utils/conversationStore';
+import { saveConversation, updateItemContext, markStatus, getConversation } from '../utils/conversationStore';
 import { useToast } from '../contexts/ToastContext';
 import { shoppingService } from '../utils/storageService';
 import { useUser } from '../contexts/UserContext';
-import { calcProfit, checkRules, pencilFloor } from '../utils/calculations';
+import { calcProfit, checkRules, pencilFloor, usablePrice } from '../utils/calculations';
 import { DEFAULT_SHIPPING } from '../config/gemini';
 import Button from './ui/Button';
 import Chip from './ui/Chip';
@@ -132,6 +132,10 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
   const [keyCardHidden,  setKeyCardHidden] = useState(false); // per session, never a wall
   const [whyOpen,        setWhyOpen]       = useState(false);
   const [photoSheetOpen, setPhotoSheetOpen] = useState(false);
+  // Shown under the price field when he taps through without reading the tag.
+  // Cleared by the next keystroke there — it is a reminder, not a rejection.
+  const [priceNudge,     setPriceNudge]     = useState(false);
+  const [rechecking,     setRechecking]     = useState(false);
 
   // The live viewfinder. `stream` drives the render; `streamRef` is the
   // synchronous truth the acquire/release pair needs, since both can run
@@ -140,12 +144,17 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
   const [camFailed, setCamFailed] = useState(false);
   const camMode = stream ? 'live' : camFailed ? 'fallback' : 'idle';
 
-  const fileInputRef = useRef(null);
+  const fileInputRef  = useRef(null);
+  const priceInputRef = useRef(null);
   const videoRef     = useRef(null);
   const streamRef    = useRef(null);
   const photosRef    = useRef([]);
   const reqSeq       = useRef(0);
   const quotaWarned  = useRef(false);
+  // The double-tap latch. A ref because `setRechecking` does not land until the
+  // next render: two taps inside one frame both read `false` from the state and
+  // both bill his key. `disabled` covers the human case; this covers the frame.
+  const recheckLatch = useRef(false);
 
   const setStream = (next) => { streamRef.current = next; setStreamState(next); };
 
@@ -344,7 +353,15 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
     if (next.length === 0) setPhotoSheetOpen(false);
   }
 
-  async function runAnalyze(id) {
+  /**
+   * @param {object} [opts]
+   * @param {boolean} [opts.revision] A re-check of an item that already has a
+   *   verdict. It carries new notes or a new condition, so the item's *context*
+   *   changes — but the conversation about it does not. saveConversation writes
+   *   the whole record, chatHistory included, so using it here would replace a
+   *   real Flip thread with this analysis's one-line teaser.
+   */
+  async function runAnalyze(id, { revision = false } = {}) {
     const myReq = ++reqSeq.current;
     try {
       const validPhotos = photos.filter(p => p.previewUrl);
@@ -356,9 +373,17 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
         goodwillPrice: price,
       });
       if (reqSeq.current !== myReq) return; // stale — skipped, carted, or reset mid-flight
-      saveConversation(id, details.slice(0, 60) || 'Item', result.chatHistory || [], { details, condition, goodwillPrice: price });
-      setAnalysisResult(result);
-      setChatHistory(result.chatHistory || []);
+      const context = { details, condition, goodwillPrice: price };
+      if (revision) updateItemContext(id, context);
+      else saveConversation(id, details.slice(0, 60) || 'Item', result.chatHistory || [], context);
+      // `analyzedAs` is what this verdict was actually computed from, so the
+      // re-check row below knows whether anything has since changed. Both it and
+      // `revised` ride the result, which is already persisted whole — no new
+      // storage key, and both reach the cart for free.
+      setAnalysisResult({ ...result, revised: revision, analyzedAs: { details, condition } });
+      // A revision is not a chat turn: the thread it would overwrite is the one
+      // the requirement says has to survive.
+      if (!revision) setChatHistory(result.chatHistory || []);
       setErrorCode(null);
       setPhase('verdict');
     } catch (e) {
@@ -369,6 +394,10 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
       // A cancelled unlock deserves an immediate answer rather than only the
       // banner; the pencil floor stays on screen and nothing retries.
       if (e?.code === 'locked') showToast(ERROR_COPY.locked, 'error');
+      // The pencil screen carries a banner for this; the verdict screen does not,
+      // and the standing verdict stays up because it is still the last real
+      // answer. A toast is the whole of the report.
+      else if (revision) showToast(ERROR_COPY[e?.code] ?? ERROR_COPY['bad-response'], 'error');
     }
   }
 
@@ -388,9 +417,12 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
   }, []);
 
   function handleGetVerdict() {
-    const price = parseFloat(goodwillPrice);
-    if (!price || price <= 0) {
-      showToast('Enter a Goodwill price first', 'error');
+    // Against a cost basis of zero the 3× rule reads `sellPrice >= 0` and stops
+    // meaning anything, so no price means no analysis. Inline and quiet: he is
+    // holding the thing, not filling in a form.
+    if (!usablePrice(goodwillPrice)) {
+      setPriceNudge(true);
+      priceInputRef.current?.focus();
       return;
     }
     const newId = Date.now();
@@ -400,6 +432,21 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
     setErrorCode(null);
     setPhase('pencil');
     runAnalyze(newId);
+  }
+
+  // The third door into runAnalyze, and the one this build added — so it asks
+  // the same question of the price the other two do.
+  async function handleRecheck() {
+    if (recheckLatch.current) return;
+    if (!usablePrice(goodwillPrice)) return;
+    recheckLatch.current = true;
+    setRechecking(true);
+    try {
+      await runAnalyze(itemId, { revision: true });
+    } finally {
+      recheckLatch.current = false;
+      setRechecking(false);
+    }
   }
 
   function handleSkip() {
@@ -536,15 +583,17 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
               assumed. The sticker price is the one number Dad can actually read. */}
           <div className="buy-money-row">
             <Input
+              ref={priceInputRef}
               type="number"
               inputMode="decimal"
               min="0"
               step="0.01"
               placeholder="Goodwill price $0.00"
               value={goodwillPrice}
-              onChange={e => setGoodwillPrice(e.target.value)}
+              onChange={e => { setGoodwillPrice(e.target.value); setPriceNudge(false); }}
             />
           </div>
+          {priceNudge && <p className="buy-price-nudge">What's on the tag?</p>}
           {photos.length > 0 && (
             <Button full onClick={handleGetVerdict}>Get the verdict</Button>
           )}
@@ -698,12 +747,21 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
     const goDetail = confidence && confidence !== 'high'
       ? `model estimate · ${confidence} confidence`
       : `${(estSellPrice / pencilFloor(gp, ship)).toFixed(1)}× over your floor`;
+    // His words for months in Gemini, so they are the app's words now. BUY IT
+    // was already his verbatim and is untouched. The internal token stays
+    // 'skip' — it is checkRules' contract, and nobody reads it.
+    const detail = go ? goDetail : 'on the shelf · under your floor';
+    // What this verdict was computed from. A verdict stored before this build
+    // has no baseline; treating the fields as changed offers him an action that
+    // is never harmful, which beats hiding it over missing bookkeeping.
+    const analyzedAs = analysisResult.analyzedAs ?? { details: '', condition: '' };
+    const changed = details !== analyzedAs.details || condition !== analyzedAs.condition;
     return (
       <div className="screen buy-barred">
         <VerdictBanner
           verdict={go ? 'go' : 'skip'}
-          label={go ? 'BUY IT' : 'SKIP IT'}
-          detail={go ? goDetail : 'under your floor'}
+          label={go ? 'BUY IT' : 'LEAVE IT'}
+          detail={analysisResult.revised ? `Revised · ${detail}` : detail}
         />
         <ListingPreviewCard
           className={go ? undefined : 'buy-skip-card'}
@@ -730,6 +788,26 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
         </Panel>
         {/* The prototype's "It'd need to be $X to work" skip line is omitted — its price
             inversion belongs to V1's calculations.js work (plan §6.1), same as the pencil floor. */}
+        {/* He does not open a panel to add what he just noticed — in Gemini he
+            simply types more and gets a revised answer back. So the field is
+            already here, and Re-check wakes the moment it says something new.
+            Photos are untouched: the same frames go back up. */}
+        <Panel title="Anything else?" className="buy-recheck">
+          <Input
+            placeholder="e.g. the box is a bit rough"
+            aria-label="Anything else about this item"
+            value={details}
+            onChange={e => setDetails(e.target.value)}
+          />
+          <div className="buy-chips">
+            {CONDITIONS.map(c => (
+              <Chip key={c} selected={condition === c} onPress={() => setCondition(c)}>{c}</Chip>
+            ))}
+          </div>
+          <Button variant="outline" full disabled={!changed || rechecking} onClick={handleRecheck}>
+            {rechecking ? 'Re-checking…' : 'Re-check'}
+          </Button>
+        </Panel>
         {go && (
           <Card className="buy-advisor">
             <div className="buy-advisor-av">F</div>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calcProfit, checkRules, pencilFloor } from './calculations';
+import { calcProfit, checkRules, pencilFloor, usablePrice } from './calculations';
 
 describe('calcProfit', () => {
   it('takes 13.25% + $0.30 in fees', () => {
@@ -112,5 +112,42 @@ describe('pencilFloor', () => {
       expect(rule1).toBe(true);
       expect(rule2).toBe(true);
     }
+  });
+});
+
+describe('usablePrice — the guard on the 3x rule', () => {
+  // W1: he sometimes photographs a thing without reading the tag. This is why
+  // that cannot reach an analysis — not a style preference about empty fields.
+  it('records the hazard it exists to prevent', () => {
+    // Against a cost basis of zero the 3x test reads `sellPrice >= 0`, so it
+    // does not fail — it stops meaning anything, and a $1 item passes.
+    expect(checkRules(1, 0, 64).rule1).toBe(true);
+    expect(checkRules(0.01, 0, 64).rule1).toBe(true);
+    // With a real cost basis the same call discriminates, as it should.
+    expect(checkRules(1, 8, 64).rule1).toBe(false);
+  });
+
+  it('accepts a price the rules can be applied to', () => {
+    expect(usablePrice('8')).toBe(true);
+    expect(usablePrice(8)).toBe(true);
+    expect(usablePrice('0.5')).toBe(true);
+    expect(usablePrice(' 12 ')).toBe(true);
+  });
+
+  // Number('') and Number(null) are both 0 — finite, non-negative and wrong.
+  // The same coercion that turned a missing shipping estimate into $4 at M2.
+  it.each([
+    ['an untouched field', ''],
+    ['a whitespace-only field', '   '],
+    ['an explicit zero', '0'],
+    ['a numeric zero', 0],
+    ['a negative', -5],
+    ['null', null],
+    ['undefined', undefined],
+    ['prose', 'about eight dollars'],
+    ['NaN', NaN],
+    ['Infinity', Infinity],
+  ])('refuses %s', (_label, value) => {
+    expect(usablePrice(value)).toBe(false);
   });
 });

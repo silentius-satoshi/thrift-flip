@@ -5,8 +5,11 @@
   border-radius: var(--r-card);
   padding: 13px 16px;
 }
-.ui-verdict-label { font-size: 16px; font-weight: 800; }
-.ui-verdict-detail { font-size: 12px; font-weight: 600; opacity: .85; }
+/* The verdict word never breaks. W1's longer details — "Revised · model
+   estimate · medium confidence" — were splitting BUY IT across two lines, and
+   the one word he reads from across the aisle is the one that has to hold. */
+.ui-verdict-label { font-size: 16px; font-weight: 800; white-space: nowrap; }
+.ui-verdict-detail { font-size: 12px; font-weight: 600; opacity: .85; text-align: right; }
 
 .ui-verdict-go { background: var(--green); color: #0B0F02; }
 .ui-verdict-skip { background: var(--red); color: #fff; }

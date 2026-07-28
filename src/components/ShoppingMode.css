@@ -256,3 +256,9 @@
 }
 /* the thumb clips to its rounded corner — keep the ring inside the dot */
 .buy-sheet-thumb .ui-photo-remove:focus-visible { outline-offset: -2px; }
+
+/* The no-price reminder: a line, not an alarm — he is holding the thing. */
+.buy-price-nudge { font-size: 13px; color: var(--fg-2); }
+
+/* Re-check: the fields sit open, the way his Gemini prompt box does. */
+.buy-recheck { display: flex; flex-direction: column; gap: 10px; }
