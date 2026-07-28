@@ -23,7 +23,26 @@ const CORE_GATE = 4;
 const GAP_MS = 2000;
 const ANCHOR_LOW = 4;
 const ANCHOR_HIGH = 30;
-const ANCHOR_TOLERANCE = 0.10;
+// H2: the fixed 10% tolerance is retired. D1 measured a ~29% spread between two
+// byte-identical prompts, so any threshold below the model's own noise floor
+// answers a question it cannot hear. The floor is now measured per run.
+const ANCHOR_PAIRS = 3;
+// Both arms carry notes, so control and anchored differ by exactly one thing:
+// whether a price appears. A control on an empty prompt would measure the noise
+// floor of a different prompt shape than the one under test.
+const ANCHOR_CONTEXT = 'found this at a thrift store';
+const anchorNotes = (price) => (price === null
+  ? ANCHOR_CONTEXT
+  : `${ANCHOR_CONTEXT}, paying $${price} for it`);
+// No fixture encodes what it cost. §2 of the deep-dive says Gemini assumed
+// $1.99-$3.99 for price-less turns; this sits just above that.
+const FIXTURE_COST = 4.99;
+const VARIANCE_DEFAULT = 5;
+// Measured from the refusal itself on 2026-07-28, not from documentation:
+//   quotaId GenerateRequestsPerDayPerProjectPerModel-FreeTier, quotaValue 20.
+// H2 planned 47 calls against this and died at the fourth. A preflight that
+// prints a number nothing is compared against is decoration.
+const FREE_TIER_DAILY = 20;
 const MIME = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp' };
 
 const GEMINI_KEY = process.env.GEMINI_KEY;
@@ -76,6 +95,9 @@ const { primeSession } = await import(join(ROOT, 'src/utils/credentials.js'));
 if (GEMINI_KEY) primeSession('ai-key', GEMINI_KEY);
 
 const { GEMINI_MODEL, DEFAULT_SHIPPING } = await import(join(ROOT, 'src/config/gemini.js'));
+// The app's own floor — the inversion of the 3x and $20 rules. A verdict flip is
+// an estimate crossing it, so the harness must use the real one, not a copy.
+const { pencilFloor } = await import(join(ROOT, 'src/utils/calculations.js'));
 const { SYSTEM_PROMPT } = await import(join(ROOT, 'src/config/prompt.js'));
 const { RESPONSE_SCHEMA } = await import(join(ROOT, 'src/config/schema.js'));
 
@@ -131,7 +153,17 @@ function diagnose(slot) {
   const candidate = parsed?.candidates?.[0];
   const text = candidate?.content?.parts?.map((p) => p.text).filter(Boolean).join('') ?? '';
   const usage = parsed?.usageMetadata ?? {};
+  // H2 lesson: a 200-char excerpt truncated the single most useful field of the
+  // whole mission — WHICH quota. The refusal names it precisely, so pull it out
+  // rather than hoping it lands inside the excerpt window.
+  const violation = parsed?.error?.details
+    ?.find((d) => d['@type']?.endsWith('QuotaFailure'))?.violations?.[0];
+  const isError = Boolean(parsed?.error) || status >= 400;
   return {
+    quotaId: violation?.quotaId ?? null,
+    quotaValue: violation?.quotaValue ?? null,
+    quotaModel: violation?.quotaDimensions?.model ?? null,
+    errorMessage: parsed?.error?.message ?? null,
     status,
     finishReason: candidate?.finishReason ?? null,
     blockReason: parsed?.promptFeedback?.blockReason ?? null,
@@ -144,7 +176,9 @@ function diagnose(slot) {
     thoughtsTokens: usage.thoughtsTokenCount ?? null,
     candidatesTokens: usage.candidatesTokenCount ?? null,
     totalTokens: usage.totalTokenCount ?? null,
-    excerpt: (text || raw).slice(0, 200),
+    // Error envelopes get room to explain themselves; successful bodies do not
+    // need it, and a schema-shaped response would swamp the appendix.
+    excerpt: (text || raw).slice(0, isError ? 900 : 200),
     textTail: text ? text.slice(-80) : null,
   };
 }
@@ -189,13 +223,13 @@ function scoreId(item, identification) {
 // A failure here is a V1 bug, not a harness bug: this is the first time the
 // production request shape meets the live API (V1 verified against a stub).
 // It deliberately does not fall back to any other body shape.
-async function runUngrounded(item, goodwillPrice = 8) {
+async function runUngrounded(item, goodwillPrice = 8, details = '') {
   wire.last = null;
   try {
     const result = await analyzeItem({
       photoBase64s: item.photos.map((p) => p.base64),
       mimeTypes: item.photos.map((p) => p.mimeType),
-      details: '',
+      details,
       condition: '',
       goodwillPrice,
       shipping: DEFAULT_SHIPPING,
@@ -224,6 +258,67 @@ async function attempt(run, label) {
   }
   // The last attempt is the answer; every attempt is the evidence.
   return { ...attempts.at(-1), attempts };
+}
+
+// ── The variance meter (H2) ─────────────────────────────────────────────────
+// D1 found ~29% between two byte-identical prompts at temperature 0, on one
+// pair, on one fixture. Before that drives multi-sampling or comps overrides it
+// needs a distribution — and the number that decides anything is not the spread
+// but whether the spread crosses the floor.
+//
+// Samples are NOT retried. A failed call is data: 25 near-identical requests
+// also measure how often `bad-response` actually happens, which is the question
+// D1 could not answer from one clean re-run.
+const median = (xs) => {
+  if (!xs.length) return null;
+  const sorted = [...xs].sort((a, b) => a - b);
+  const mid = sorted.length / 2;
+  return sorted.length % 2 ? sorted[Math.floor(mid)] : (sorted[mid - 1] + sorted[mid]) / 2;
+};
+
+async function runVariance(item, k) {
+  const runs = [];
+  for (let i = 0; i < k; i++) {
+    runs.push(await runUngrounded(item));
+    if (i < k - 1) await sleep(GAP_MS);
+  }
+  return runs;
+}
+
+function varianceStats(item, runs) {
+  const ok = runs.filter((r) => r.ok);
+  const estimates = ok.map((r) => r.result.estSellPrice);
+  const shippings = ok.map((r) => r.result.shipping);
+  const med = median(estimates);
+  // The floor is computed per run from THAT run's shipping, because that is what
+  // the app would have done with that response. A single median floor would hide
+  // that shipping is itself a noisy input.
+  const calls = ok.map((r) => {
+    const floor = pencilFloor(FIXTURE_COST, r.result.shipping);
+    return { estimate: r.result.estSellPrice, shipping: r.result.shipping, floor,
+             verdict: r.result.estSellPrice >= floor ? 'BUY' : 'LEAVE' };
+  });
+  const verdicts = [...new Set(calls.map((c) => c.verdict))];
+  const idScores = ok.map((r) => scoreId(item, r.result.identification));
+  const idAgreed = idScores.filter((v) => v === idScores[0]).length;
+  return {
+    slug: item.slug,
+    k: runs.length,
+    failures: runs.length - ok.length,
+    codes: [...new Set(runs.filter((r) => !r.ok).map((r) => r.code))],
+    estimates,
+    median: med,
+    min: estimates.length ? Math.min(...estimates) : null,
+    max: estimates.length ? Math.max(...estimates) : null,
+    spread: med ? (Math.max(...estimates) - Math.min(...estimates)) / med : null,
+    shippingMin: shippings.length ? Math.min(...shippings) : null,
+    shippingMax: shippings.length ? Math.max(...shippings) : null,
+    calls,
+    stable: verdicts.length === 1,
+    verdict: verdicts.length === 1 ? verdicts[0] : 'SPLIT',
+    idScores,
+    idStable: idScores.length > 0 && idAgreed === idScores.length,
+  };
 }
 
 // ── Arm 2: same call plus the search tool ───────────────────────────────────
@@ -327,6 +422,7 @@ async function runGrounded(item, goodwillPrice = 8) {
 const serp = { credits: 0, live: 0, archived: 0, billedNote: false };
 // Every failed attempt, from every arm, for the Failures appendix.
 const anchorFailures = [];
+const varianceRows = [];
 
 // The dashboard reading of R1's "503 x4": none of them were refusals. The eBay
 // engine ran 22-74s and four searches COMPLETED server-side after the harness
@@ -504,6 +600,7 @@ function buildFailures(rows, stamp) {
         `  - HTTP \`${d.status}\` · finishReason \`${d.finishReason ?? 'none'}\` · blockReason \`${d.blockReason ?? 'none'}\``,
         `  - envelope parsed: ${d.envelopeParsed ? 'yes' : '**no**'} · raw ${d.rawLength} chars · text ${d.textLength} chars`,
         `  - tokens — prompt ${d.promptTokens ?? '?'} · thoughts **${d.thoughtsTokens ?? '?'}** · candidates ${d.candidatesTokens ?? '?'} · total ${d.totalTokens ?? '?'}`,
+        ...(d.quotaId ? [`  - quota — \`${d.quotaId}\` · limit **${d.quotaValue}** · model \`${d.quotaModel}\``] : []),
         '',
         '    ```',
         `    ${String(d.excerpt ?? '').replace(/\n/g, ' ')}`,
@@ -516,9 +613,55 @@ function buildFailures(rows, stamp) {
   return lines.join('\n');
 }
 
-function buildReport(rows, anchor, stamp) {
+function buildVariance(stats) {
+  if (!stats.length) return '';
+  const spreads = stats.map((v) => v.spread).filter((n) => n !== null);
+  const worst = stats.filter((v) => v.spread !== null).sort((a, b) => b.spread - a.spread)[0];
+  const stable = stats.filter((v) => v.stable && v.calls.length);
+  const pct = (n) => (n === null ? '—' : `${(n * 100).toFixed(0)}%`);
+
+  return [
+    '## Variance — the same photos, k times',
+    '',
+    `_${stats[0].k} calls per item, identical inputs, \`temperature: 0\`. Samples are not`,
+    'retried: a failed call is data, so this also measures how often `bad-response`',
+    'actually happens._',
+    '',
+    '| Item | estimates | median | min–max | spread | shipping min–max | ID stable | failures |',
+    '|---|---|---|---|---|---|---|---|',
+    ...stats.map((v) => `| ${v.slug} | ${v.estimates.map(money).join(', ') || '—'} | ${money(v.median)} | ${money(v.min)}–${money(v.max)} | **${pct(v.spread)}** | ${money(v.shippingMin)}–${money(v.shippingMax)} | ${v.calls.length ? (v.idStable ? 'yes' : '**no**') : '—'} | ${v.failures}${v.codes.length ? ` (${v.codes.join(', ')})` : ''} |`),
+    '',
+    `**Median spread across items: ${pct(median(spreads))}.** Worst: \`${worst?.slug ?? '—'}\` at ${pct(worst?.spread ?? null)}.`,
+    '',
+    '### Verdict flips — the number the product decision reads',
+    '',
+    `_Against a stated cost of **$${FIXTURE_COST.toFixed(2)}** and the app's own \`pencilFloor\`, computed per`,
+    `run from that run's own \`shipping_estimate\` — which is what the app would have`,
+    'done with that response. A flip can therefore come from shipping noise as well',
+    'as price noise, which is why the shipping range is reported above._',
+    '',
+    '| Item | floor(s) | verdicts across the k runs | stable? |',
+    '|---|---|---|---|',
+    ...stats.map((v) => {
+      const floors = [...new Set(v.calls.map((c) => money(c.floor)))].join(', ') || '—';
+      const vs = v.calls.map((c) => c.verdict).join(' · ') || '—';
+      return `| ${v.slug} | ${floors} | ${vs} | ${v.calls.length ? (v.stable ? `yes — ${v.verdict}` : '**NO — SPLIT**') : '—'} |`;
+    }),
+    '',
+    `**${stable.length} of ${stats.filter((v) => v.calls.length).length} items are verdict-stable.**`,
+    'An unstable item is one where the same photos, priced the same, would have',
+    'sent Dad away with the thing and left it on the shelf on different taps.',
+    '',
+  ].join('\n');
+}
+
+function buildReport(rows, anchor, stamp, varianceSection = '') {
   const core = rows.filter((r) => CORE_SLUGS.includes(r.item.slug));
   const coreCorrect = core.filter((r) => r.ungroundedScore === 'correct').length;
+  // `quota` and `bad-key` mean the request never reached the model. Counting
+  // those as wrong answers turns an account problem into a FAIL against the
+  // model, which is the one thing this table must never say by accident.
+  const refused = core.filter((r) => !r.ungrounded.ok && ['quota', 'bad-key'].includes(r.ungrounded.code));
   const gatePass = coreCorrect >= CORE_GATE && core.length >= CORE_SLUGS.length;
   const queries = rows.reduce((sum, r) => sum + (r.grounded.ok ? r.grounded.queries.length : 0), 0);
   const allSources = rows.flatMap((r) => (r.grounded.ok ? r.grounded.sources : []));
@@ -561,7 +704,9 @@ _Model: \`${GEMINI_MODEL}\`. Items: ${rows.length}. Grounded search queries bill
 
 ${SUBSET
   ? `_Not assessed — this was a subset run (\`--only=${onlySlugs.join(',')}\`). ${core.length} of ${CORE_SLUGS.length} core items ran, so the gate is not measurable and the last full run's verdict stands._`
-  : `**${gatePass ? 'PASS' : 'FAIL'}** — ${coreCorrect}/${core.length} core items correct on brand+model (need ${CORE_GATE} of ${CORE_SLUGS.length}).`}
+  : refused.length
+    ? `_**Not assessed** — ${refused.length} of ${core.length} core items were refused by the account before reaching the model (\`${[...new Set(refused.map((r) => r.ungrounded.code))].join(', ')}\`), so they are neither right nor wrong. ${coreCorrect} of the ${core.length - refused.length} that ran were correct. The last fully-answered run's verdict stands._`
+    : `**${gatePass ? 'PASS' : 'FAIL'}** — ${coreCorrect}/${core.length} core items correct on brand+model (need ${CORE_GATE} of ${CORE_SLUGS.length}).`}
 ${core.length < CORE_SLUGS.length ? `\n> Missing fixtures for: ${CORE_SLUGS.filter((s) => !core.some((r) => r.item.slug === s)).join(', ')}. The gate cannot pass until all five exist.\n` : ''}
 | # | Item | Ungrounded ID | Grounded ID | Condition | Est. (ungrounded) | Est. (grounded) | Real sold median | Within range U/G | Shipping est. | ID confidence | Registers | Search queries |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -574,7 +719,7 @@ figure the verdict actually spends now that the capture screen no longer asks
 for one. It is **unscored**: the fixtures have no weighed postage to score it
 against, so read the column for anything absurd rather than for a percentage.
 
-## Calibration — does stated confidence track accuracy?
+${varianceSection}## Calibration — does stated confidence track accuracy?
 
 What matters is the sort, not the average: accuracy should fall as confidence falls.
 If \`high\` is not meaningfully more accurate than \`low\`, that finding outranks the
@@ -635,45 +780,97 @@ ${!SERPAPI_KEY
 
 // ── Anchoring ───────────────────────────────────────────────────────────────
 async function runAnchor(item) {
-  say(`\n▸ anchoring on "${item.slug}" — $${ANCHOR_LOW} vs $${ANCHOR_HIGH}`);
-  const low = await attempt(() => runUngrounded(item, ANCHOR_LOW), `${item.slug} anchor $${ANCHOR_LOW}`);
-  await sleep(GAP_MS);
-  const high = await attempt(() => runUngrounded(item, ANCHOR_HIGH), `${item.slug} anchor $${ANCHOR_HIGH}`);
-  anchorFailures.push(
-    ...[['low', low], ['high', high]]
-      .filter(([, r]) => !r.ok)
-      .map(([which, r]) => ({ slug: `${item.slug} (anchor ${which})`, arm: 'ungrounded', attempts: r.attempts })),
-  );
-  if (!low.ok || !high.ok) {
-    const code = low.ok ? high.code : low.code;
-    say(`  anchoring inconclusive — ${code}`);
-    return `_Inconclusive: the run failed with \`${code}\`._`;
+  // Rebuilt at H2. The old test compared one $4 call against one $30 call and
+  // called anything over 10% anchored — but D1 measured ~29% between two
+  // IDENTICAL prompts, so the threshold sat three times below the noise. Worse,
+  // D1 deleted the price from the prompt entirely, which left the old test
+  // comparing two byte-identical requests and reporting their variance as
+  // anchoring.
+  //
+  // So: measure the floor, then look for signal above it. The price now rides
+  // the notes field, which is also the realistic threat model — Dad's own notes
+  // could say what he paid.
+  say(`\n▸ anchoring on "${item.slug}" — ${ANCHOR_PAIRS} control pairs, ${ANCHOR_PAIRS} anchored pairs`);
+
+  async function pair(label, notesA, notesB) {
+    const a = await runUngrounded(item, ANCHOR_LOW, notesA);
+    await sleep(GAP_MS);
+    const b = await runUngrounded(item, ANCHOR_HIGH, notesB);
+    await sleep(GAP_MS);
+    for (const [which, r] of [['A', a], ['B', b]]) {
+      if (!r.ok) {
+        anchorFailures.push({ slug: `${item.slug} (${label} ${which})`, arm: 'ungrounded', attempts: [r] });
+      }
+    }
+    if (!a.ok || !b.ok) return null;
+    const x = a.result.estSellPrice;
+    const y = b.result.estSellPrice;
+    return { x, y, delta: y - x, abs: Math.abs(y - x) };
   }
-  const a = low.result.estSellPrice;
-  const b = high.result.estSellPrice;
-  const base = Math.max(Math.abs(a), 1e-9);
-  const drift = Math.abs(b - a) / base;
-  const anchored = drift > ANCHOR_TOLERANCE;
-  say(`  $${ANCHOR_LOW} → ${money(a)} | $${ANCHOR_HIGH} → ${money(b)} | drift ${(drift * 100).toFixed(1)}%`);
-  if (anchored) {
-    say('  ANCHORED — the model is pricing off the purchase price. Fix, in src/utils/ai.js:');
-    say('    `Goodwill price: $${Number(goodwillPrice).toFixed(2)}`, // ANCHORING: delete this line');
+
+  const control = [];
+  for (let i = 0; i < ANCHOR_PAIRS; i++) {
+    const r = await pair('control', anchorNotes(null), anchorNotes(null));
+    if (r) say(`  control ${i + 1}: ${money(r.x)} vs ${money(r.y)} — |Δ| ${money(r.abs)}`);
+    if (r) control.push(r);
   }
+  const anchored = [];
+  for (let i = 0; i < ANCHOR_PAIRS; i++) {
+    const r = await pair('anchored', anchorNotes(ANCHOR_LOW), anchorNotes(ANCHOR_HIGH));
+    if (r) say(`  anchored ${i + 1}: $${ANCHOR_LOW} → ${money(r.x)} | $${ANCHOR_HIGH} → ${money(r.y)} — Δ ${money(r.delta)}`);
+    if (r) anchored.push(r);
+  }
+
+  if (control.length < 2 || anchored.length < 2) {
+    say('  anchoring inconclusive — too few pairs completed');
+    return `_Inconclusive: ${control.length}/${ANCHOR_PAIRS} control and ${anchored.length}/${ANCHOR_PAIRS} anchored pairs completed._`;
+  }
+
+  const noise = median(control.map((r) => r.abs));
+  const signal = median(anchored.map((r) => r.abs));
+  // Signal has to beat noise by more than noise itself: a difference the size of
+  // the floor is the floor.
+  const isAnchored = signal > noise * 2;
+  // Direction is the other half of the evidence. Anchoring predicts a higher
+  // stated price produces a higher estimate, every time.
+  const up = anchored.filter((r) => r.delta > 0).length;
+  const consistent = up === anchored.length || up === 0;
+
+  say(`  noise floor (control |Δ| median): ${money(noise)}`);
+  say(`  anchored |Δ| median:              ${money(signal)}`);
+  say(`  ${isAnchored ? 'ANCHORED' : 'within noise'} — signal ${isAnchored ? '>' : '<='} 2x floor · ${up}/${anchored.length} pairs moved up`);
+
+  const rows = (label, list) => list.map((r, i) =>
+    `| ${label} ${i + 1} | ${money(r.x)} | ${money(r.y)} | ${money(r.delta)} |`).join('\n');
+
   return [
-    `| Run | Stated Goodwill price | \`pricing.estimate\` |`,
-    `|---|---|---|`,
-    `| A | $${ANCHOR_LOW.toFixed(2)} | ${money(a)} |`,
-    `| B | $${ANCHOR_HIGH.toFixed(2)} | ${money(b)} |`,
+    `**${isAnchored ? 'ANCHORED via the notes field' : 'Within noise — no anchoring detected'}.**`,
     '',
-    anchored
-      ? `**ANCHORED** — the estimate moved ${(drift * 100).toFixed(1)}% (tolerance ${ANCHOR_TOLERANCE * 100}%). The model is pricing off the purchase price, which makes every verdict circular. Fix: delete the line marked \`// ANCHORING: delete this line\` in \`src/utils/ai.js\`. The price stays client-side in \`calcProfit\`/\`checkRules\`/\`pencilFloor\`, which is all it was ever needed for.`
-      : `**Holds** — the estimate moved ${(drift * 100).toFixed(1)}% (tolerance ${ANCHOR_TOLERANCE * 100}%). The model is pricing the market, not the sticker.`,
+    `Both arms send notes; they differ only in whether a price appears. The control's`,
+    `spread **is** the noise floor for this prompt shape and this run.`,
+    '',
+    '| Pair | A | B | Δ (B−A) |',
+    '|---|---|---|---|',
+    rows(`control (no price)`, control),
+    rows(`anchored ($${ANCHOR_LOW} vs $${ANCHOR_HIGH})`, anchored),
+    '',
+    `- Noise floor — median control \`|Δ|\`: **${money(noise)}**`,
+    `- Signal — median anchored \`|Δ|\`: **${money(signal)}**`,
+    `- Threshold — signal must exceed **${money(noise * 2)}** (floor + floor)`,
+    `- Direction — ${up}/${anchored.length} anchored pairs moved *up* with the stated price${consistent ? ' (consistent)' : ' (inconsistent — the mark of noise, not anchoring)'}`,
+    '',
+    isAnchored
+      ? `A price written into the notes still moves the estimate. The prompt cannot be fixed by deletion this time — the text is the user's own.`
+      : `A price written into the notes does not move the estimate more than the model moves on its own. Nothing to act on, and D1's deletion holds.`,
   ].join('\n');
 }
 
 // ── Main ────────────────────────────────────────────────────────────────────
 const anchorSlug = process.argv.find((a) => a.startsWith('--anchor='))?.split('=')[1];
 const onlyArg = process.argv.find((a) => a.startsWith('--only='))?.split('=')[1];
+const varianceArg = process.argv.find((a) => a === '--variance' || a.startsWith('--variance='));
+const VARIANCE_K = varianceArg ? (Number(varianceArg.split('=')[1]) || VARIANCE_DEFAULT) : 0;
+const RUN_LABEL = process.argv.find((a) => a.startsWith('--label='))?.split('=')[1] ?? 'Run';
 const onlySlugs = onlyArg ? onlyArg.split(',').map((s) => s.trim()).filter(Boolean) : null;
 const allItems = loadFixtures();
 // A subset run measures a couple of items closely; it cannot speak for the
@@ -683,6 +880,29 @@ const items = SUBSET ? allItems.filter((i) => onlySlugs.includes(i.slug)) : allI
 if (SUBSET) {
   const missing = onlySlugs.filter((slug) => !allItems.some((i) => i.slug === slug));
   if (missing.length) say(`--only: no fixture for ${missing.join(', ')}`);
+}
+
+// Real money on someone's own key. Say what it will cost before spending it.
+{
+  const perItem = 2; // one ungrounded, one grounded
+  const anchorCalls = anchorSlug ? ANCHOR_PAIRS * 4 : 0;
+  const gemini = items.length * perItem + items.length * VARIANCE_K + anchorCalls;
+  say(`\nCost preflight — ${items.length} item${items.length === 1 ? '' : 's'}`);
+  say(`  ${items.length * perItem} gate calls (ungrounded + grounded)`);
+  if (VARIANCE_K) say(`  ${items.length * VARIANCE_K} variance calls (${VARIANCE_K} per item, not retried)`);
+  if (anchorCalls) say(`  ${anchorCalls} anchor calls (${ANCHOR_PAIRS} control pairs + ${ANCHOR_PAIRS} anchored pairs)`);
+  say(`  ≈ ${gemini} Gemini calls${SERPAPI_KEY ? ` · up to ${items.length} SerpApi searches` : ' · no SerpApi key'}`);
+  say(`  grounded search queries are billed separately, per query executed`);
+  if (gemini > FREE_TIER_DAILY) {
+    say('');
+    say(`  ⚠ THIS RUN CANNOT COMPLETE ON THE FREE TIER.`);
+    say(`    The measured ceiling is ${FREE_TIER_DAILY} requests/day for ${GEMINI_MODEL}`);
+    say(`    (quotaId GenerateRequestsPerDayPerProjectPerModel-FreeTier), and this run`);
+    say(`    plans ${gemini}. Expect \`quota\` from roughly call ${FREE_TIER_DAILY} onward, and note`);
+    say(`    the day's allowance is shared with anything already run today.`);
+    say(`    Either enable billing, or narrow with --only= and a smaller --variance=.`);
+  }
+  say('');
 }
 
 if (!items.length) {
@@ -718,6 +938,16 @@ for (const item of items) {
   say(`  grounded:   ${grounded.ok ? `${groundedScore} · ${money(Number(grounded.parsed.pricing?.estimate))} · ${grounded.queries.length} search ${grounded.queries.length === 1 ? 'query' : 'queries'}` : `error \`${grounded.code}\``}`);
   await sleep(GAP_MS);
 
+  if (VARIANCE_K) {
+    say(`  variance:   ${VARIANCE_K} identical calls…`);
+    const runs = await runVariance(item, VARIANCE_K);
+    const stats = varianceStats(item, runs);
+    varianceRows.push(stats);
+    const pct = stats.spread === null ? '—' : `${(stats.spread * 100).toFixed(0)}%`;
+    say(`              ${stats.estimates.map(money).join(', ') || 'all failed'} · spread ${pct} · ${stats.calls.length ? (stats.stable ? `stable ${stats.verdict}` : 'VERDICT SPLIT') : '—'}${stats.failures ? ` · ${stats.failures} failed` : ''}`);
+    await sleep(GAP_MS);
+  }
+
   const comps = await soldComps(item);
   if (comps?.error) say(`  sold comps: ${comps.error}`);
   else if (comps) say(`  sold comps: median ${money(comps.median)} of ${comps.n} (${money(comps.low)}–${money(comps.high)})`);
@@ -735,6 +965,38 @@ if (anchorSlug) {
 const stamp = new Date().toISOString();
 const failures = scrub(buildFailures(rows, stamp));
 
+const TITLE = '# Live-check results';
+const FAIL_MARKER = '\n## Failures\n';
+const ARCHIVE_MARKER = '\n## Superseded';
+
+// A full run used to rewrite the file end to end, which would have erased R1's
+// table, its hand-written read-out and the whole D1 diagnosis. Newest first, and
+// nothing is ever deleted: the previous run is demoted, dated, and kept.
+function demote(existing) {
+  if (!existing) return '';
+  let body = existing;
+  const t = body.indexOf(TITLE);
+  if (t >= 0) body = body.slice(t + TITLE.length);
+  const f = body.indexOf(FAIL_MARKER);
+  if (f >= 0) body = body.slice(0, f);          // the appendix is rebuilt every run
+  body = body.replace(/\n*-{3,}\s*$/, '').trim();
+  if (!body) return '';
+  const when = body.match(/_Generated (\d{4}-\d{2}-\d{2})/)?.[1] ?? 'an earlier run';
+  const already = body.indexOf(ARCHIVE_MARKER);
+  // Don't nest archives inside archives — demote only what was current, and let
+  // anything already demoted keep its own heading below it.
+  const fresh = already < 0 ? body : body.slice(0, already).trim();
+  const older = already < 0 ? '' : body.slice(already).trim();
+  return [
+    `## Superseded — ${when}`,
+    '',
+    '_Kept for the record. The run above supersedes it; the prompt has changed since._',
+    '',
+    fresh,
+    older ? `\n${older}` : '',
+  ].join('\n');
+}
+
 if (SUBSET && existsSync(OUT)) {
   // A subset run answers a narrow question and must not overwrite the record of
   // a run that answered the broad one — the table, the calibration rows and any
@@ -745,7 +1007,24 @@ if (SUBSET && existsSync(OUT)) {
   writeFileSync(OUT, `${head}\n---\n\n${failures}`);
   say(`\nSubset run — updated only the Failures appendix of docs/live-check-results.md`);
   say('The table above it is from the last full run and was left untouched.');
+} else if (existsSync(OUT) && !rows.some((r) => r.ungrounded.ok || r.grounded.ok)) {
+  // Every call failed, so this run knows nothing. Demoting a real report beneath
+  // a table of dashes would lose the record and record nothing in its place —
+  // which is exactly what a keyless or fully-quota-blocked run would do.
+  say('\nEvery call failed — docs/live-check-results.md left untouched.');
+  say('Nothing was learned, so nothing supersedes what is already there.');
 } else {
-  writeFileSync(OUT, `${scrub(buildReport(rows, anchorReport, stamp))}\n---\n\n${failures}`);
-  say(`\nWrote docs/live-check-results.md`);
+  const fresh = scrub(buildReport(rows, anchorReport, stamp, scrub(buildVariance(varianceRows))));
+  const freshBody = fresh.slice(fresh.indexOf(TITLE) + TITLE.length).trim();
+  const archived = demote(existsSync(OUT) ? readFileSync(OUT, 'utf8') : '');
+  writeFileSync(OUT, [
+    TITLE,
+    '',
+    `## ${RUN_LABEL} — ${stamp.slice(0, 10)}`,
+    '',
+    freshBody,
+    archived ? `\n---\n\n${archived}` : '',
+    `\n---\n\n${failures}`,
+  ].join('\n'));
+  say(`\nWrote docs/live-check-results.md — newest first; the previous run was demoted, not replaced.`);
 }
