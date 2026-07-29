@@ -183,6 +183,52 @@ official, with real dates for velocity, reusing the OAuth connection and relay
 this app already has — which needs an application to eBay. Runbook §13 carries
 the measurements and the checks to run if that ever lands.
 
+**🔒 CLOSED (2026-07-29) — there is no compliant automated marketplace pricing
+data for an individual seller, and B1-lite is the answer to that.** The candidate
+above was chased down and does not open:
+
+- **Marketplace Insights** — closed. Restricted-access, granted per-application
+  to approved business partners; a solo seller does not qualify.
+- **The Buy APIs** — EPN-gated in production. Browse and its relatives require
+  eBay Partner Network membership for a production keyset, which is an
+  affiliate-marketing programme, not a research one.
+- **Finding and Shopping** — retired.
+- **SerpApi's eBay engine** — measured dead on the sold arm (above).
+
+So the automated route is not "blocked pending a form"; it is **closed**. Two
+consequences, both now built:
+
+1. **The V2 ladder stays in place, dormant and source-agnostic.** Nothing is
+   deleted. `fetchSold` in `api/serpapi/comps.js` is the single swap point, and
+   the relay's `unavailable` answer is a tested, indistinguishable-from-V1 path
+   rather than a broken one. **Re-check quarterly** — eBay's access tiers move.
+2. **The pricing position of record is: model estimate + tier 0 (his own sold
+   history) + manual rails.** That is the honest description of what prices an
+   item, and it is what the UI now says on every verdict.
+
+**✅ B1-lite SHIPPED (2026-07-29) — the manual sold rails.** eBay's **Product
+Research** (ex-Terapeak) is the richest compliant sold source available to him:
+free to every seller, **three years** deep, and — the part no API exposes —
+including **accepted Best-Offer prices**, which is what thrift inventory actually
+sells for. The catch is delivery, not access: on mobile it lives only in the eBay
+native app (Selling → Product Research), with no published deep link. Hence a
+clipboard hand-off rather than a URL, on both screens where a price is decided.
+Deliberately **no `ebay://` scheme** — an undocumented scheme that lands him on
+the app's home screen reads as broken software and costs more trust than the tap
+saves.
+
+Measured the same day: `https://www.ebay.com/sh/research?keywords=` does **not**
+dead-end — with an iPhone user agent it redirects to sign-in with the keywords
+preserved intact — so it ships as a third, explicitly desktop-labelled option at
+listing time. Whether it renders usably on a signed-in phone is the one part a
+scripted client cannot settle; runbook §13 carries it as an on-device check.
+
+**Grounded Gemini is now the sole remaining automated option**, and it is
+deferred rather than dismissed: it needs billing enabled (no free tier on 3.x)
+and bills per query executed on a BYOK key. **Re-evaluate after the field trip**,
+when there is real data on how often the model's own estimate is wrong enough to
+be worth paying to correct.
+
 ### 6.2 The model decision (V0 skipped) and the two checks that moved to V1
 
 **Decision of record:** V0 is skipped. Dad's sustained real-world use of **Gemini 3.6 Flash** on actual thrift items is stronger evidence of identification quality than a one-hour staged test, so `gemini-3.6-flash` is the **default** in `src/config/gemini.js` from V1 onward. Cost at 3.6-flash pricing ($1.50/$7.50 per 1M): a full item ≈ 2,500–3,300 tokens ≈ **$0.01–0.02**, a 20-item trip well under fifty cents, before any free-tier allowance applies. The old default (`gemini-3-flash-preview`) becomes the *budget fallback*, inverting vision §3's original tiering — that section carries the amendment. `docs/v0-model-check.md` is retained: its §3 system prompt is still the reconstruction of record that V1 ships in `src/config/prompt.js`, and its schema and scoring sheet are reused below.

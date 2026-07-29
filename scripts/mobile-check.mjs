@@ -625,7 +625,12 @@ const clearComps = (page) => page.evaluate(() => localStorage.removeItem('thrift
 async function compsSuite(chromium, exe) {
   const S = 'comps';
   const browser = await chromium.launch({ executablePath: exe, args: ['--no-sandbox'] });
-  const context = await browser.newContext(PHONE);
+  // Read as well as write: the research rail's only observable effect is what
+  // lands on the clipboard, so the assertion has to be able to read it back.
+  const context = await browser.newContext({
+    ...PHONE,
+    permissions: ['clipboard-read', 'clipboard-write'],
+  });
   const page = await context.newPage();
   watch(page);
 
@@ -677,6 +682,50 @@ async function compsSuite(chromium, exe) {
     const links = await page.$$eval('.ui-sheet a[href^="https://www.ebay.com/itm/"]', (a) => a.length);
     ok(S, 'and every sample is a real listing he can open', links === 2, `${links} links`);
     ok(S, 'the always-there eBay link survives', why.includes('See sold listings on eBay'));
+
+    // ── 3b. The manual research rail (B1-lite) ──────────────────────────────
+    // The rail is the whole delivery mechanism for the best sold data Dad can
+    // get — Product Research is app-only on mobile with no deep link — so a
+    // copy that silently misses would send him to another app to paste
+    // whatever he happened to have on the clipboard before.
+    ok(S, 'the research rail is offered beside the sold link',
+      why.includes('Research solds in the eBay app'), why.slice(-200));
+    await page.evaluate(() => navigator.clipboard.writeText('SENTINEL — nothing copied'));
+    await page.click('.ui-sheet .ui-btn:has-text("Research solds in the eBay app")');
+    await page.waitForSelector('.buy-src-copied', { timeout: 5000 });
+    const pasted = await page.evaluate(() => navigator.clipboard.readText());
+    ok(S, 'tapping it puts the search on the clipboard', pasted !== 'SENTINEL — nothing copied', pasted);
+    // The model's IDENTIFICATION, normalized and deduped — not the
+    // 60-character generated listing title, whose "Beaver State Southwest
+    // Vintage" filler narrows a sold search toward nothing.
+    ok(S, 'and what it copies is the normalized read, not the listing title',
+      pasted === 'pendleton blanket', pasted);
+    const coach = await page.textContent('.buy-src-copied');
+    ok(S, 'the coach mark names every step, since there is no deep link',
+      ['eBay app', 'Selling', 'Product Research', 'paste'].every((s) => coach.includes(s)), coach);
+    // The sold-filter link has to ask eBay the same question the clipboard did,
+    // or two adjacent buttons describe two different items.
+    const soldHref = await page.evaluate(() => {
+      const btn = [...document.querySelectorAll('.ui-sheet .ui-btn')]
+        .find((b) => b.textContent.includes('See sold listings'));
+      let captured = null;
+      const real = window.open;
+      window.open = (u) => { captured = u; return null; };
+      btn.click();
+      window.open = real;
+      return captured;
+    });
+    ok(S, 'the sold link searches for that same string', soldHref
+      && decodeURIComponent(soldHref).includes('_nkw=pendleton blanket'),
+      soldHref ?? 'no url');
+    ok(S, 'and it still asks for sold AND completed',
+      soldHref?.includes('LH_Sold=1') && soldHref?.includes('LH_Complete=1'), soldHref ?? '');
+    await page.keyboard.press('Escape');
+    // The coach mark describes a clipboard the next item will overwrite.
+    await page.click('.ui-panel-tap');
+    await page.waitForSelector('.ui-sheet', { timeout: 5000 });
+    ok(S, 'the coach mark does not survive the sheet closing',
+      !(await page.isVisible('.buy-src-copied')), 'coach mark persisted');
     await page.keyboard.press('Escape');
 
     // ── 4. Thin data does NOT take the wheel ────────────────────────────────
@@ -1016,6 +1065,11 @@ async function sweepSuite(chromium, exe, viewport = VIEWPORTS[2]) {
     await page.click('.cart-item-actions .ui-btn:has-text("Ready to list")');
     await ceremony(page, 4000);
     await page.waitForSelector('.distribution-row', { timeout: 20000 });
+    // Three stacked full-width rails live in the pricing block (B1-lite), and
+    // 360px is where they would collide. Asserted explicitly so the tap-target
+    // audit below cannot pass vacuously if they ever stop rendering.
+    const rails = await page.$$eval('.listing-rails .ui-btn', (b) => b.map((x) => x.textContent));
+    ok(S, 'listing: all three sold rails are on screen', rails.length === 3, rails.join(' | '));
     seen.push(...await auditAt(page, 'listing'));
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/m1-sweep-${viewport.label}-listing.png`, fullPage: true });
 

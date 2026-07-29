@@ -9,6 +9,7 @@ import { addHistoryEntry } from '../utils/historyStore';
 import { saveDraft } from '../utils/draftsStore';
 import { useToast } from '../contexts/ToastContext';
 import { listingEditsService } from '../utils/storageService';
+import { researchQuery, soldSearchUrl, productResearchUrl, copyText, RESEARCH_STEPS } from '../utils/researchRails';
 import { useUser } from '../contexts/UserContext';
 import Button from './ui/Button';
 import Card from './ui/Card';
@@ -138,6 +139,9 @@ export default function ListingMode({ listingItem, listingData, onClearListing, 
   const [showSaveDraftModal, setShowSaveDraftModal] = useState(false);
   const [showVendooSheet, setShowVendooSheet] = useState(false);
   const [copied, setCopied] = useState(null); // 'ebay' | 'mercari' — which package is on the clipboard
+  // The research coach mark. Persistent rather than a toast: it carries four
+  // steps he has to perform, and a toast clears before he has read them.
+  const [researchCopied, setResearchCopied] = useState(false);
 
   const photoInputRef = useRef(null);
 
@@ -314,6 +318,27 @@ export default function ListingMode({ listingItem, listingData, onClearListing, 
   // item. The market governs the listing, but the floor stays visible.
   const shelfFloor = listingData?.pencilFloor ?? null;
 
+  // What the sold rails search for. Built from the title on screen NOW, because
+  // he may well have rewritten it since the analysis — and the same normalizer
+  // the verdict screen uses, so both screens ask eBay the same question.
+  const railQuery = researchQuery({ listingTitle: title, note: listingItem?.name });
+
+  /**
+   * The hand-off into the eBay app, where the free three-year sold history
+   * lives and where no URL can reach on a phone. The clipboard IS the rail, so
+   * a failed copy has to say so — otherwise he switches apps and pastes the
+   * last thing he happened to have copied.
+   */
+  async function handleCopyForResearch() {
+    if (await copyText(railQuery)) {
+      setResearchCopied(true);
+      showToast('Copied — paste it in the eBay app', 'success');
+    } else {
+      setResearchCopied(false);
+      showToast('Copy failed — long-press the title to copy it', 'error');
+    }
+  }
+
   // The clipboard write has to resolve inside the user gesture, before the
   // window.open — Safari drops the permission otherwise.
   async function copyAndOpen(variant, text, url) {
@@ -488,6 +513,37 @@ export default function ListingMode({ listingItem, listingData, onClearListing, 
             </div>
           </Panel>
         )}
+        {/* The manual sold rails (B1-lite). Three here rather than the Why
+            sheet's two: this is the desk, not the aisle, and the desktop-only
+            option is worth the row when he is sitting down. */}
+        <div className="listing-rails">
+          <div className="listing-rails-label">Check what these actually sell for</div>
+          <Button
+            variant="outline"
+            full
+            onClick={() => window.open(soldSearchUrl(railQuery), '_blank', 'noopener')}
+          >
+            See sold listings on eBay
+          </Button>
+          <Button variant="outline" full onClick={handleCopyForResearch}>
+            Research solds in the eBay app
+          </Button>
+          {/* Labelled "(desktop)" on purpose. Measured 2026-07-29: this URL
+              redirects to sign-in with the keywords intact, so it does not
+              dead-end — but Product Research is a desktop surface, and a
+              sign-in wall he was warned about reads very differently from one
+              he was not. */}
+          <Button
+            variant="outline"
+            full
+            onClick={() => window.open(productResearchUrl(railQuery), '_blank', 'noopener')}
+          >
+            Product Research (desktop)
+          </Button>
+          {researchCopied && (
+            <StatusTag tone="green" className="listing-rails-copied">{RESEARCH_STEPS}</StatusTag>
+          )}
+        </div>
       </div>
 
       {/* Description */}

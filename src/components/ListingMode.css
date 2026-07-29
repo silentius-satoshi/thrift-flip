@@ -213,3 +213,20 @@
   margin-top: 6px;
 }
 .shipping-cost-field { margin-bottom: 12px; }
+
+/* The manual sold rails (B1-lite). Layout glue only — every control is a
+   ui/Button, so no radius and no padding on anything interactive lives here
+   (frontend v2 §4). Three stacked full-width buttons need the gap to stay
+   three separate targets at 360px. */
+.listing-rails {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.listing-rails-label {
+  font-size: 12px;
+  color: var(--fg-3);
+  line-height: 1.4;
+}
+.listing-rails-copied { align-self: flex-start; }

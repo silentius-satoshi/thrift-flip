@@ -429,7 +429,8 @@ the whole check, and not the code beneath it.
 | 9 | The flywheel closes (E3) | 18 assertions: real fee, dedupe, throttle, comps injected + cited | **UNRUN** — needs a sandbox **buyer** account too |
 | 11 | Installed on the phone (M1) | 60 assertions: offline boot + the pencil flow with the network off, cache discipline, the deploy purge, and a 390×844 sweep of every screen | **UNRUN** — an emulator cannot install to a home screen |
 | 12 | The viewfinder and the island (M2) | 23 assertions: the stream, the frame grab, the refused-camera fallback, and the shipping estimate clamped and labelled | **UNRUN** — no emulator has a camera permission, a real sensor, or a safe-area inset |
-| 13 | The comps ladder (V2) | 57 assertions + 20 headless: shaping, precedence, repricing, the flip, cache spend, the relay gate | **BLOCKED, not unrun** — the source returns no sold data (§13) |
+| 13 | The comps ladder (V2) | 57 assertions + 20 headless: shaping, precedence, repricing, the flip, cache spend, the relay gate | **CLOSED, not unrun** — no compliant automated sold source exists for an individual (§13a) |
+| 13c-bis | The manual sold rails (B1-lite) | 30 assertions + 7 headless: query construction, URL encoding, the clipboard and its fallback, the coach mark | **UNRUN, and the one worth running** — needs a phone with the eBay app (§13c-bis) |
 
 **Deferred by design, not pending:** multi-device token sync and the
 ciphertext-sync gate (Nostr N2/N3), and comps tier B (Browse actives). Those are
@@ -611,11 +612,18 @@ Result: ☐ pass ☐ fail — what the model guessed, and what the label actuall
 
 ---
 
-## 13. The comps ladder (V2)
+## 13. The comps ladder (V2) and the manual rails (B1-lite)
 
 **This section is different from every other one in this runbook.** The others
-are unrun because they need a phone, a sandbox account or a human. This one is
-**blocked**: it was run, and the answer was that the data source does not work.
+are unrun because they need a phone, a sandbox account or a human. The automated
+half of this one is **closed**: it was run, and the answer was that no compliant
+data source exists for an individual seller — SerpApi's sold arm is dead,
+Marketplace Insights is restricted-access, the Buy APIs are EPN-gated in
+production, and Finding/Shopping are retired.
+
+**The manual rails in §13c-bis are the part that still needs a human**, and
+since they are now how sold data reaches him at all, they are the highest-value
+check left in this document.
 
 ### 13a — What was measured, and why it closes the question
 
@@ -672,6 +680,36 @@ relay), then:
   against the page. Result: ☐ pass ☐ fail: ______
 - **A flip is legible in an aisle.** Force one (an item whose sold median is
   below its floor) and confirm the toast is readable before it clears.
+  Result: ☐ pass ☐ fail: ______
+
+### 13c-bis — The manual sold rails (B1-lite)
+
+**This is the one to actually run, and it needs only a phone with the eBay app.**
+Since §13a closed the automated route, these rails are how sold data reaches him
+at all.
+
+- **The aisle rail.** Analyze an item → open the Why sheet → tap **Research
+  solds in the eBay app**. Expected: a toast confirms the copy and the coach
+  mark shows *"Copied — eBay app → Selling → Product Research → paste."*
+  Then switch to the eBay app, Selling → Product Research, paste, and **real
+  sold data appears for the right item.** Result: ☐ pass ☐ fail: ______
+- **What got copied is worth reading.** It is the model's identification,
+  normalized — not the long generated listing title. If the paste returns
+  nothing, note what was on the clipboard: that is a query-construction finding,
+  not a rail failure. Copied text: ______________________
+- **The listing rail.** Same three buttons in the listing editor's pricing
+  block, built from the title as edited. Result: ☐ pass ☐ fail: ______
+- **`Product Research (desktop)` on the phone.** The open question a scripted
+  client cannot answer. Measured 2026-07-29: the URL redirects to eBay sign-in
+  with the keywords preserved, so it does not dead-end. **Unknown: what a
+  signed-in phone gets after that** — the real Product Research tool, a desktop
+  layout that is merely awkward, or a bounce back to the app. Whichever it is,
+  the button is labelled `(desktop)` so the answer is never a surprise. If it
+  bounces outright, drop the third button and leave the pair.
+  What actually rendered: ______________________
+- **Copy on a non-secure origin.** If the app is ever opened over plain `http`
+  on the LAN, `navigator.clipboard` is undefined and the `execCommand` fallback
+  carries it. Worth one tap to confirm, since that is how a demo happens.
   Result: ☐ pass ☐ fail: ______
 
 ### 13d — The daily-cap copy (H2's product finding)

@@ -8,6 +8,7 @@ import { shoppingService } from '../utils/storageService';
 import { useUser } from '../contexts/UserContext';
 import { calcProfit, checkRules, pencilFloor, usablePrice } from '../utils/calculations';
 import { getSoldComps, repriceFromComps } from '../utils/soldComps';
+import { researchQuery, soldSearchUrl, copyText, RESEARCH_STEPS } from '../utils/researchRails';
 import { DEFAULT_SHIPPING } from '../config/gemini';
 import Button from './ui/Button';
 import Chip from './ui/Chip';
@@ -142,6 +143,9 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
   // Cleared by the next keystroke there — it is a reminder, not a rejection.
   const [priceNudge,     setPriceNudge]     = useState(false);
   const [rechecking,     setRechecking]     = useState(false);
+  // The research coach mark. Persistent rather than a toast: it carries four
+  // steps he has to perform, and a toast clears before he has read them.
+  const [researchCopied, setResearchCopied] = useState(false);
 
   // The live viewfinder. `stream` drives the render; `streamRef` is the
   // synchronous truth the acquire/release pair needs, since both can run
@@ -582,6 +586,7 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
     setErrorCode(null);
     setWhyOpen(false);
     setPhotoSheetOpen(false);
+    setResearchCopied(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
@@ -737,11 +742,48 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
     return 'Slow mover — expect 1–2 months on the shelf.';
   }
 
+  // Closing the sheet retires the coach mark: its four steps describe a
+  // clipboard that the next item's copy will have replaced.
+  function closeWhySheet() {
+    setWhyOpen(false);
+    setResearchCopied(false);
+  }
+
+  /**
+   * The hand-off into the app that has the good data.
+   *
+   * Nothing is opened afterwards — there is no URL that reaches Product
+   * Research on a phone. The clipboard IS the rail, so the copy has to be
+   * reported honestly: a silent failure would send him to the app to paste
+   * something that is not there.
+   */
+  async function handleCopyForResearch() {
+    const query = researchQuery({
+      identification: analysisResult?.identification,
+      listingTitle: analysisResult?.listing?.title,
+      note: details,
+    });
+    if (await copyText(query)) {
+      setResearchCopied(true);
+      showToast('Copied — paste it in the eBay app', 'success');
+    } else {
+      setResearchCopied(false);
+      showToast('Copy failed — long-press the title above to copy it', 'error');
+    }
+  }
+
   function renderWhySheet() {
     const { estSellPrice, confidence, rationale, priceRange } = analysisResult;
     const [lo, hi] = priceRange ?? [];
     const hasRange = Number.isFinite(lo) && Number.isFinite(hi);
-    const searchTitle = analysisResult.listing?.title || details || 'thrift find';
+    // One string behind both rails. `researchQuery` normalizes the model's read
+    // the same way the comps lookup does and falls back to what Dad typed, so
+    // the link and the clipboard can never describe two different items.
+    const searchTitle = researchQuery({
+      identification: analysisResult.identification,
+      listingTitle: analysisResult.listing?.title,
+      note: details,
+    }) || 'thrift find';
     // The comps that actually informed THIS estimate, carried back by adapt() —
     // not recomputed, so the sheet can never cite a sale the model never saw.
     const ownSales = analysisResult.comps?.samples ?? [];
@@ -752,7 +794,7 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
     return (
       <Sheet
         open={whyOpen}
-        onClose={() => setWhyOpen(false)}
+        onClose={closeWhySheet}
         title={<>Where <span className="money">${estSellPrice.toFixed(2)}</span> comes from</>}
       >
         <div className="buy-src">
@@ -820,14 +862,21 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
           <Button
             variant="outline"
             full
-            onClick={() => window.open(
-              `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(searchTitle)}&LH_Sold=1&LH_Complete=1`,
-              '_blank',
-              'noopener',
-            )}
+            onClick={() => window.open(soldSearchUrl(searchTitle), '_blank', 'noopener')}
           >
             See sold listings on eBay
           </Button>
+          {/* The richest sold data he can get is free and three years deep, and
+              on a phone it is reachable only inside the eBay app — no published
+              deep link, so no `ebay://` guess here: a scheme that dumps him on
+              the app's home screen reads as broken software and costs more
+              trust than the tap saves. A paste is two seconds and always works. */}
+          <Button variant="outline" full onClick={handleCopyForResearch}>
+            Research solds in the eBay app
+          </Button>
+          {researchCopied && (
+            <StatusTag tone="green" className="buy-src-copied">{RESEARCH_STEPS}</StatusTag>
+          )}
         </div>
       </Sheet>
     );

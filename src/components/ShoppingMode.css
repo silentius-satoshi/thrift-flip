@@ -228,7 +228,17 @@
   margin-top: 3px;
   line-height: 1.45;
 }
-.buy-src-footer { margin-top: 12px; }
+/* Layout glue only — the rails themselves are ui/Button, so nothing here sets
+   a radius or a padding on anything interactive (frontend v2 §4). The gap is
+   what keeps two stacked full-width buttons from reading as one control at
+   360px, which is the narrowest phone the sweep covers. */
+.buy-src-footer {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.buy-src-copied { align-self: flex-start; }
 
 /* ── Photo-management sheet strip ── */
 .buy-sheet-strip {
