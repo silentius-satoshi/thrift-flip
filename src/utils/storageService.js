@@ -73,6 +73,16 @@ export const screenService = {
   set: (screen) => setItem('thrift-flip-screen', screen),
 };
 
+// Sold comps (V2, tier A). Additive — nothing else reads this key.
+//
+// A cache here is spend control, not speed: every miss is a paid SerpApi
+// search against a 250/month plan, and a 35-item Saturday has to fit.
+export const compsService = {
+  get: () => getItem('thrift-flip-comps'),
+  set: (comps) => setItem('thrift-flip-comps', comps),
+  clear: () => removeItem('thrift-flip-comps'),
+};
+
 // No credentials live here. The AI key moved into the vault at N1-lite
 // (utils/credentials.js → lib/keyVault.js), and the eBay tokens land there at
 // E1. Nothing in this file should ever hold a secret again.

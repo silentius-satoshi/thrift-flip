@@ -4,6 +4,8 @@
 //   --dev    that the worker cannot outlive a preview and freeze `npm run dev`
 //   --camera the live viewfinder, and that a refused camera falls back cleanly
 //   --shipping  that the verdict spends the model's estimate, clamped
+//   --comps  that the verdict never waits on comps, and that sold data takes
+//            the wheel honestly when it arrives — including the flip
 //   --sweep  a pass over every screen at 360x800, 375x667, 390x844 and 430x932:
 //            overflow, tap targets, fixed chrome. Roughly four times the
 //            runtime of one pass; --viewport=360x800 runs a single width.
@@ -35,7 +37,7 @@ const APP = `http://localhost:${PORT}`;
 const SHOTS = process.env.SHOTS ?? null;
 
 const args = process.argv.slice(2);
-const only = args.filter((a) => ['--pwa', '--sweep', '--dev', '--camera', '--shipping'].includes(a));
+const only = args.filter((a) => ['--pwa', '--sweep', '--dev', '--camera', '--shipping', '--comps'].includes(a));
 const runs = (flag) => only.length === 0 || only.includes(flag);
 
 const IOS_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 '
@@ -586,6 +588,157 @@ async function shippingSuite(chromium, exe) {
   }
 }
 
+// ── Comps tier A (V2) ──────────────────────────────────────────────────────
+//
+// The load-bearing claim this suite exists to prove is a NEGATIVE one: the
+// verdict does not wait on comps. Everything else here is about honesty once
+// they land.
+
+const COMPS = '**/api/serpapi/comps**';
+
+// A relay answer good enough to take the wheel: 6 sales, median $45, which
+// against an $8 cost still clears both house rules.
+const SOLD = {
+  median: 45, low: 30, high: 62, count: 6, windowDays: 28, velocityPerWeek: 1.5,
+  samples: [
+    { title: 'Pendleton Wool Blanket Twin', price: 45, date: '2026-07-24', link: 'https://www.ebay.com/itm/111' },
+    { title: 'Pendleton Beaver State Blanket', price: 52, date: '2026-07-18', link: 'https://www.ebay.com/itm/222' },
+  ],
+};
+
+const stubComps = (page, body = SOLD, { delayMs = 0 } = {}) => page.route(COMPS, async (route) => {
+  if (delayMs) await new Promise((r) => setTimeout(r, delayMs));
+  route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+});
+
+const banner = (page) => page.evaluate(() => ({
+  label: document.querySelector('.ui-verdict-label')?.textContent ?? '',
+  detail: document.querySelector('.ui-verdict-detail')?.textContent ?? '',
+}));
+
+// Every case below analyses the SAME stubbed item, so the 7-day cache would
+// answer case 2 with case 1's comps and never call the relay again — which is
+// exactly what it is built to do on a real trip, and exactly what makes it
+// useless here. Cleared between cases so each one measures its own stub.
+const clearComps = (page) => page.evaluate(() => localStorage.removeItem('thrift-flip-comps'));
+
+async function compsSuite(chromium, exe) {
+  const S = 'comps';
+  const browser = await chromium.launch({ executablePath: exe, args: ['--no-sandbox'] });
+  const context = await browser.newContext(PHONE);
+  const page = await context.newPage();
+  watch(page);
+
+  try {
+    await stubGemini(page, { shipping_estimate: 9 });
+    await page.goto(`${APP}/`, { waitUntil: 'load' });
+    await wipe(page);
+    await enrolKey(page);
+
+    // ── 1. The verdict does not wait ────────────────────────────────────────
+    // The relay is held for two seconds. If the verdict were awaiting it, the
+    // Earnings panel would not exist yet — runVerdict would time out, or the
+    // price would already be the sold one.
+    await stubComps(page, SOLD, { delayMs: 2000 });
+    await runVerdict(page);
+    const atFirst = await earnings(page);
+    ok(S, 'the verdict renders on the model price while comps are still in flight',
+      atFirst['Item price'] === '$94.50', `Item price = ${atFirst['Item price']}`);
+    ok(S, 'and the banner names the model, not sold data',
+      (await banner(page)).detail.includes('model estimate'), (await banner(page)).detail);
+
+    // ── 2. Comps land and take the wheel, in place ──────────────────────────
+    await page.waitForFunction(() => [...document.querySelectorAll('.ui-panel-row-label')]
+      .some((l) => l.textContent.includes('sold')), null, { timeout: 15000 });
+    const after = await earnings(page);
+    const priceRow = Object.entries(after).find(([k]) => k.startsWith('Item price'));
+    ok(S, 'the sold median replaces the model price in place',
+      priceRow?.[1] === '$45.00', `${priceRow?.[0]} = ${priceRow?.[1]}`);
+    ok(S, 'the price row carries its provenance',
+      priceRow?.[0] === 'Item price · 6 sold, last 28d', priceRow?.[0]);
+    // 45 − (45*.1325+.30) − 9 − 8 = 21.74, and the panel must agree with itself.
+    ok(S, '"You\'d keep" recomputed off the sold median',
+      after.TOTAL === '$21.74', `${after.TOTAL}, expected $21.74`);
+    const b = await banner(page);
+    ok(S, 'the banner drops the confidence word once data replaced it',
+      b.detail.includes('priced from 6 sold') && !b.detail.includes('confidence'), b.detail);
+    ok(S, 'and it is still a BUY at $45', b.label === 'BUY IT', b.label);
+
+    // ── 3. The Why sheet is a receipt ───────────────────────────────────────
+    await page.click('.ui-panel-tap');
+    await page.waitForSelector('.ui-sheet', { timeout: 5000 });
+    const why = await page.textContent('.ui-sheet');
+    ok(S, 'the receipt shows median, range and count', why.includes('Median $45.00')
+      && why.includes('$30.00–$62.00') && why.includes('6 sold'), why.slice(0, 160));
+    ok(S, 'it keeps the model\'s own estimate alongside for comparison',
+      why.includes('It estimated $94.50'), why.slice(0, 200));
+    ok(S, 'it answers "do they sell often?" without being asked',
+      why.includes('Sells ~2/week'), why.match(/Sells[^.]*\./)?.[0] ?? 'no velocity line');
+    const links = await page.$$eval('.ui-sheet a[href^="https://www.ebay.com/itm/"]', (a) => a.length);
+    ok(S, 'and every sample is a real listing he can open', links === 2, `${links} links`);
+    ok(S, 'the always-there eBay link survives', why.includes('See sold listings on eBay'));
+    await page.keyboard.press('Escape');
+
+    // ── 4. Thin data does NOT take the wheel ────────────────────────────────
+    await page.unroute(COMPS);
+    await clearComps(page);
+    await stubComps(page, { ...SOLD, count: 2 });
+    await runVerdict(page);
+    await page.waitForTimeout(1200);
+    const thin = await earnings(page);
+    ok(S, 'two sales leave the model\'s price alone',
+      thin['Item price'] === '$94.50', `Item price = ${thin['Item price']}`);
+    await page.click('.ui-panel-tap');
+    await page.waitForSelector('.ui-sheet', { timeout: 5000 });
+    const thinWhy = await page.textContent('.ui-sheet');
+    ok(S, 'and the sheet says so in as many words',
+      thinWhy.includes('thin data'), thinWhy.match(/Only[^.]*\./)?.[0] ?? '');
+    await page.keyboard.press('Escape');
+
+    // ── 5. A flip is shown, not smoothed over ───────────────────────────────
+    await page.unroute(COMPS);
+    await clearComps(page);
+    await stubComps(page, { ...SOLD, median: 20, low: 14, high: 26, count: 8 });
+    await runVerdict(page);
+    await page.waitForFunction(() => document.querySelector('.ui-verdict-label')?.textContent === 'LEAVE IT',
+      null, { timeout: 15000 });
+    const flipped = await banner(page);
+    ok(S, 'sold data is allowed to reverse the verdict', flipped.label === 'LEAVE IT', flipped.label);
+    ok(S, 'and the reversal is announced rather than swapped in silently',
+      await page.isVisible('.toast'), 'no toast');
+
+    // ── 6. Kill the relay: exactly today's app ──────────────────────────────
+    await page.unroute(COMPS);
+    await clearComps(page);
+    await page.route(COMPS, (route) => route.abort());
+    await runVerdict(page);
+    await page.waitForTimeout(1200);
+    const dark = await earnings(page);
+    ok(S, 'a dead relay leaves the model price standing',
+      dark['Item price'] === '$94.50', `Item price = ${dark['Item price']}`);
+    ok(S, 'no row claims sold data',
+      !Object.keys(dark).some((k) => k.includes('sold')), Object.keys(dark).join(' | '));
+    // The measured reality today: eBay gates sold search and SerpApi does not
+    // get through, so `unavailable` is the answer every real query returns.
+    // That path is the DEFAULT one, and it has to be indistinguishable from V1.
+    await page.unroute(COMPS);
+    await clearComps(page);
+    await stubComps(page, { unavailable: true });
+    await runVerdict(page);
+    await page.waitForTimeout(1200);
+    const unavailable = await earnings(page);
+    ok(S, 'an "unavailable" relay is indistinguishable from V1',
+      unavailable['Item price'] === '$94.50' && unavailable.TOTAL === dark.TOTAL,
+      `${unavailable['Item price']} / ${unavailable.TOTAL}`);
+    const bannerDark = await banner(page);
+    ok(S, 'and the banner falls back to naming the model at every confidence level',
+      bannerDark.detail.includes('model estimate · medium confidence'), bannerDark.detail);
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/v2-model-only.png`, fullPage: true });
+  } finally {
+    await browser.close();
+  }
+}
+
 // ── The live viewfinder (M2) ───────────────────────────────────────────────
 
 async function cameraSuite(chromium, exe) {
@@ -971,6 +1124,7 @@ try {
   if (runs('--dev')) await devSuite(chromium, exe);
   if (runs('--camera')) await cameraSuite(chromium, exe);
   if (runs('--shipping')) await shippingSuite(chromium, exe);
+  if (runs('--comps')) await compsSuite(chromium, exe);
   if (runs('--sweep')) {
     for (const viewport of SWEEP_VIEWPORTS) {
       console.log(`sweeping ${viewport.label}…`);

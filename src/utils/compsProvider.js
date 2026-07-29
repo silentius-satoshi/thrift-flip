@@ -32,6 +32,34 @@ export function tokenize(text) {
   )];
 }
 
+/**
+ * `tokenize` for a SEARCH rather than for a match, and the difference is the
+ * model number.
+ *
+ * `tokenize` drops tokens of two characters or fewer and anything all-digits,
+ * which is right when scoring a candidate title — short tokens collide with
+ * everything and inflate the overlap. It is wrong when composing a query:
+ * "Sony Walkman WM-10" becomes "sony walkman", and "Nike Air Force 1" loses
+ * the 1. Those fragments are the most identifying part of the string and the
+ * difference between comps for this item and comps for its category.
+ *
+ * So: same stopwords, but a token survives if it carries a digit.
+ */
+export function queryTokens(text) {
+  return [...new Set(
+    String(text ?? '')
+      .toLowerCase()
+      // Hyphens survive, unlike in `tokenize`. "WM-10" split on the hyphen
+      // becomes a two-letter "wm" that every length rule then discards and a
+      // bare "10" that means nothing — so the one token that identifies the
+      // model is exactly the one that gets destroyed.
+      .replace(/[^a-z0-9\s-]/g, ' ')
+      .split(/\s+/)
+      .map(t => t.replace(/^-+|-+$/g, ''))
+      .filter(t => t && !STOPWORDS.has(t) && (t.length > 2 || /\d/.test(t))),
+  )];
+}
+
 /** @returns {{ overlap: number, ratio: number, matched: boolean }} */
 export function scoreMatch(queryTokens, candidateTitle) {
   const candidate = new Set(tokenize(candidateTitle));
@@ -85,6 +113,57 @@ export function getComps(identification) {
 
   samples.sort((a, b) => b.soldAt - a.soldAt); // most recent first — the prototype's order
   return { source: 'own-sales', samples, median: median(samples.map(s => s.price)) };
+}
+
+// Below this, sold data is context rather than a price. Three is the smallest
+// n with a meaningful median — two sales have no middle, and one sale is an
+// anecdote that would happily overwrite the model on a fluke auction.
+export const MIN_SOLD_FOR_PRICING = 3;
+
+/**
+ * The ladder's precedence, in one pure place: tier A (eBay sold) → tier 0 (his
+ * own sales) → model-only.
+ *
+ * **Only tier A ever re-prices the item, and that is deliberate.** Tier 0 is
+ * already injected into the analyze request by `buildCompsBlock` below, so the
+ * model's estimate has *seen* those sales and weighted them. Overriding the
+ * estimate with the same numbers afterwards would count them twice and present
+ * the result as corroboration. Tier 0 keeps its rank for provenance — it is
+ * still the truest thing on screen about this seller — it simply informs the
+ * question rather than answering it a second time.
+ *
+ * @param {{ sold?: object|null, own?: object|null }} tiers
+ * @returns {{ source: 'ebay-sold'|'own-sales'|null, pricesTheItem: boolean,
+ *             median: number|null, count: number, thin: boolean }}
+ */
+export function pickComps({ sold, own } = {}) {
+  const soldCount = Number.isFinite(sold?.count) ? sold.count : 0;
+  const soldMedian = Number.isFinite(sold?.median) ? sold.median : null;
+
+  if (soldCount > 0 && soldMedian !== null) {
+    const thick = soldCount >= MIN_SOLD_FOR_PRICING;
+    return {
+      source: 'ebay-sold',
+      // Thin data still earns its place in the Why sheet; what it does not earn
+      // is the right to move money.
+      pricesTheItem: thick,
+      median: soldMedian,
+      count: soldCount,
+      thin: !thick,
+    };
+  }
+
+  if (own?.samples?.length) {
+    return {
+      source: 'own-sales',
+      pricesTheItem: false,
+      median: Number.isFinite(own.median) ? own.median : null,
+      count: own.samples.length,
+      thin: false,
+    };
+  }
+
+  return { source: null, pricesTheItem: false, median: null, count: 0, thin: false };
 }
 
 /**

@@ -1,0 +1,140 @@
+{
+  "search_metadata": {
+    "status": "Success"
+  },
+  "search_parameters": {
+    "engine": "ebay",
+    "_nkw": "nike air force 1",
+    "_ipg": "200",
+    "ebay_domain": "ebay.com"
+  },
+  "search_information": {
+    "total_results": 180000
+  },
+  "organic_results": [
+    {
+      "title": "Nike Air Force 1 Men’s Low Top Sneakers White Brown Beige Lace-Up New w/ Box",
+      "link": "https://www.ebay.com/itm/127999439360?_skw=nike+air+force+1&itmmeta=01KYNRANW5KFH2CQNSYQ4ZX0QX&hash=item1dcd5c7200:g:lVMAAeSwlYhqaVbb&itmprp=enc%3AAQALAAAA0GfYFPkwiKCW4ZNSs2u11xCmWGKUuP3unYJY3zGMDnCt7B1q%2BFmu5l5FSqR%2FcCb%2FCJG%2FRFvL3rrtVTG7qeqClWidMLig6%2Bh8jA%2Fd%2BiXm%2Fi81oL4vSp4sZsEQZZYrEtC1pWjBoJ2UFw0AJ0d0wWkdQSFTmhzct5U1Zz9TO7xe1wKXOG2w1yJWagiieYgYmJnletYy6v65BH4HieoUF3os5tUh8UplbEAC4jWgp1UD7PBkzHLY7xAANfsKGi7cjK8yFHW%2BOmFd%2FScdEjBpgEMAsZQ%3D%7Ctkp%3ABk9SR77eqrj1Zw",
+      "condition": "Brand New",
+      "price": {
+        "raw": "$70.00",
+        "extracted": 70
+      },
+      "sold_date": "Sold  Jul 26, 2026"
+    },
+    {
+      "title": "Nike Air Force 1 Men’s White Low Top Lace Up Solid Athletic Sneaker Pre-Owned",
+      "link": "https://www.ebay.com/itm/336714128084?_skw=nike+air+force+1&itmmeta=01KYNRANW63PH9VBAHSKNJ8DGS&hash=item4e65b9dad4:g:fioAAeSw3yhqaVYu&itmprp=enc%3AAQALAAAA8GfYFPkwiKCW4ZNSs2u11xCmMpACmYdIgGdKxOTZhzP0J9Nppyd9cItI6Lrh28UFPlPA2EtWm47NF1uZFs21Cl55O3L12N3wqlhR9jqkus7%2FKa3SUValwgTHfdgkLHPsD%2FHTBVAigfvG6w3F4c7Mn2Me4jENRyTS4B0%2FnK6iKizUtT%2BUTwbaQNokctYzAgacNxgw7Lv0ugEBw6OnWuZ0ZgkVEiwXZIQJfBIz%2FWArgnD8uZLrE5Zz23Qfjjhw33cCra1PdKFCSG9Ogreh9fN%2FgUP5vif8g39Jgg7wW0hHb5upJYt%2BqHDm7KpV9HmqptXxCQ%3D%3D%7Ctkp%3ABk9SR77eqrj1Zw",
+      "condition": "New (Other)",
+      "price": {
+        "raw": "$49.99",
+        "extracted": 49.99
+      },
+      "sold_date": "Sold  Jul 23, 2026"
+    },
+    {
+      "title": "Nike Air Force 1 Low Men’s White Solid Lace-Up Low Top Athletic Sneakers",
+      "link": "https://www.ebay.com/itm/398225619960?_skw=nike+air+force+1&itmmeta=01KYNRANW6PPXYP94SQR5B9J3D&hash=item5cb818bbf8:g:cqcAAeSwuZlqaVT-&itmprp=enc%3AAQALAAAA8GfYFPkwiKCW4ZNSs2u11xBqF0XtTNIRSsIVa0LbihaaA%2FfiYCrsaCVeQFCY8%2BRERFmui%2BG%2BTOEDsDbEbOY5MkwSgPtrO1qZx6iE73a2a1tdGBWr7IID6WqFNvy3O0nHL1ElqxaYJm4bfrbm5r%2BoTRPuOshCmqk%2FTi%2FoF1MH5rnPLT2q41kvHacRBLUcXDE4JuZhMr1w%2Btk5SwHeDu%2F057fVHuGvC7BWam5y4A7H%2B%2Bw4ffeMqhRXqgWPyUuqhUcvpz0k%2BxoOZUDFCmaW866%2FBVHER7JWVofPoDdiLGONRhHxKmsTo%2FQLVZY1hMwb0OANoQ%3D%3D%7Ctkp%3ABk9SR77eqrj1Zw",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$50.00",
+        "extracted": 50
+      },
+      "sold_date": "Sold  Jul 19, 2026"
+    },
+    {
+      "title": "Nike Air Force 1 Men's White/Red Leather Low Top Lace-Up Athletic Sneakers",
+      "link": "https://www.ebay.com/itm/358856159390?_skw=nike+air+force+1&itmmeta=01KYNRANW6F6QJ1VEY2ZDN8WNC&hash=item538d7e709e:g:xIsAAeSwv99qaVNV&itmprp=enc%3AAQALAAAA0GfYFPkwiKCW4ZNSs2u11xBASgCK%2B5e%2B%2FpFciLGmtQ70S%2Fg42kPGhju%2F%2BZ%2BP4Q%2BTnNNRI%2BP%2F80mBd2mN%2FxeA0o6CLmG4q%2F1n4hNZuvo0hyWcaS9oYB5ySw9xqSpG2oi6AZZMZGZIIobx0N6JHPkBq8nI5lyKUanM%2BoHpsvArtVCKJ4K4YnNJEQVGThPTbF4EHe6NX1Frpl5eN0c2h53rcIin1Pu1x8OxUlo5ar4RXwP5mGWg6P3Pi%2FXFfoQoQHcwpQ0U5bNZE7BwApuh%2Fd3Uc84%3D%7Ctkp%3ABk9SR77eqrj1Zw",
+      "condition": "Pre-Owned",
+      "price": {
+        "raw": "$40.00",
+        "extracted": 40
+      },
+      "sold_date": "Sold  Jul 14, 2026"
+    },
+    {
+      "title": "Nike Air Force 1 '07 Black Men Women Sizes CW2288-001 NBY New Shoes Authentic",
+      "link": "https://www.ebay.com/itm/307081936851?_skw=nike+air+force+1&epid=16045629663&itmmeta=01KYNRANW6HJQJCC4TE3QBN3VN&hash=item477f827fd3:g:IxAAAeSwKs5qYoVT&itmprp=enc%3AAQALAAAA0GfYFPkwiKCW4ZNSs2u11xBDgvjuFHwp3XHxEr60ge0fy5sLvtcfPI5%2BDhDY7vS6QoXqT7fdEhDCfbKN5C8ZScAGsvd4SwBvIYN5yxFpgRQ04%2BJcdHwAFpr85XxqgJGvM7xJ21uJ2Drh0lTH8KjKeNmmVBWbOsrjjrQGQCMZUgBkIAfzEa0IQaZOtsypOvGmsgJT0qDQG5IgGH8acgDecln3ctSVZz8Abh%2Bh1ub9uzE5YJ94f9e88obGznmKHy0VYQLh%2F0LzEjjS78QIoYyCA8o%3D%7Ctkp%3ABk9SR77eqrj1Zw",
+      "condition": "Brand New",
+      "price": {
+        "raw": "$69.99",
+        "extracted": 69.99
+      },
+      "sold_date": "Sold  Jul 7, 2026"
+    },
+    {
+      "title": "Nike Air Force 1 '07 Triple White Men & Women Sizes CW2288-001 NBY New Authentic",
+      "link": "https://www.ebay.com/itm/307081793720?_skw=nike+air+force+1&epid=27045626399&itmmeta=01KYNRANW6GHFEGT2CGYCS5Q2C&hash=item477f8050b8:g:0zsAAeSw3yhqXnAT&itmprp=enc%3AAQALAAAA8GfYFPkwiKCW4ZNSs2u11xC1X%2FGX0jcmYl4kCTPhp7TFwtU91oNxPLgqBskNeC8BcM3jA5kRUX%2FI4nbaQn40VFAsqI9gDheir37HWqCsZQFuIhSYmNqpOS6O0BzwprJ9xD7Fg5zRmI1I2%2BJ11mEPAzRp3ELPT%2FLk%2BnmPJ8beicGIqBV9iHaUJ4n%2BvKSL1SwpZA4ZR4hewo2mxIR28L0h5g0JR0PnGmljfyN2dmEjiDeIPpTOIr%2FuoD%2B%2F40btyuSHmFO6U%2FPf0X3YrVSgXlIcmjf8UYrvU5wf0XMrkrQh5hFNp3i%2BH5dROs%2BBhuUkjhRv7g%3D%3D%7Ctkp%3ABk9SR77eqrj1Zw",
+      "condition": "Brand New",
+      "price": {
+        "raw": "$69.99",
+        "extracted": 69.99
+      },
+      "sold_date": "Sold  Jun 28, 2026"
+    },
+    {
+      "title": "Nike Air Force 1 '07 'Triple White'",
+      "link": "https://www.ebay.com/itm/206375954236?_skw=nike+air+force+1&var=507077756368&epid=11045625546&itmmeta=01KYNRANW6MB4X82EAV4WDS1QB&hash=item300cf7273c:g:sHwAAeSwJHxqP0aE&itmprp=enc%3AAQALAAAA8GfYFPkwiKCW4ZNSs2u11xD4dknvoPZBgDl3T0ySSlgfsDn7OyBCLmOva7n8O7OC3P19R7PEbiJp77BzSxtNOcw1nUEv0CmIW0fIv%2B8X1YdQPBYretw1%2Fk6oqo0wbY2XDO4VamwkxWr4mctKQpVyHWoUQS09PAFVuzWQvah1wks5AhmjSSAI6BVgU6pgawesrS2uE6mLQ48sKjKcRebtUzoVpzmSuNb7T0xicvZ1Lg5dVbEair3CCWwoSzSEFU92UQ%2F4HY0Sx78mXSFwJq1jU5iArbREDmsSBwcEL0vqfWwQUeyU7MPjOF7mj9KowZCW5w%3D%3D%7Ctkp%3ABk9SR77eqrj1Zw",
+      "condition": "Brand New",
+      "price": {
+        "from": {
+          "raw": "$85.00",
+          "extracted": 85
+        },
+        "to": {
+          "raw": "$89.00",
+          "extracted": 89
+        }
+      },
+      "sold_date": "Sold  Jun 14, 2026"
+    },
+    {
+      "title": "Nike Air Force 1 '07 Low Top Triple White Men's Sneakers CW2288-111 2020",
+      "link": "https://www.ebay.com/itm/188708963924?_skw=nike+air+force+1&epid=12060756380&itmmeta=01KYNRANW6BSMV9P9JVGPYCZWJ&hash=item2befee4654:g:Pd8AAeSw0-xqaRDz&itmprp=enc%3AAQALAAAA8GfYFPkwiKCW4ZNSs2u11xC1vu6iRqGS7M1aNlzwVGOtXtIgabd3wFxGptbpjRprpN37v3TpqXON9v%2F%2BMyBCey52Q5efr2W7bcvuOzTr3yqatiBbFKH%2F9UdIghfZ6eldWDUjz92xJN2z0MwMA%2BCA2HQez%2B%2FvMqh06rcxs5Iw3%2B9hZcXn6nqcG1QPwXbn2f4o%2FMYuKkt0InB5MK54SK7YZkd2vvFxtyllHhGqTyItrOX3OiDjy1TpSyGOqVM1%2FE6qno04pjKUneKFaiAaVVq4tAEhKmOlHrfeaGNslXJQ6HjcoKY4mee770y7b20i3e9aqQ%3D%3D%7Ctkp%3ABk9SR8Deqrj1Zw",
+      "condition": "Brand New",
+      "price": {
+        "from": {
+          "raw": "$85.00",
+          "extracted": 85
+        },
+        "to": {
+          "raw": "$120.00",
+          "extracted": 120
+        }
+      },
+      "sold_date": "Sold  May 28, 2026"
+    },
+    {
+      "title": "Nike Air Force 1 Men’s Low Top Sneakers White Brown Beige Lace-Up New w/ Box",
+      "link": "https://www.ebay.com/itm/127999439360?_skw=nike+air+force+1&itmmeta=01KYNRANW5KFH2CQNSYQ4ZX0QX&hash=item1dcd5c7200:g:lVMAAeSwlYhqaVbb&itmprp=enc%3AAQALAAAA0GfYFPkwiKCW4ZNSs2u11xCmWGKUuP3unYJY3zGMDnCt7B1q%2BFmu5l5FSqR%2FcCb%2FCJG%2FRFvL3rrtVTG7qeqClWidMLig6%2Bh8jA%2Fd%2BiXm%2Fi81oL4vSp4sZsEQZZYrEtC1pWjBoJ2UFw0AJ0d0wWkdQSFTmhzct5U1Zz9TO7xe1wKXOG2w1yJWagiieYgYmJnletYy6v65BH4HieoUF3os5tUh8UplbEAC4jWgp1UD7PBkzHLY7xAANfsKGi7cjK8yFHW%2BOmFd%2FScdEjBpgEMAsZQ%3D%7Ctkp%3ABk9SR77eqrj1Zw",
+      "condition": "Brand New",
+      "price": {
+        "raw": "$70.00",
+        "extracted": 70
+      },
+      "unsold_date": "Jul 20, 2026"
+    },
+    {
+      "title": "Nike Air Force One 1 Low Top White Men/Women/GS/PS/Toddler/Crib Sz 1c-15",
+      "link": "https://www.ebay.com/itm/285870622363?_skw=nike+air+force+1&itmmeta=01KYNRANW58BQFKHHFWTMQA8XT&hash=item428f37869b:g:4qEAAOSw~ipmTQLW&itmprp=enc%3AAQALAAAA8GfYFPkwiKCW4ZNSs2u11xDJRvbrGNzVPwJraLvDlSmEWGNGDx1QnDIGMeEitr8FJMiSjxMMEK311ueqacDEx3fEHIifMXQvbmCNqd4tKyz2DNPiEBTJc4lw5R5Ub%2B708iiJcV9VjA4FGYISkB3WFDC4JSNyOoKnnIKYv%2F5RrdbZf8qAOV4u1%2BgEM7dXYk997c1HMoGdaLrg6BA5g%2FkJ6Z%2FGVeqL7nlVSm4Q2Z9eYsIE80enJIdNN7Iuo3iCtO5m52ecCcQlLdZ2hwCSpBto29HWk33hOnirI6pXIbFcOmQfXw9aRzd2sr2w9srvlUhRYA%3D%3D%7Ctkp%3ABFBMvt6quPVn",
+      "condition": "Brand New",
+      "price": {
+        "raw": "$67.99",
+        "extracted": 67.99
+      },
+      "sponsored": true,
+      "sold_date": "Sold  Jul 26, 2026"
+    },
+    {
+      "title": "Nike Air Force 1 Low Top Triple White '07 Mens White Sports Classic Sneaker",
+      "link": "https://www.ebay.com/itm/800364192935?_skw=nike+air+force+1&itmmeta=01KYNRANW6F4DCG29TXQT2NPX7&hash=itemba596c64a7:g:PmAAAeSw4oNqW03F&itmprp=enc%3AAQALAAAA8GfYFPkwiKCW4ZNSs2u11xAEatQOAId8yMK3VSbxSQCa0kO%2BUeoBE4%2BzkBGHCOAXHJx%2FIc%2FOqJ5xopiQhpwPj8rd5w%2Bpz4BtZSO%2BTaMmugRsxh6qYE05mEE%2BX30%2BgQjvx8yKZYPOTDUKOkG35mcEjoVCnvGFN%2B2cTY%2BzIfhn8Ih33585uF8mk9ZLh8pNv9SPzd%2BJsCKEpH3J5hKSnm19emmhWE58tmtWXfz43OSCVMJmBoVasOacYFHFstrt86%2FQfObR03I0acAglRoNMhS8OTcNjWvXQdif8Dbhvds4KZ%2FYzlMuzQ8xW01l7dCASM3bTg%3D%3D%7Ctkp%3ABFBMvt6quPVn",
+      "condition": "New (Other)",
+      "price": {
+        "raw": "$69.99",
+        "extracted": 69.99
+      },
+      "sponsored": true,
+      "sold_date": "Sold  Jul 23, 2026"
+    }
+  ]
+}

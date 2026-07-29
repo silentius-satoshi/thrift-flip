@@ -189,7 +189,8 @@ these are ticked, ebay §8's E1 gate stays open — **no build summary may recor
 it as passed** (plan §6.1).
 
 **Prerequisites.** Copy `.env.example` to `.env.local`, fill it, and set the same
-values in the Vercel project. Note `EBAY_DELETION_ENDPOINT_URL` — it is **not** in
+values in the Vercel project. **`SERPAPI_KEY` (V2, the eleventh var) is optional
+and changes nothing today** — see §13. Note `EBAY_DELETION_ENDPOINT_URL` — it is **not** in
 E1's original prerequisite list and was added during the build: it is the third
 input to the deletion challenge hash and must byte-match what is registered with
 eBay, or the endpoint is rejected with no diagnostic. In the eBay dashboard:
@@ -428,10 +429,15 @@ the whole check, and not the code beneath it.
 | 9 | The flywheel closes (E3) | 18 assertions: real fee, dedupe, throttle, comps injected + cited | **UNRUN** — needs a sandbox **buyer** account too |
 | 11 | Installed on the phone (M1) | 60 assertions: offline boot + the pencil flow with the network off, cache discipline, the deploy purge, and a 390×844 sweep of every screen | **UNRUN** — an emulator cannot install to a home screen |
 | 12 | The viewfinder and the island (M2) | 23 assertions: the stream, the frame grab, the refused-camera fallback, and the shipping estimate clamped and labelled | **UNRUN** — no emulator has a camera permission, a real sensor, or a safe-area inset |
+| 13 | The comps ladder (V2) | 57 assertions + 20 headless: shaping, precedence, repricing, the flip, cache spend, the relay gate | **BLOCKED, not unrun** — the source returns no sold data (§13) |
 
 **Deferred by design, not pending:** multi-device token sync and the
-ciphertext-sync gate (Nostr N2/N3), and comps tiers A and B (V2). Those are not
-rows in this table because nothing was built for them to verify.
+ciphertext-sync gate (Nostr N2/N3), and comps tier B (Browse actives). Those are
+not rows in this table because nothing was built for them to verify.
+
+**Comps tier A is built and has its own row (§13).** It was in the sentence
+above until V2; the ladder, the relay and the repricing all now exist and are
+machine-verified. What does not exist is data to put through them.
 
 **Suggested order.** §2 first — it is two minutes and it outranks everything,
 because a circular estimate makes every other check meaningless. **Then §11a,
@@ -602,6 +608,86 @@ Result: ☐ pass ☐ fail — what the model guessed, and what the label actuall
 > \$4–\$100, which stops an absurd number from deciding a buy — but it cannot
 > stop a *plausible* wrong one. If it is consistently light on heavy things,
 > that is a prompt problem, and the fix is the schema description, not the code.
+
+---
+
+## 13. The comps ladder (V2)
+
+**This section is different from every other one in this runbook.** The others
+are unrun because they need a phone, a sandbox account or a human. This one is
+**blocked**: it was run, and the answer was that the data source does not work.
+
+### 13a — What was measured, and why it closes the question
+
+On 2026-07-28, against a healthy SerpApi account (Free Plan, 250 searches a
+month, 235 remaining) and a healthy eBay engine:
+
+| request | result |
+|---|---|
+| `_nkw=nike air force 1`, **no filter** | HTTP 200, **240 results** |
+| `show_only=Sold,Complete` | HTTP 200, **0 results** |
+| `show_only=Sold` | HTTP 503, archive `status: Error` |
+| `popular_filters=LH_Sold=1&LH_Complete=1` | HTTP 200, **0 results** |
+| `show_only=Sold,Complete`, `_nkw=pyrex bowl`, minimal params | HTTP 200, **0 results** |
+
+The request is not wrong. SerpApi echoes `show_only` back in
+`search_parameters`, and an illegal value is refused outright — `show_only=Sold
+Items` returns HTTP 400 *"Unsupported option"*. So `Sold,Complete` is the
+correct string, which confirms rather than overturns the H1 finding. The engine
+answers; only the sold arm is empty.
+
+That reproduces **every** sold lookup this project has made: R1 (5 queries), D1
+(2), H2 (5) and this session (2), across four sessions and several days. The
+conclusion is that **eBay gates sold/completed search and SerpApi's scraper does
+not get through it.** No amount of retrying, waiting or re-querying changes it,
+and the archive confirms the 503s are genuine failures rather than slow searches.
+
+### 13b — What shipped anyway, and why
+
+The ladder, the relay, the repricing, the receipt and the spend discipline are
+all built and machine-verified (57 unit assertions, 20 headless). Pointing tier
+A at a working sold feed later replaces one function, `fetchSold`, and nothing
+else. Until then the relay answers `unavailable` and the app is
+**indistinguishable from V1** — which is itself one of the headless assertions,
+not a hope.
+
+Nothing on screen ever claims sold data it does not have.
+
+### 13c — If a sold source is ever wired, check these
+
+Only meaningful once §13a is no longer true. Set `SERPAPI_KEY` (or repoint the
+relay), then:
+
+- **A real payload's `sold_date` parses.** The format is the one thing the
+  fixtures could not capture, so `parseSoldDate` was written to return null
+  rather than guess. If a live payload produces `windowDays: null` on rows that
+  clearly carry dates, the parser needs the real format — the prices will still
+  be right, and only velocity goes quiet. Result: ☐ pass ☐ fail: ______
+- **A 35-item Saturday costs ≤ 35 credits.** Check `plan_searches_left` on
+  serpapi.com before and after. The query-keyed cache should make repeats free;
+  a count materially above the item count means the cache key is not matching.
+  Result: ☐ before ______ ☐ after ______
+- **The median is sane against eBay's own sold filter.** Open the Why sheet's
+  "See sold listings on eBay" link on three items and eyeball the app's median
+  against the page. Result: ☐ pass ☐ fail: ______
+- **A flip is legible in an aisle.** Force one (an item whose sold median is
+  below its floor) and confirm the toast is readable before it clears.
+  Result: ☐ pass ☐ fail: ______
+
+### 13d — The daily-cap copy (H2's product finding)
+
+Independent of comps, and testable today. H2 measured free-tier Gemini keys
+stopping at `GenerateRequestsPerDayPerProjectPerModel-FreeTier`, **20 requests a
+day**, against a Saturday of ~35 items.
+
+- Run 20 analyses on a free-tier key and confirm the 21st says *"Daily AI limit
+  reached — verdicts return tomorrow"* rather than the generic quota copy.
+  Result: ☐ pass ☐ fail: ______
+
+> **Enable billing on the Gemini key before a real trip.** At 3.6-flash pricing
+> a full item is roughly \$0.01–0.02, so a 35-item Saturday is well under a
+> dollar — and the alternative is the app going dark two thirds of the way
+> through the day. The daily cap is not a rate limit that clears if he waits.
 
 ---
 

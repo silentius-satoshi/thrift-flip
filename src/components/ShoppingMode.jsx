@@ -7,6 +7,7 @@ import { useToast } from '../contexts/ToastContext';
 import { shoppingService } from '../utils/storageService';
 import { useUser } from '../contexts/UserContext';
 import { calcProfit, checkRules, pencilFloor, usablePrice } from '../utils/calculations';
+import { getSoldComps, repriceFromComps } from '../utils/soldComps';
 import { DEFAULT_SHIPPING } from '../config/gemini';
 import Button from './ui/Button';
 import Chip from './ui/Chip';
@@ -31,6 +32,11 @@ const ERROR_COPY = {
   quota: 'Key works but Google says it’s out of free calls today',
   offline: 'No signal · the verdict catches up on its own',
   'bad-response': 'Odd reply from the model — try again',
+  // The other 429, and the one a free-tier key actually hits on a real trip:
+  // 20 requests a day against a Saturday of ~35 items (H2). "Try again in a
+  // minute" would be a lie, so this says what is true and points at the two
+  // things that still work without the model.
+  'quota-daily': 'Daily AI limit reached — verdicts return tomorrow. Pencil math still works, and the cart flags anything it disagrees with later.',
   // N1-lite: the key is in the vault, so a declined unlock is its own failure
   // and must not be diagnosed as a bad key.
   locked: 'Unlock cancelled — verdicts need your key',
@@ -354,6 +360,43 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
   }
 
   /**
+   * Comps tier A. Runs AFTER the verdict is rendered and upgrades it in place.
+   *
+   * Every failure here is silent by design. A scraper that cannot reach eBay is
+   * not a fact about the mug in his hand, and the model's estimate — which is
+   * already on screen — remains a complete answer on its own.
+   */
+  async function attachSoldComps(id, myReq, result, price) {
+    let sold;
+    try {
+      sold = await getSoldComps({
+        identification: result?.identification,
+        listingTitle: result?.listing?.title,
+      });
+    } catch { return; }
+    if (!sold) return;                        // no data is the common answer
+    if (reqSeq.current !== myReq) return;     // skipped, carted or re-checked meanwhile
+
+    const { next, flipped } = repriceFromComps(result, sold, price);
+    setAnalysisResult(prev => (prev ? { ...prev, ...next } : next));
+    // The chat gets the same sales the banner did, so Flip defends the price
+    // on screen rather than re-deriving a different one.
+    updateItemContext(id, { soldComps: sold });
+    // A price that merely moves stays quiet. A verdict that reverses after he
+    // has already read BUY is the one case that must interrupt — he may have
+    // the thing in his hand by now.
+    if (flipped) {
+      const { verdict } = checkRules(next.estSellPrice, Number(price) || 0, next.netProfit);
+      showToast(
+        verdict === 'buy'
+          ? `Sold data says BUY IT — ${next.soldComps.count} recent sales`
+          : `Sold data says LEAVE IT — ${next.soldComps.count} recent sales`,
+        verdict === 'buy' ? 'success' : 'error',
+      );
+    }
+  }
+
+  /**
    * @param {object} [opts]
    * @param {boolean} [opts.revision] A re-check of an item that already has a
    *   verdict. It carries new notes or a new condition, so the item's *context*
@@ -386,6 +429,9 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
       if (!revision) setChatHistory(result.chatHistory || []);
       setErrorCode(null);
       setPhase('verdict');
+      // Tier A, deliberately unawaited: the verdict is on screen by now and
+      // must never wait on a network round-trip to a scraper. Comps attach.
+      attachSoldComps(id, myReq, result, price);
     } catch (e) {
       // Log the code only — an error carrying the request URL would carry the key
       console.error('runAnalyze failed:', e?.code ?? 'unknown');
@@ -675,6 +721,22 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
     );
   }
 
+  /**
+   * Velocity in the words Dad already uses. The deep-dive (§6) records his
+   * second question after "what's it worth" as "do they sell often?", and this
+   * is that answer — sit-time, not margin.
+   *
+   * Null when the window could not be measured. A confident "sells ~4/week" on
+   * a shelf-sitter would cost him a month of storage, so silence wins.
+   */
+  function velocityLine(sold) {
+    const v = sold?.velocityPerWeek;
+    if (!Number.isFinite(v) || v <= 0) return null;
+    if (v >= 1) return `Sells ~${Math.round(v)}/week — moves quickly.`;
+    if (v >= 0.25) return `Sells ~${Math.round(v * 4.3)}/month.`;
+    return 'Slow mover — expect 1–2 months on the shelf.';
+  }
+
   function renderWhySheet() {
     const { estSellPrice, confidence, rationale, priceRange } = analysisResult;
     const [lo, hi] = priceRange ?? [];
@@ -683,6 +745,10 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
     // The comps that actually informed THIS estimate, carried back by adapt() —
     // not recomputed, so the sheet can never cite a sale the model never saw.
     const ownSales = analysisResult.comps?.samples ?? [];
+    const soldComps = analysisResult.soldComps ?? null;
+    const soldPriced = analysisResult.source === 'ebay-sold';
+    const modelEstimate = analysisResult.modelEstimate;
+    const velocity = velocityLine(soldComps);
     return (
       <Sheet
         open={whyOpen}
@@ -694,7 +760,13 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
           <div>
             <b>Model read · {confidence ?? 'low'} confidence</b>
             <p>{rationale || 'No reasoning came back with this estimate.'}</p>
-            {hasRange && <p className="money">Range ${lo.toFixed(2)}–${hi.toFixed(2)}.</p>}
+            {/* Once sold data has taken the wheel the model's own number stays
+                on screen beside it. He asked for a price and got two; hiding
+                the one that lost is how a receipt becomes an assertion. */}
+            {soldPriced && Number.isFinite(modelEstimate) && (
+              <p className="money">It estimated ${modelEstimate.toFixed(2)}.</p>
+            )}
+            {hasRange && !soldPriced && <p className="money">Range ${lo.toFixed(2)}–${hi.toFixed(2)}.</p>}
           </div>
         </div>
         <div className="buy-src">
@@ -715,7 +787,33 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
           <div className="buy-src-ic blue"><SearchIcon /></div>
           <div>
             <b>eBay sold listings</b>
-            <p>Not wired yet — check them yourself below. Sold prices are the only ground truth.</p>
+            {!soldComps ? (
+              <p>Not available for this one — check them yourself below. Sold prices are the only ground truth.</p>
+            ) : (
+              <>
+                <p className="money">
+                  Median ${soldComps.median.toFixed(2)} · ${soldComps.low.toFixed(2)}–${soldComps.high.toFixed(2)}
+                  {' '}across {soldComps.count} sold
+                  {soldComps.windowDays ? ` in ${soldComps.windowDays} days` : ''}.
+                </p>
+                {/* Under three sales there is no median worth the name, so the
+                    model keeps the price and this stays context. Saying which
+                    is which is the difference between data and decoration. */}
+                {!soldPriced && (
+                  <p>Only {soldComps.count} recent sale{soldComps.count === 1 ? '' : 's'} — thin data, so the model&rsquo;s price stands.</p>
+                )}
+                {velocity && <p>{velocity}</p>}
+                {soldComps.samples?.map((s, i) => (
+                  <p key={i}>
+                    {s.link ? (
+                      <a href={s.link} target="_blank" rel="noopener noreferrer">{s.title}</a>
+                    ) : s.title}
+                    {' — '}<span className="money">${s.price.toFixed(2)}</span>
+                    {s.date ? ` · ${s.date}` : ''}
+                  </p>
+                ))}
+              </>
+            )}
           </div>
         </div>
         <div className="buy-src-footer">
@@ -742,11 +840,24 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
     // before M2 carry neither, and fall back to the house figure unlabelled.
     const ship = analysisResult.shipping ?? DEFAULT_SHIPPING;
     const shipFromModel = analysisResult.shippingFromModel === true;
+    // Tier A, if it landed. `soldPriced` is the narrower question — comps can
+    // be present as context and still not be the price of record.
+    const soldComps = analysisResult.soldComps ?? null;
+    const soldPriced = analysisResult.source === 'ebay-sold' && Number.isFinite(soldComps?.count);
     const { rule1, rule2, verdict } = checkRules(estSellPrice, gp, netProfit);
     const go = verdict === 'buy';
-    const goDetail = confidence && confidence !== 'high'
-      ? `model estimate · ${confidence} confidence`
-      : `${(estSellPrice / pencilFloor(gp, ship)).toFixed(1)}× over your floor`;
+    // Where this price came from, in the banner, always.
+    //
+    // The old rule hid the confidence word whenever the model said `high` and
+    // showed a "2.4× over your floor" multiplier instead. R1 and H2 measured
+    // what `high` is worth on this prompt — every graded item claimed it, and
+    // they scored 0–67%. So `high` is no longer a reason to stop saying whose
+    // number this is: model-only verdicts name the model at every confidence
+    // level. Sold-priced verdicts drop the word entirely, because provenance
+    // has replaced it with something checkable.
+    const goDetail = soldPriced
+      ? `priced from ${soldComps.count} sold`
+      : `model estimate · ${confidence ?? 'low'} confidence`;
     // His words for months in Gemini, so they are the app's words now. BUY IT
     // was already his verbatim and is untouched. The internal token stays
     // 'skip' — it is checkRules' contract, and nobody reads it.
@@ -772,11 +883,24 @@ export default function ShoppingMode({ onAddToCart, onNavigateToCart, onGoToFlip
           obo={go}
           struck={!go}
           shipping={go ? `+$${ship.toFixed(2)} shipping` : null}
-          soldLine={go ? 'Model estimate — verify before big buys' : 'Under your floor at this price'}
+          soldLine={
+            soldPriced
+              ? `${soldComps.count} sold${soldComps.windowDays ? ` in ${soldComps.windowDays} days` : ''} — median $${estSellPrice.toFixed(2)}`
+              : go ? 'Model estimate — verify before big buys' : 'Under your floor at this price'
+          }
           onSoldTap={go ? () => setWhyOpen(true) : undefined}
         />
         <Panel title="Your earnings">
-          <PanelRow label="Item price" value={`$${estSellPrice.toFixed(2)}`} onValueTap={go ? () => setWhyOpen(true) : undefined} />
+          <PanelRow
+            label={soldPriced
+              ? `Item price · ${soldComps.count} sold${soldComps.windowDays ? `, last ${soldComps.windowDays}d` : ''}`
+              : 'Item price'}
+            value={`$${estSellPrice.toFixed(2)}`}
+            // The receipt is worth reading on a LEAVE IT too once there is real
+            // sold data behind the number — that is the case where he is most
+            // likely to want to argue with it.
+            onValueTap={go || soldPriced ? () => setWhyOpen(true) : undefined}
+          />
           <PanelRow label="Selling costs · 13.25% + $0.30" value={`−$${fees.toFixed(2)}`} />
           <PanelRow label={shipFromModel ? 'Shipping label · AI estimate' : 'Shipping label'} value={`−$${ship.toFixed(2)}`} />
           <PanelRow label="Paid at Goodwill" value={`−$${gp.toFixed(2)}`} />

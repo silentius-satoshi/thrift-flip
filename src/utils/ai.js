@@ -34,6 +34,30 @@ function codeForStatus(status) {
   return 'bad-response';
 }
 
+/**
+ * Two different 429s wear the same status code, and telling a user to "try
+ * again in a minute" when the real answer is "tomorrow" is the kind of wrong
+ * diagnosis ERROR_COPY exists to prevent.
+ *
+ * H2 measured the daily one: free-tier keys stop at
+ * `GenerateRequestsPerDayPerProjectPerModel-FreeTier`, **limit 20 a day**,
+ * against a Saturday of ~35 items. The per-minute cap does clear on its own;
+ * the daily one does not.
+ *
+ * Best-effort by design — the body may be HTML from a proxy, or empty. An
+ * unrecognisable body keeps the generic code, because a wrong "come back
+ * tomorrow" is worse than a vague "out of calls".
+ *
+ * Exported for the test; it never sees a key — the key rides in the URL, and
+ * this only ever reads a response body.
+ */
+export function isDailyQuota(rawBody) {
+  if (typeof rawBody !== 'string' || !rawBody) return false;
+  // Match the quota id rather than the prose: Google's message text is not a
+  // contract, but the quota id is the thing their docs name.
+  return /PerDay/i.test(rawBody) && /quota/i.test(rawBody);
+}
+
 // The V0 doc's message shape (§5), minus the purchase price.
 //
 // The anchoring test ran on 2026-07-28 and FAILED: on the same photos, a stated
@@ -70,7 +94,16 @@ async function callGemini(key, body) {
     // fetch only rejects on network failure — everything else is an HTTP status
     throw err('offline');
   }
-  if (!response.ok) throw err(codeForStatus(response.status));
+  if (!response.ok) {
+    const code = codeForStatus(response.status);
+    if (code === 'quota') {
+      // Read the body ONLY to tell the two 429s apart, and only on a path that
+      // is already failing. It carries no key — the key travels in the URL.
+      const raw = await response.text().catch(() => '');
+      if (isDailyQuota(raw)) throw err('quota-daily');
+    }
+    throw err(code);
+  }
   return response;
 }
 
@@ -152,6 +185,11 @@ function adapt(parsed, { goodwillPrice, shipping, comps }) {
     // say "via your own sales" exactly when that is true (vision §4).
     compsSource: comps ? comps.source : null,
     comps: comps ?? null,
+    // Tier A lands after this returns — the verdict never waits on it (V2).
+    // Declared here so the persisted shape is the same before and after, and
+    // `modelEstimate` survives a repricing as the thing to compare against.
+    soldComps: null,
+    modelEstimate: estSellPrice,
     // No sold data at V1 — the Why sheet says so and links out to eBay's sold filter
     soldCount: null,
     sellThroughRate: null,
@@ -227,13 +265,22 @@ export async function verifyKey(key) {
 
 const PHOTO_PART = (p) => ({ inline_data: { mime_type: p.mimeType || 'image/jpeg', data: p.base64 } });
 
-function contextLine({ details, condition, goodwillPrice } = {}) {
+function contextLine({ details, condition, goodwillPrice, soldComps } = {}) {
   return [
     'Here is the item we are talking about.',
     details ? `My notes: ${details}` : null,
     condition ? `Condition as I called it: ${condition}` : null,
     Number.isFinite(Number(goodwillPrice)) && Number(goodwillPrice) > 0
       ? `I can buy it for $${Number(goodwillPrice).toFixed(2)}.` : null,
+    // V2: the sold data that repriced the item, so Flip can defend the number
+    // on screen instead of re-estimating it and contradicting the verdict.
+    // Real sales only — the analyze path still never learns the purchase price.
+    Number.isFinite(soldComps?.median) && soldComps?.count
+      ? `Recent eBay sold prices for this: median $${soldComps.median.toFixed(2)} `
+        + `across ${soldComps.count} sale${soldComps.count === 1 ? '' : 's'}`
+        + `${soldComps.windowDays ? ` in the last ${soldComps.windowDays} days` : ''}. `
+        + 'That is where the app\'s price came from.'
+      : null,
   ].filter(Boolean).join('\n');
 }
 

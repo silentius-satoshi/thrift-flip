@@ -8,7 +8,7 @@ A mobile-first dark mode React app for resellers who shop at Goodwill and sell o
 - **Plain CSS** — a token system in `src/index.css` and a shared component layer in `src/components/ui/`; screen CSS is layout glue only
 - **Direct `fetch` to Gemini** — analysis goes straight from the device on your own key, with nothing in between
 - **A live viewfinder** — `getUserMedia` streams the rear camera into the capture screen and the shutter grabs a frame; if the camera is refused or absent it falls back to the native one, which is where every photo came from before M2
-- **Two stateless relays** (`api/ebay/*`) — eBay serves no CORS headers and its token exchange needs a client secret, so a thin relay is unavoidable. It stores nothing
+- **Three stateless relays** (`api/ebay/*`, `api/serpapi/*`) — eBay serves no CORS headers and its token exchange needs a client secret; SerpApi is a metered server-to-server key. Thin relays are unavoidable, and they store nothing
 - **React state + localStorage + IndexedDB** — no Redux, no external state library. Photos and encrypted credentials live in IndexedDB
 - **A hand-rolled service worker** (`src/sw.js`, no build plugins beyond a 25-line one in `vite.config.js`) — installed to the home screen, the app **boots with no network at all**, which is the whole point of a pencil floor figured on the phone
 - **Vercel** — deployment target
@@ -59,6 +59,7 @@ nothing that runs remotely keeps anything.
 |---|---|---|
 | **Your phone** | Everything — cart, drafts, conversations, sold history, photos, and both credentials as ciphertext | The only complete copy. `Download everything` is your backup; there is no account to restore from |
 | **`api/ebay/*`** (Vercel) | Nothing | Two stateless functions. No database, no KV, and no logging of bodies or tokens. They exist because eBay serves no CORS headers and its token exchange needs a client secret |
+| **`api/serpapi/comps`** (Vercel) | Nothing | Comps tier A. Stateless, same bearer gate, same no-logging rule. Returns a computed summary — median, count, window, velocity, five samples — never SerpApi's payload. **Answers `unavailable` today**: eBay gates sold search and SerpApi's engine does not get through it |
 | **Google** | The analysis request, in flight | Photos and notes go direct from the device on your own key |
 | **eBay** | Your listings, drafts and orders | Where the selling actually happens; the app never publishes on your behalf |
 

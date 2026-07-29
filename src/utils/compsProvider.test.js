@@ -13,7 +13,8 @@ globalThis.localStorage = {
   removeItem: (k) => store.delete(k),
 };
 
-const { tokenize, scoreMatch, getComps, buildCompsBlock } = await import('./compsProvider');
+const { tokenize, scoreMatch, getComps, buildCompsBlock, pickComps, MIN_SOLD_FOR_PRICING }
+  = await import('./compsProvider');
 const { primeSession, __testSeam } = await import('./credentials');
 const { buildUserMessage, analyzeItem } = await import('./ai');
 
@@ -204,5 +205,81 @@ describe('injection into the analyze request', () => {
     expect(sent[0].contents[0].parts.at(-1).text).not.toContain('previously sold');
     expect(result.compsSource).toBeNull();
     expect(result.comps).toBeNull();
+  });
+});
+
+// ── The ladder's precedence (V2) ────────────────────────────────────────────
+describe('pickComps — tier A over tier 0 over the model', () => {
+  const sold = (over = {}) => ({ median: 40, low: 30, high: 55, count: 6, ...over });
+  const own = (n = 2) => ({
+    source: 'own-sales',
+    median: 88,
+    samples: Array.from({ length: n }, (_, i) => ({ title: 't', price: 88, soldAt: i })),
+  });
+
+  it('puts eBay sold data at the top and lets it price the item', () => {
+    const choice = pickComps({ sold: sold(), own: own() });
+    expect(choice.source).toBe('ebay-sold');
+    expect(choice.pricesTheItem).toBe(true);
+    expect(choice.median).toBe(40);
+  });
+
+  // The reason tier 0 does not re-price, spelled out as a test so nobody
+  // "fixes" it later: buildCompsBlock already injected these sales into the
+  // analyze request, so the model's estimate has SEEN them. Overriding the
+  // estimate with the same numbers would count them twice and call it
+  // corroboration.
+  it('ranks his own sales above the model but never lets them re-price', () => {
+    const choice = pickComps({ sold: null, own: own() });
+    expect(choice.source).toBe('own-sales');
+    expect(choice.pricesTheItem).toBe(false);
+  });
+
+  it('falls through to the model when neither tier has anything', () => {
+    expect(pickComps({ sold: null, own: null }))
+      .toEqual({ source: null, pricesTheItem: false, median: null, count: 0, thin: false });
+    expect(pickComps()).toEqual(pickComps({ sold: null, own: null }));
+  });
+
+  it.each([[0], [1], [2]])('calls %i sold thin, so the model keeps the wheel', (count) => {
+    const choice = pickComps({ sold: sold({ count }), own: null });
+    if (count === 0) {
+      expect(choice.source).toBeNull();
+    } else {
+      expect(choice.source).toBe('ebay-sold');
+      expect(choice.thin).toBe(true);
+    }
+    expect(choice.pricesTheItem).toBe(false);
+  });
+
+  it('prices from exactly the documented threshold upward', () => {
+    expect(MIN_SOLD_FOR_PRICING).toBe(3);
+    expect(pickComps({ sold: sold({ count: 3 }) }).pricesTheItem).toBe(true);
+    expect(pickComps({ sold: sold({ count: 2 }) }).pricesTheItem).toBe(false);
+  });
+
+  // A count with no median is a shape the relay should never emit — but the
+  // relay is across a network boundary, and money moves on this answer.
+  it.each([
+    ['the median is missing', { count: 9 }],
+    ['the median is null', { count: 9, median: null }],
+    ['the median is NaN', { count: 9, median: NaN }],
+    ['the payload says unavailable', { unavailable: true }],
+  ])('refuses to price when %s', (_label, payload) => {
+    expect(pickComps({ sold: payload, own: null }).pricesTheItem).toBe(false);
+  });
+});
+
+// ── The query builder's split from the matcher (V2) ─────────────────────────
+describe('queryTokens vs tokenize', () => {
+  it('keeps the model number that the matcher deliberately drops', async () => {
+    const { queryTokens } = await import('./compsProvider');
+    expect(tokenize('Sony Walkman WM-10')).toEqual(['sony', 'walkman']);
+    expect(queryTokens('Sony Walkman WM-10')).toEqual(['sony', 'walkman', 'wm-10']);
+  });
+
+  it('still strips the stopwords both share', async () => {
+    const { queryTokens } = await import('./compsProvider');
+    expect(queryTokens('vintage used Pyrex bowl')).toEqual(['pyrex', 'bowl']);
   });
 });

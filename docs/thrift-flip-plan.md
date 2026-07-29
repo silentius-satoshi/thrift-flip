@@ -153,6 +153,36 @@ Decide before E1's prompt is written. Until then, both credentials remain plaint
 - **E3 — sold history.** Results go to `thrift-flip-sold-history`, a `storageService` store keyed by item id, joining the d-tag map (nostr §7) if N2 ever happens. V2 wires the tier-0 lookup against that store returning empty; E3 fills it. Note that eBay §1's **EH** tier (hosted keyset) and §8's **E3** (inbound) are different things — the letter collision is why §1's tier was renamed.
 - **N1 vs N2, if and when they run.** N1 owns the credential write path; N2 preserves it rather than rebuilding it.
 
+**✅ V2 SHIPPED (2026-07-28) — the comps ladder, with tier A built and dark.**
+The ladder is **tier A (eBay sold) → tier 0 (his own sales) → model-only**, and
+the seam it creates is worth stating because it is easy to get wrong later:
+**only tier A ever re-prices an item.** Tier 0 is already injected into the
+analyze request by `buildCompsBlock`, so the model's estimate has *seen* those
+sales; overriding the estimate with the same numbers afterwards would count them
+twice and present the result as corroboration. Tier 0 keeps its rank for
+provenance and informs the question rather than answering it a second time.
+Three sold sales (`MIN_SOLD_FOR_PRICING`) is the threshold below which comps are
+context rather than a price.
+
+Also shipped with it: the verdict never waits on comps (they attach and upgrade
+in place); the Why sheet became a receipt showing the sold median beside the
+model's own estimate; velocity answers "do they sell often?" from the sold
+window; the confidence word now renders at **every** level on a model-only
+verdict, including `high`, because R1 and H2 measured `high` earning 0–67%; and
+the daily-quota copy splits off the per-minute one (H2's 20-a-day finding).
+
+**⛔ Tier A has no data source, and this is a Founder-side blocker.** eBay gates
+sold/completed search and SerpApi's eBay engine does not get through it —
+measured across four sessions and seven queries, all returning 0 rows or a 503,
+while the same engine returns 240 rows with the filter removed. The relay is
+built, gated, tested and correct; it answers `unavailable` for every query, and
+the app is headlessly verified to be indistinguishable from V1 in that state.
+Repointing at a working feed replaces one function (`fetchSold`). The candidate
+worth filing for is **eBay's own Marketplace Insights API** — last-90-days sold,
+official, with real dates for velocity, reusing the OAuth connection and relay
+this app already has — which needs an application to eBay. Runbook §13 carries
+the measurements and the checks to run if that ever lands.
+
 ### 6.2 The model decision (V0 skipped) and the two checks that moved to V1
 
 **Decision of record:** V0 is skipped. Dad's sustained real-world use of **Gemini 3.6 Flash** on actual thrift items is stronger evidence of identification quality than a one-hour staged test, so `gemini-3.6-flash` is the **default** in `src/config/gemini.js` from V1 onward. Cost at 3.6-flash pricing ($1.50/$7.50 per 1M): a full item ≈ 2,500–3,300 tokens ≈ **$0.01–0.02**, a 20-item trip well under fifty cents, before any free-tier allowance applies. The old default (`gemini-3-flash-preview`) becomes the *budget fallback*, inverting vision §3's original tiering — that section carries the amendment. `docs/v0-model-check.md` is retained: its §3 system prompt is still the reconstruction of record that V1 ships in `src/config/prompt.js`, and its schema and scoring sheet are reused below.
@@ -161,6 +191,20 @@ Decide before E1's prompt is written. Until then, both credentials remain plaint
 
 1. **The anchoring test.** Dad's own Gemini chats never tell the model what he paid; the app does (`analyzeItem` sends `goodwillPrice`). Once V1 works: run one mid-difficulty item through the app **twice**, identical photos and notes, Goodwill price $4 vs $30. If `pricing.estimate` moves meaningfully, the model is pricing off the purchase price and every verdict is circular — telling Dad an item is worth 3× whatever he's about to pay. Fix: stop sending the purchase price to the model at all; it is only needed client-side in `calculations.js`. Two minutes, and nothing else in the plan tests for it.
 2. **Confidence calibration.** Dad reads prose and applies judgment; the app reads a structured `confidence` field and stamps a verdict with it. From V1's first ~10 real analyses, check that `confidence: high` answers are actually more accurate than `low` ones (score against eBay's sold filter, ~30 seconds each — sheet in `docs/v0-model-check.md` §6). If they aren't, V1 treats every estimate as low-confidence in the UI until V2's real comps arrive.
+
+   **Resolved at V2 (2026-07-28), on the evidence there was.** R1 and H2 graded a handful of items and *every* one claimed `high`, scoring 0–67%. `n` is far too small to prove `high` is worthless, but it is more than enough to retire the assumption that it is worth hiding behind: the banner used to suppress the confidence word whenever the model said `high` and show a multiplier instead. It now names the model and its confidence at **every** level on a model-only verdict. The word disappears only when sold data has replaced it with something checkable. The calibration pass stays worth running; it no longer gates the UI decision.
+
+**🔶 Grounding shelved as comps tier A (V2 decision, dated 2026-07-28).** Google
+Search grounding lost on structural grounds, and none of them are about answer
+quality: its ToS couples grounded results to a display requirement the app does
+not meet, it has **no free tier on Gemini 3.x**, and it bills per query executed
+on every BYOK key — which on a bring-your-own-key app means Dad pays $14/1,000
+queries for a feature he did not choose. H1's grounded-vs-ungrounded comparison
+was never measurable: the grounded arm returned `quota` on all five items in R1
+and again in H2, executing zero queries, because a key without billing cannot
+reach it at all. Recorded in `docs/live-check-results.md`. Not deleted from the
+harness — if billing is ever enabled, the arm runs and the comparison finally
+happens.
 
 ### 6.3 Calibration — the trips, after the build
 
